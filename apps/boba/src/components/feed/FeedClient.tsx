@@ -19,8 +19,8 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["feed", "boba", userId],
-    queryFn: ({ pageParam }) =>
-      getFriendFeed(supabase, {
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      getFriendFeed(supabase as any, {
         user_id: userId,
         app_id: "boba",
         cursor: pageParam as string | undefined,
