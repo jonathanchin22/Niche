@@ -11,7 +11,6 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  // Verify boba membership
   const { data: membership } = await supabase
     .from("app_memberships")
     .select("*")
@@ -19,11 +18,10 @@ export default async function HomePage() {
     .eq("app_id", "boba")
     .single()
 
-  // If they have an account but haven't joined boba yet, show join screen
   if (!membership) redirect("/join")
 
-  // Fetch initial feed data server-side for fast first load
-  const initialFeed = await getFriendFeed(supabase, {
+  // Cast to any to avoid Supabase generic type mismatch between packages
+  const initialFeed = await getFriendFeed(supabase as any, {
     user_id: user.id,
     app_id: "boba",
   })
