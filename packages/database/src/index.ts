@@ -21,50 +21,36 @@ export function createAdminClient() {
  * Cursor-based pagination for infinite scroll.
  */
 export async function getFriendFeed(
-  supabase: ReturnType<typeof createClient>,
-  {
-    user_id,
-    app_id,
-    cursor,
-    limit = 20,
-  }: { user_id: string; app_id: AppId; cursor?: string; limit?: number }
+  supabase: any,
+  { user_id, app_id, cursor, limit = 20 }: FeedParams
 ): Promise<PaginatedResponse<FeedItem>> {
+  // Step 1: get following IDs first
+  const { data: follows } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", user_id)
+
+  const followingIds = (follows ?? []).map((f: any) => f.following_id)
+  followingIds.push(user_id) // include own reviews
+
+  // Step 2: fetch reviews from those users
   let query = supabase
     .from("reviews")
-    .select(`
-      *,
-      user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
-      place:places!reviews_place_id_fkey(id, name, city, state),
-      likes_count:review_likes(count),
-      comments_count:review_comments(count),
-      user_has_liked:review_likes!inner(user_id)
-    `)
+    .select(`*, profile:profiles(*), place:places(*), likes:review_likes(count)`)
     .eq("app_id", app_id)
-    .in(
-      "user_id",
-      supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user_id)
-    )
+    .in("user_id", followingIds.length > 0 ? followingIds : [""])
     .order("created_at", { ascending: false })
-    .limit(limit + 1) // fetch one extra to determine has_more
+    .limit(limit)
 
-  if (cursor) {
-    query = query.lt("created_at", cursor)
-  }
+  if (cursor) query = query.lt("created_at", cursor)
 
   const { data, error } = await query
   if (error) throw error
 
-  const hasMore = data.length > limit
-  const items = hasMore ? data.slice(0, limit) : data
+  const items = (data ?? []).map((r: any) => ({ review: r }))
+  const nextCursor = data?.length === limit ? data[data.length - 1].created_at : undefined
 
-  return {
-    data: items.map((r) => ({ type: "review", review: r as Review, created_at: r.created_at })),
-    cursor: hasMore ? items[items.length - 1]?.created_at ?? null : null,
-    has_more: hasMore,
-  }
+  return { data: items, cursor: nextCursor }
 }
 
 // ─── Review queries ───────────────────────────────────────────────────────────
