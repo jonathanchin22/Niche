@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Nunito } from "next/font/google"
 import { Providers } from "./providers"
 import "./globals.css"
@@ -13,7 +13,6 @@ export const metadata: Metadata = {
   title: "boba! — bubble tea, ranked by fans",
   description: "Log, rate, and discover the best bubble tea spots with your friends.",
   manifest: "/manifest.json",
-  themeColor: "#7C3AED",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -24,6 +23,10 @@ export const metadata: Metadata = {
     description: "Bubble tea, ranked by fans",
     type: "website",
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#7C3AED",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

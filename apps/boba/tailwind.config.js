@@ -1,6 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./src/**/*.{ts,tsx}"],
+  content: [
+    "./src/**/*.{ts,tsx}",
+    "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -8,15 +12,14 @@ module.exports = {
       },
       colors: {
         boba: {
-          accent:   "#7C3AED",
-          soft:     "#F3EEFF",
-          mid:      "#DDD6FE",
-          bg:       "linear-gradient(135deg, #FAFAFE 0%, #F0EBFF 100%)",
-          card:     "#FFFFFF",
-          text:     "#12082A",
-          secondary:"#6B5B8A",
-          tertiary: "#B0A0CC",
-          divider:  "#EDE8FA",
+          accent:    "#7C3AED",
+          soft:      "#F3EEFF",
+          mid:       "#DDD6FE",
+          card:      "#FFFFFF",
+          text:      "#12082A",
+          secondary: "#6B5B8A",
+          tertiary:  "#B0A0CC",
+          divider:   "#EDE8FA",
         },
       },
       borderRadius: {
