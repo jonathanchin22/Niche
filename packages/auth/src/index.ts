@@ -1,6 +1,5 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr"
 import type { AppId, User, AppMembership } from "@niche/shared-types"
-import type { cookies } from "next/headers"
 
 // ─── Client-side Supabase client (used in React components) ──────────────────
 export function createClient() {
@@ -11,7 +10,9 @@ export function createClient() {
 }
 
 // ─── Server-side Supabase client (used in Server Components / Route Handlers) ─
-export function createServerSupabaseClient(cookieStore: ReturnType<typeof cookies>) {
+export function createServerSupabaseClient(
+  cookieStore: { get: (name: string) => { value: string } | undefined }
+) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
