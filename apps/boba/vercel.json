@@ -1,7 +1,4 @@
 {
   "version": 2,
-  "buildCommand": "pnpm --filter=@niche/boba build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "apps/boba/.next",
   "framework": "nextjs"
 }
