@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "name": "niche-boba",
+  "buildCommand": "cd ../.. && pnpm build --filter=@niche/boba",
+  "outputDirectory": "apps/boba/.next",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_APP_ID": "boba"
+  }
+}

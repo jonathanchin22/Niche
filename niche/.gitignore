@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+.next
+dist
+build
+.turbo
+
+# Environment files — never commit these
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Vercel
+.vercel
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage
+
+# Supabase
+supabase/.temp
+supabase/.branches
+
+# IDE
+.vscode
+.idea
+*.swp
