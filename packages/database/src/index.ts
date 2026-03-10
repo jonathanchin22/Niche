@@ -1,27 +1,30 @@
-import { createClient } from "@supabase/supabase-js"
-import type {
-  AppId, Review, Place, FeedItem, MapPin,
-  SearchResult, PaginatedResponse, User
-} from "@niche/shared-types"
+import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
 
-// ─── Admin client (server-side only, never expose to browser) ─────────────────
-export function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  )
+type SupabaseClient = any
+
+interface FeedParams {
+  user_id: string
+  app_id: AppId
+  cursor?: string
+  limit?: number
 }
 
-// ─── Feed queries ─────────────────────────────────────────────────────────────
+interface MapBoundsParams {
+  app_id: AppId
+  user_id: string
+  bounds: { north: number; south: number; east: number; west: number }
+}
 
-/**
- * Get the friend feed for a user in a specific app.
- * Returns reviews from people the user follows, most recent first.
- * Cursor-based pagination for infinite scroll.
- */
+interface SearchParams {
+  app_id: AppId
+  query: string
+  user_id: string
+}
+
+// ─── Feed ────────────────────────────────────────────────────────────────────
+
 export async function getFriendFeed(
-  supabase: any,
+  supabase: SupabaseClient,
   { user_id, app_id, cursor, limit = 20 }: FeedParams
 ): Promise<PaginatedResponse<FeedItem>> {
   // Step 1: get following IDs first
@@ -50,40 +53,39 @@ export async function getFriendFeed(
   const items = (data ?? []).map((r: any) => ({ review: r }))
   const nextCursor = data?.length === limit ? data[data.length - 1].created_at : undefined
 
-  return { data: items, cursor: nextCursor }
+  return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
 
-// ─── Review queries ───────────────────────────────────────────────────────────
+// ─── Reviews ─────────────────────────────────────────────────────────────────
 
 export async function createReview(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   review: Omit<Review, "id" | "created_at" | "updated_at">
 ): Promise<Review> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("reviews")
     .insert(review)
     .select()
     .single()
-
   if (error) throw error
-  return data as Review
+  return data
 }
 
 export async function likeReview(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
-) {
-  const { error } = await supabase
+): Promise<void> {
+  const { error } = await (supabase as any)
     .from("review_likes")
     .upsert({ review_id, user_id }, { onConflict: "review_id,user_id", ignoreDuplicates: true })
   if (error) throw error
 }
 
 export async function unlikeReview(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
-) {
-  const { error } = await supabase
+): Promise<void> {
+  const { error } = await (supabase as any)
     .from("review_likes")
     .delete()
     .eq("review_id", review_id)
@@ -91,25 +93,13 @@ export async function unlikeReview(
   if (error) throw error
 }
 
-// ─── Place queries ────────────────────────────────────────────────────────────
+// ─── Map ─────────────────────────────────────────────────────────────────────
 
-/**
- * Get places for the map view with friend review counts.
- * Only returns places within the bounding box.
- */
 export async function getMapPins(
-  supabase: ReturnType<typeof createClient>,
-  {
-    app_id,
-    user_id,
-    bounds,
-  }: {
-    app_id: AppId
-    user_id: string
-    bounds: { north: number; south: number; east: number; west: number }
-  }
+  supabase: SupabaseClient,
+  { app_id, user_id, bounds }: MapBoundsParams
 ): Promise<MapPin[]> {
-  const { data, error } = await supabase.rpc("get_map_pins", {
+  const { data, error } = await (supabase as any).rpc("get_map_pins", {
     p_app_id: app_id,
     p_user_id: user_id,
     p_north: bounds.north,
@@ -117,84 +107,58 @@ export async function getMapPins(
     p_east: bounds.east,
     p_west: bounds.west,
   })
-
   if (error) throw error
-  return data as MapPin[]
+  return data ?? []
 }
 
-/**
- * Find or create a place by Google Place ID.
- * Used during the review logging flow.
- */
+// ─── Places ──────────────────────────────────────────────────────────────────
+
 export async function upsertPlace(
-  supabase: ReturnType<typeof createClient>,
-  place: Omit<Place, "id" | "avg_score" | "review_count" | "created_at" | "updated_at">
+  supabase: SupabaseClient,
+  place: Omit<Place, "id" | "created_at" | "avg_score" | "review_count" | "updated_at">
 ): Promise<Place> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("places")
     .upsert(place, { onConflict: "app_id,google_place_id" })
     .select()
     .single()
-
   if (error) throw error
-  return data as Place
+  return data
 }
 
-// ─── Search ───────────────────────────────────────────────────────────────────
+// ─── Search ──────────────────────────────────────────────────────────────────
 
-/**
- * Full-text search across places, users, and vibe tags.
- * Uses Postgres full-text search via Supabase.
- */
 export async function search(
-  supabase: ReturnType<typeof createClient>,
-  { app_id, query, limit = 10 }: { app_id: AppId; query: string; limit?: number }
+  supabase: SupabaseClient,
+  { app_id, query, user_id }: SearchParams
 ): Promise<SearchResult[]> {
-  const results: SearchResult[] = []
-
-  // Search places
-  const { data: places } = await supabase
+  const { data, error } = await (supabase as any)
     .from("places")
     .select("*")
     .eq("app_id", app_id)
-    .textSearch("fts", query, { type: "websearch" })
-    .limit(limit)
-
-  if (places) {
-    results.push(...places.map((p) => ({ type: "place" as const, place: p as Place })))
-  }
-
-  // Search users
-  const { data: users } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-    .limit(5)
-
-  if (users) {
-    results.push(...users.map((u) => ({ type: "user" as const, user: u as User })))
-  }
-
-  return results
+    .textSearch("name", query, { type: "websearch" })
+    .limit(20)
+  if (error) throw error
+  return (data ?? []).map((p: any) => ({ type: "place" as const, place: p }))
 }
 
-// ─── Social graph ─────────────────────────────────────────────────────────────
+// ─── Social ──────────────────────────────────────────────────────────────────
 
 export async function followUser(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   { follower_id, following_id }: { follower_id: string; following_id: string }
-) {
-  const { error } = await supabase
+): Promise<void> {
+  const { error } = await (supabase as any)
     .from("follows")
     .upsert({ follower_id, following_id }, { onConflict: "follower_id,following_id", ignoreDuplicates: true })
   if (error) throw error
 }
 
 export async function unfollowUser(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   { follower_id, following_id }: { follower_id: string; following_id: string }
-) {
-  const { error } = await supabase
+): Promise<void> {
+  const { error } = await (supabase as any)
     .from("follows")
     .delete()
     .eq("follower_id", follower_id)

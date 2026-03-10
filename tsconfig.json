@@ -16,6 +16,5 @@
     "skipLibCheck": true,
     "incremental": true
   },
-  "files": [],
   "exclude": ["node_modules"]
 }
