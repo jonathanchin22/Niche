@@ -39,7 +39,7 @@ export async function getFriendFeed(
   // Step 2: fetch reviews from those users
   let query = supabase
     .from("reviews")
-    .select(`*, profile:profiles(*), place:places(*), likes:review_likes(count)`)
+    .select(`*`)
     .eq("app_id", app_id)
     .in("user_id", followingIds.length > 0 ? followingIds : [""])
     .order("created_at", { ascending: false })
