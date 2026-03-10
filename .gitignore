@@ -38,3 +38,5 @@ supabase/.branches
 .vscode
 .idea
 *.swp
+
+.vercel

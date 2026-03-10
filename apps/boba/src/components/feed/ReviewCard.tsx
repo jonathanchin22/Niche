@@ -28,9 +28,9 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const likeMutation = useMutation({
     mutationFn: async () => {
       if (optimisticLiked) {
-        await unlikeReview(supabase, { review_id: review.id, user_id: currentUserId })
+        await unlikeReview(supabase as any, { review_id: review.id, user_id: currentUserId })
       } else {
-        await likeReview(supabase, { review_id: review.id, user_id: currentUserId })
+        await likeReview(supabase as any, { review_id: review.id, user_id: currentUserId })
       }
     },
     onMutate: () => {
