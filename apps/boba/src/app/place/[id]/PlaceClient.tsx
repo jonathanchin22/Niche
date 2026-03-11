@@ -16,7 +16,7 @@ export default function PlaceClient({ place, reviews, userId }: PlaceClientProps
   const scoreColor = place.avg_score >= 8 ? "#059669" : place.avg_score >= 6 ? "#D97706" : "#9CA3AF"
 
   return (
-    <AppShell>
+    <AppShell activeTab="explore">
       <div className="pb-6">
         {/* Back button */}
         <div className="px-4 pt-4 mb-2">

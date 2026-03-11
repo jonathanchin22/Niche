@@ -112,9 +112,7 @@ export default function LogPage() {
         name: selectedPlace.name,
         address: selectedPlace.address,
         google_place_id: selectedPlace.google_place_id,
-        latitude: selectedPlace.latitude,
-        longitude: selectedPlace.longitude,
-      })
+      } as any)
 
       // Create review
       await createReview(supabase as any, {
@@ -125,7 +123,7 @@ export default function LogPage() {
         body: body.trim() || null,
         tags: selectedTags,
         image_urls: [],
-      })
+      } as any)
     },
     onSuccess: () => {
       setStep("done")

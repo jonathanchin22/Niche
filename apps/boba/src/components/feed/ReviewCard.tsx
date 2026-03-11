@@ -4,28 +4,54 @@ import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth"
 import { likeReview, unlikeReview } from "@niche/database"
-import type { Review } from "@niche/shared-types"
-import Image from "next/image"
 import Link from "next/link"
 
 interface ReviewCardProps {
-  review: Review
+  review: any
   currentUserId: string
 }
 
-const BADGE_STYLES: Record<string, string> = {
-  "Boba Royalty": "bg-purple-100 text-purple-700",
-  "Explorer": "bg-blue-100 text-blue-700",
-  "Century Club": "bg-amber-100 text-amber-700",
+function ScoreBadge({ score }: { score: number }) {
+  const color = score >= 8 ? "#059669" : score >= 6 ? "#D97706" : "#DC2626"
+  return (
+    <span className="inline-flex items-center justify-center w-9 h-9 rounded-full text-white font-black text-sm flex-shrink-0" style={{ background: color }}>
+      {score}
+    </span>
+  )
+}
+
+function Avatar({ profile, size = 36 }: { profile: any; size?: number }) {
+  const initials = profile?.display_name?.[0] ?? profile?.username?.[0] ?? "?"
+  if (profile?.avatar_url) {
+    return <img src={profile.avatar_url} alt={initials} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
+  }
+  return (
+    <div className="rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-sm" style={{ width: size, height: size, background: "linear-gradient(135deg, #7C3AED, #9F67FF)" }}>
+      {initials.toUpperCase()}
+    </div>
+  )
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return "just now"
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const [optimisticLiked, setOptimisticLiked] = useState(review.user_has_liked ?? false)
-  const [optimisticCount, setOptimisticCount] = useState(review.likes_count ?? 0)
+  const likeCount = review.likes?.[0]?.count ?? review.likes ?? 0
+  const [optimisticLiked, setOptimisticLiked] = useState(false)
+  const [optimisticCount, setOptimisticCount] = useState(Number(likeCount))
 
-  const likeMutation = useMutation({
+  const { mutate: toggleLike } = useMutation({
     mutationFn: async () => {
       if (optimisticLiked) {
         await unlikeReview(supabase as any, { review_id: review.id, user_id: currentUserId })
@@ -34,95 +60,69 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       }
     },
     onMutate: () => {
-      // Optimistic update — feels instant
       setOptimisticLiked((prev) => !prev)
       setOptimisticCount((prev) => optimisticLiked ? prev - 1 : prev + 1)
     },
     onError: () => {
-      // Revert on error
       setOptimisticLiked((prev) => !prev)
       setOptimisticCount((prev) => optimisticLiked ? prev + 1 : prev - 1)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["feed", "boba"] })
+      queryClient.invalidateQueries({ queryKey: ["feed"] })
     },
   })
 
-  const user = review.user
+  const profile = review.profile
   const place = review.place
+  const name = profile?.display_name ?? profile?.username ?? "Someone"
 
   return (
-    <article className="mx-3 mb-3 bg-white rounded-2xl overflow-hidden shadow-sm border border-boba-divider">
+    <div className="bg-white rounded-2xl mx-4 mb-3 overflow-hidden shadow-sm border border-purple-50">
       {/* Accent bar */}
-      <div className="h-1 bg-gradient-to-r from-boba-accent to-boba-accent/50" />
+      <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #7C3AED, #C084FC)" }} />
 
       <div className="p-4">
-        {/* User row */}
-        <div className="flex items-center gap-3 mb-3">
-          <Link href={`/u/${user?.username}`}>
-            {user?.avatar_url ? (
-              <Image
-                src={user.avatar_url}
-                alt={user.display_name}
-                width={36}
-                height={36}
-                className="rounded-full"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-boba-soft flex items-center justify-center text-boba-accent font-black text-sm">
-                {user?.display_name?.[0]?.toUpperCase()}
-              </div>
-            )}
-          </Link>
-
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <Avatar profile={profile} />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Link href={`/u/${user?.username}`} className="text-[13px] font-bold text-boba-text">
-                @{user?.username}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-sm text-gray-900">{name}</span>
+              <span className="text-gray-400 text-xs">reviewed</span>
+              <Link href={`/place/${review.place_id}`} className="font-semibold text-sm truncate" style={{ color: "#7C3AED" }}>
+                {place?.name ?? "a spot"}
               </Link>
             </div>
-            <p className="text-[10px] text-boba-tertiary truncate">
-              {place?.city}, {place?.state} · {formatTime(review.created_at)}
-            </p>
-          </div>
-
-          {/* Score */}
-          <StarScore score={review.score} />
-        </div>
-
-        {/* Place */}
-        <div className="mb-3">
-          <Link href={`/places/${review.place_id}`}>
-            <h3 className="text-base font-extrabold text-boba-text leading-tight">
-              {place?.name}
-            </h3>
-          </Link>
-          {review.category && (
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] font-bold bg-boba-soft text-boba-accent px-2.5 py-0.5 rounded-full">
-                {review.category}
-              </span>
-              {review.item_name && (
-                <span className="text-[11px] text-boba-secondary">— {review.item_name}</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              {place?.address && (
+                <span className="text-xs text-gray-400 truncate">{place.address}</span>
               )}
+              <span className="text-xs text-gray-300">·</span>
+              <span className="text-xs text-gray-400">{timeAgo(review.created_at)}</span>
             </div>
-          )}
+          </div>
+          <ScoreBadge score={review.score} />
         </div>
 
-        {/* Note */}
-        {review.note && (
-          <div className="bg-boba-soft border-l-2 border-boba-accent rounded-r-xl rounded-l-sm px-3 py-2.5 mb-3">
-            <p className="text-[12px] text-boba-secondary italic leading-relaxed">
-              "{review.note}"
-            </p>
+        {/* Body */}
+        {review.body && (
+          <p className="text-sm text-gray-700 leading-relaxed mb-3">{review.body}</p>
+        )}
+
+        {/* Images */}
+        {review.image_urls?.length > 0 && (
+          <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+            {review.image_urls.map((url: string, i: number) => (
+              <img key={i} src={url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+            ))}
           </div>
         )}
 
-        {/* Vibe tags */}
-        {review.tags.length > 0 && (
+        {/* Tags */}
+        {review.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
-            {review.tags.map((tag) => (
-              <span key={tag} className="text-[10px] text-boba-tertiary bg-gray-50 px-2 py-0.5 rounded-full border border-boba-divider">
+            {review.tags.map((tag: string) => (
+              <span key={tag} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#F3EEFF", color: "#7C3AED" }}>
                 {tag}
               </span>
             ))}
@@ -130,60 +130,19 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4 pt-1 border-t border-gray-50">
           <button
-            onClick={() => likeMutation.mutate()}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
-              optimisticLiked
-                ? "bg-boba-accent text-white border-boba-accent"
-                : "bg-transparent text-boba-tertiary border-boba-divider"
-            }`}
+            onClick={() => toggleLike()}
+            className="flex items-center gap-1.5 text-sm font-medium transition-transform active:scale-90"
+            style={{ color: optimisticLiked ? "#7C3AED" : "#9CA3AF" }}
           >
-            {optimisticLiked ? "♥" : "♡"} {optimisticCount}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={optimisticLiked ? "#7C3AED" : "none"} stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            {optimisticCount > 0 && <span>{optimisticCount}</span>}
           </button>
-
-          <Link
-            href={`/reviews/${review.id}#comments`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold border border-boba-divider text-boba-tertiary"
-          >
-            💬 {review.comments_count ?? 0}
-          </Link>
-
-          <button className="ml-auto text-boba-tertiary text-base">⤴</button>
         </div>
       </div>
-    </article>
-  )
-}
-
-function StarScore({ score }: { score: number }) {
-  const full = Math.floor(score)
-  const half = score % 1 >= 0.5
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={`text-sm leading-none ${
-            i <= full
-              ? "text-boba-accent"
-              : i === full + 1 && half
-              ? "text-boba-accent opacity-50"
-              : "text-boba-divider"
-          }`}
-        >
-          ★
-        </span>
-      ))}
     </div>
   )
-}
-
-function formatTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
 }

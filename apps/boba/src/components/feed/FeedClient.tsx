@@ -7,6 +7,7 @@ import { ReviewCard } from "./ReviewCard"
 import { AppShell } from "@/components/ui/AppShell"
 import type { PaginatedResponse, FeedItem } from "@niche/shared-types"
 import { useEffect, useRef } from "react"
+import Link from "next/link"
 
 interface FeedClientProps {
   initialData: PaginatedResponse<FeedItem>
@@ -23,9 +24,9 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
       getFriendFeed(supabase as any, {
         user_id: userId,
         app_id: "boba",
-        cursor: pageParam as string | undefined,
+        cursor: pageParam,
       }),
-    initialPageParam: undefined,
+    initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.cursor ?? undefined,
     initialData: {
       pages: [initialData],
@@ -33,7 +34,6 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
     },
   })
 
-  // Infinite scroll with IntersectionObserver
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -56,19 +56,19 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
         {items.length === 0 ? (
           <EmptyFeed />
         ) : (
-          items.map((item, i) => (
-            item.review && (
+          items.map((item, i) =>
+            item.review ? (
               <ReviewCard
                 key={item.review.id ?? i}
                 review={item.review}
                 currentUserId={userId}
               />
-            )
-          ))
+            ) : null
+          )
         )}
         <div ref={loadMoreRef} className="py-4 flex justify-center">
           {isFetchingNextPage && (
-            <div className="w-6 h-6 rounded-full border-2 border-boba-accent border-t-transparent animate-spin" />
+            <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#7C3AED", borderTopColor: "transparent" }} />
           )}
         </div>
       </div>
@@ -79,11 +79,27 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
 function EmptyFeed() {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-      <span className="text-5xl mb-4">🧋</span>
-      <h3 className="text-lg font-bold text-boba-text mb-2">No reviews yet</h3>
-      <p className="text-sm text-boba-muted leading-relaxed">
-        Follow some friends or log your first cup to get started.
+      <span className="text-6xl mb-4">🧋</span>
+      <h3 className="text-xl font-black mb-2" style={{ color: "#12082A" }}>Your feed is empty</h3>
+      <p className="text-sm leading-relaxed mb-6" style={{ color: "#6B5B8A" }}>
+        Log your first boba or find friends to follow to get started.
       </p>
+      <div className="flex gap-3">
+        <Link
+          href="/log"
+          className="px-4 py-2 rounded-full text-sm font-bold text-white"
+          style={{ background: "linear-gradient(135deg, #7C3AED, #9F67FF)" }}
+        >
+          Log a drink
+        </Link>
+        <Link
+          href="/friends"
+          className="px-4 py-2 rounded-full text-sm font-bold border-2"
+          style={{ borderColor: "#7C3AED", color: "#7C3AED" }}
+        >
+          Find friends
+        </Link>
+      </div>
     </div>
   )
 }
