@@ -1,34 +1,23 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{ts,tsx}",
-    "./src/app/**/*.{ts,tsx}",
-    "./src/components/**/*.{ts,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
-      fontFamily: {
-        nunito: ["var(--font-nunito)", "sans-serif"],
-      },
       colors: {
-        boba: {
-          accent:    "#7C3AED",
-          soft:      "#F3EEFF",
-          mid:       "#DDD6FE",
-          card:      "#FFFFFF",
-          text:      "#12082A",
-          secondary: "#6B5B8A",
-          tertiary:  "#B0A0CC",
-          divider:   "#EDE8FA",
-        },
+        bg: "#fafaf8",
+        ink: "#1a1a1a",
+        muted: "#888888",
+        faint: "#e8e8e4",
+        accent: "#2d6a4f",
+        "accent-light": "#e8f4ee",
+        warning: "#c9a84c",
       },
-      borderRadius: {
-        "2xl": "16px",
-        "3xl": "24px",
-      },
-      boxShadow: {
-        card: "0 2px 16px rgba(0,0,0,0.07)",
-        nav:  "0 -4px 20px rgba(0,0,0,0.08)",
+      fontFamily: {
+        hand: ["'Caveat'", "cursive"],
+        serif: ["'DM Serif Display'", "Georgia", "serif"],
+        sans: ["'DM Sans'", "system-ui", "sans-serif"],
       },
     },
   },

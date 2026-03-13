@@ -28,18 +28,13 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.cursor ?? undefined,
-    initialData: {
-      pages: [initialData],
-      pageParams: [undefined],
-    },
+    initialData: { pages: [initialData], pageParams: [undefined] },
   })
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage()
       },
       { threshold: 0.1 }
     )
@@ -51,26 +46,40 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
   const items = data?.pages.flatMap((p) => p.data) ?? []
 
   return (
-    <AppShell activeTab="friends">
-      <div className="pb-6 pt-2">
+    <AppShell activeTab="home">
+      <div style={{ padding: "52px 20px 20px" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 32 }}>
+          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+            good to see you
+          </p>
+          <h1 style={{
+            fontFamily: "'DM Serif Display', Georgia, serif",
+            fontSize: 32, color: "#1a1a1a",
+            margin: 0, fontWeight: 400, lineHeight: 1.1,
+          }}>
+            your boba<br />world
+          </h1>
+        </div>
+
         {items.length === 0 ? (
           <EmptyFeed />
         ) : (
-          items.map((item, i) =>
-            item.review ? (
-              <ReviewCard
-                key={item.review.id ?? i}
-                review={item.review}
-                currentUserId={userId}
-              />
-            ) : null
-          )
+          <>
+            {items.map((item, i) =>
+              item.review ? (
+                <ReviewCard key={item.review.id ?? i} review={item.review} currentUserId={userId} />
+              ) : null
+            )}
+            <div ref={loadMoreRef} style={{ padding: "16px 0", display: "flex", justifyContent: "center" }}>
+              {isFetchingNextPage && (
+                <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb" }}>
+                  loading more...
+                </span>
+              )}
+            </div>
+          </>
         )}
-        <div ref={loadMoreRef} className="py-4 flex justify-center">
-          {isFetchingNextPage && (
-            <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#7C3AED", borderTopColor: "transparent" }} />
-          )}
-        </div>
       </div>
     </AppShell>
   )
@@ -78,27 +87,49 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
 
 function EmptyFeed() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-      <span className="text-6xl mb-4">🧋</span>
-      <h3 className="text-xl font-black mb-2" style={{ color: "#12082A" }}>Your feed is empty</h3>
-      <p className="text-sm leading-relaxed mb-6" style={{ color: "#6B5B8A" }}>
-        Log your first boba or find friends to follow to get started.
-      </p>
-      <div className="flex gap-3">
-        <Link
-          href="/log"
-          className="px-4 py-2 rounded-full text-sm font-bold text-white"
-          style={{ background: "linear-gradient(135deg, #7C3AED, #9F67FF)" }}
-        >
-          Log a drink
-        </Link>
-        <Link
-          href="/friends"
-          className="px-4 py-2 rounded-full text-sm font-bold border-2"
-          style={{ borderColor: "#7C3AED", color: "#7C3AED" }}
-        >
-          Find friends
-        </Link>
+    <div style={{ padding: "20px 0 40px" }}>
+      {/* Sketch placeholder */}
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: 16, marginBottom: 40,
+      }}>
+        <svg width="120" height="160" viewBox="0 0 120 160" fill="none">
+          <path d="M35 30 L85 30 L78 140 L42 140 Z" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" fill="none"/>
+          <path d="M30 30 Q60 22 90 30" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+          <line x1="60" y1="20" x2="60" y2="-5" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
+          <circle cx="47" cy="110" r="6" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
+          <circle cx="63" cy="118" r="6" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
+          <circle cx="75" cy="108" r="5" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
+          <circle cx="52" cy="125" r="5" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
+          <path d="M40 75 Q60 68 80 75" stroke="#1a1a1a" strokeWidth="1" strokeLinecap="round" fill="none"/>
+        </svg>
+        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
+          your feed is empty
+        </p>
+      </div>
+
+      {/* Quick actions */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {[
+          { label: "log a drink", sub: "track today's sip", href: "/log", icon: "✦" },
+          { label: "explore spots", sub: "find new places", href: "/explore", icon: "◎" },
+          { label: "friends' picks", sub: "see what they loved", href: "/friends", icon: "♡" },
+          { label: "your profile", sub: "reviews + stats", href: "/profile", icon: "◯" },
+        ].map(({ label, sub, href, icon }) => (
+          <Link key={label} href={href} style={{ textDecoration: "none" }}>
+            <div className="card-hover" style={{
+              background: "white",
+              border: "1px solid #e8e8e4",
+              borderRadius: 12,
+              padding: "18px 16px",
+              cursor: "pointer",
+            }}>
+              <div style={{ fontSize: 18, marginBottom: 8, color: "#2d6a4f" }}>{icon}</div>
+              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: "#1a1a1a", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888" }}>{sub}</div>
+            </div>
+          </Link>
+        ))}
       </div>
     </div>
   )

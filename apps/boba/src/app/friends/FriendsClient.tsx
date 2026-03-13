@@ -1,177 +1,176 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth"
 import { searchUsers, followUser, unfollowUser, getFollowing } from "@niche/database"
 import { AppShell } from "@/components/ui/AppShell"
 
-interface UserCardProps {
-  user: any
-  currentUserId: string
-  isFollowing: boolean
-  onToggle: () => void
-  isLoading: boolean
-}
-
-function Avatar({ user, size = 44 }: { user: any; size?: number }) {
-  const initials = user?.display_name?.[0] ?? user?.username?.[0] ?? "?"
-  if (user?.avatar_url) {
-    return <img src={user.avatar_url} alt={initials} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
-  }
-  return (
-    <div className="rounded-full flex items-center justify-center font-bold text-white flex-shrink-0" style={{ width: size, height: size, background: "linear-gradient(135deg, #7C3AED, #9F67FF)", fontSize: size * 0.35 }}>
-      {initials.toUpperCase()}
-    </div>
-  )
-}
-
-function UserCard({ user, currentUserId, isFollowing, onToggle, isLoading }: UserCardProps) {
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-purple-50 flex items-center gap-3">
-      <Avatar user={user} />
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm" style={{ color: "#12082A" }}>{user.display_name || user.username}</p>
-        {user.username && user.display_name && (
-          <p className="text-xs" style={{ color: "#6B5B8A" }}>@{user.username}</p>
-        )}
-      </div>
-      <button
-        onClick={onToggle}
-        disabled={isLoading}
-        className="px-4 py-1.5 rounded-full text-xs font-bold transition-all disabled:opacity-60"
-        style={isFollowing
-          ? { background: "#F3EEFF", color: "#7C3AED", border: "2px solid #7C3AED" }
-          : { background: "#7C3AED", color: "white" }
-        }
-      >
-        {isFollowing ? "Following" : "Follow"}
-      </button>
-    </div>
-  )
-}
-
-interface FriendsPageClientProps {
+interface FriendsClientProps {
   userId: string
 }
 
-export default function FriendsPageClient({ userId }: FriendsPageClientProps) {
+function EmptySketch() {
+  return (
+    <svg width="160" height="130" viewBox="0 0 160 130" fill="none">
+      <circle cx="80" cy="50" r="12" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
+      <line x1="80" y1="62" x2="80" y2="90" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M65 72 L80 68 L95 72" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      <path d="M80 90 L73 108" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M80 90 L87 108" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
+      <rect x="60" y="20" width="16" height="12" rx="2" stroke="#1a1a1a" strokeWidth="1.2" fill="none"/>
+      <line x1="68" y1="32" x2="68" y2="38" stroke="#1a1a1a" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+export function FriendsClient({ userId }: FriendsClientProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const [query, setQuery] = useState("")
-  const [debouncedQuery, setDebouncedQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<"search" | "following">("following")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
-  const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
 
-  const handleSearch = useCallback((q: string) => {
-    setQuery(q)
-    clearTimeout(searchTimeout.current)
-    searchTimeout.current = setTimeout(() => {
-      setDebouncedQuery(q)
-      if (q) setActiveTab("search")
-    }, 350)
-  }, [])
-
-  const { data: searchResults, isLoading: searchLoading } = useQuery({
-    queryKey: ["users", "search", debouncedQuery],
-    queryFn: () => searchUsers(supabase as any, { query: debouncedQuery, current_user_id: userId }),
-    enabled: debouncedQuery.length > 0,
-  })
-
-  const { data: following } = useQuery({
+  const { data: following = [] } = useQuery({
     queryKey: ["following", userId],
-    queryFn: () => getFollowing(supabase as any, userId),
+    queryFn: () => getFollowing(supabase as any, { user_id: userId }),
   })
 
-  const followingIds = new Set((following ?? []).map((u: any) => u.id))
+  const followingIds = new Set((following as any[]).map((f: any) => f.following_id ?? f.id))
 
   const { mutate: toggleFollow } = useMutation({
     mutationFn: async (targetId: string) => {
-      setPendingFollows(prev => new Set(prev).add(targetId))
       if (followingIds.has(targetId)) {
         await unfollowUser(supabase as any, { follower_id: userId, following_id: targetId })
       } else {
         await followUser(supabase as any, { follower_id: userId, following_id: targetId })
       }
     },
-    onSettled: (_, __, targetId) => {
-      setPendingFollows(prev => { const s = new Set(prev); s.delete(targetId); return s })
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["following", userId] })
-      queryClient.invalidateQueries({ queryKey: ["feed"] })
     },
   })
 
-  const displayUsers = activeTab === "search" ? (searchResults ?? []) : (following ?? [])
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q)
+    clearTimeout(searchTimeout.current)
+    if (q.length < 2) { setSearchResults([]); return }
+    setIsSearching(true)
+    searchTimeout.current = setTimeout(async () => {
+      const results = await searchUsers(supabase as any, { query: q, current_user_id: userId })
+      setSearchResults(results as any[])
+      setIsSearching(false)
+    }, 300)
+  }, [supabase, userId])
+
+  const displayList = searchQuery.length > 1 ? searchResults : (following as any[])
 
   return (
     <AppShell activeTab="friends-list">
-      <div className="px-4 pt-4">
+      <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
+
+        {/* Header */}
+        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          what they've been sipping
+        </p>
+        <h1 style={{
+          fontFamily: "'DM Serif Display', Georgia, serif",
+          fontSize: 30, color: "#1a1a1a",
+          margin: "0 0 24px", fontWeight: 400,
+        }}>
+          friends
+        </h1>
+
         {/* Search */}
-        <div className="relative mb-4">
-          <svg className="absolute left-3 top-3" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
+        <div style={{
+          display: "flex", alignItems: "center",
+          border: "1px solid #e8e8e4", borderRadius: 10,
+          padding: "10px 14px", background: "white", gap: 8, marginBottom: 24,
+        }}>
+          <span style={{ color: "#bbb", fontSize: 14 }}>◎</span>
           <input
-            type="text"
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Find friends..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 text-sm font-medium outline-none transition-colors bg-white"
-            style={{ borderColor: "#DDD6FE", color: "#12082A" }}
-            onFocus={(e) => (e.target.style.borderColor = "#7C3AED")}
-            onBlur={(e) => (e.target.style.borderColor = "#DDD6FE")}
+            value={searchQuery}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="find people by username..."
+            style={{
+              flex: 1, border: "none", outline: "none", background: "transparent",
+              fontFamily: "'DM Serif Display', Georgia, serif",
+              fontSize: 16, color: "#1a1a1a",
+            }}
           />
-          {searchLoading && (
-            <div className="absolute right-3 top-3">
-              <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#7C3AED", borderTopColor: "transparent" }} />
-            </div>
-          )}
+          {isSearching && <span style={{ fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb" }}>...</span>}
         </div>
 
-        {/* Tabs */}
-        {!query && (
-          <div className="flex gap-2 mb-4">
-            {(["following", "search"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="px-4 py-1.5 rounded-full text-sm font-bold transition-all"
-                style={activeTab === tab
-                  ? { background: "#7C3AED", color: "white" }
-                  : { background: "#F3EEFF", color: "#7C3AED" }
-                }
-              >
-                {tab === "following" ? `Following (${following?.length ?? 0})` : "Find people"}
-              </button>
-            ))}
+        {/* List */}
+        {displayList.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {displayList.map((person: any) => {
+              const pid = person.following_id ?? person.id
+              const name = person.profile?.display_name ?? person.display_name ?? person.username ?? "unknown"
+              const handle = person.profile?.username ?? person.username ?? ""
+              const isFollowing = followingIds.has(pid)
+
+              return (
+                <div key={pid} style={{
+                  background: "white", border: "1px solid #e8e8e4",
+                  borderRadius: 12, padding: "16px 18px",
+                  display: "flex", alignItems: "center", gap: 12,
+                }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    border: "1.5px solid #e8e8e4", background: "#e8f4ee",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'DM Serif Display', Georgia, serif",
+                    fontSize: 18, color: "#2d6a4f", flexShrink: 0,
+                  }}>
+                    {name[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
+                      {name}
+                    </p>
+                    {handle && (
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, margin: 0, color: "#bbb" }}>
+                        @{handle}
+                      </p>
+                    )}
+                  </div>
+                  {pid !== userId && (
+                    <button
+                      onClick={() => toggleFollow(pid)}
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+                        padding: "6px 16px", borderRadius: 20,
+                        border: `1px solid ${isFollowing ? "#e8e8e4" : "#2d6a4f"}`,
+                        background: isFollowing ? "transparent" : "#e8f4ee",
+                        color: isFollowing ? "#888" : "#2d6a4f",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isFollowing ? "following" : "+ follow"}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{
+            padding: "40px 0",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          }}>
+            <EmptySketch />
+            <span style={{ fontFamily: "'Courier New', monospace", fontSize: 10, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
+              {searchQuery.length > 1 ? "no one found" : "find boba friends"}
+            </span>
+            {searchQuery.length < 2 && (
+              <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#bbb", textAlign: "center", margin: 0 }}>
+                search above to find people
+              </p>
+            )}
           </div>
         )}
-
-        {/* Users list */}
-        <div className="flex flex-col gap-3 pb-6">
-          {displayUsers.length === 0 && (
-            <div className="text-center py-12">
-              <span className="text-4xl">👀</span>
-              <p className="mt-3 font-bold" style={{ color: "#12082A" }}>
-                {activeTab === "following" ? "Not following anyone yet" : "No results found"}
-              </p>
-              <p className="text-sm mt-1" style={{ color: "#6B5B8A" }}>
-                {activeTab === "following" ? "Search for friends above to get started" : "Try a different name"}
-              </p>
-            </div>
-          )}
-          {displayUsers.map((user: any) => (
-            <UserCard
-              key={user.id}
-              user={user}
-              currentUserId={userId}
-              isFollowing={followingIds.has(user.id)}
-              isLoading={pendingFollows.has(user.id)}
-              onToggle={() => toggleFollow(user.id)}
-            />
-          ))}
-        </div>
       </div>
     </AppShell>
   )
