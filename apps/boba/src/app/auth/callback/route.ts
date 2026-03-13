@@ -1,5 +1,4 @@
 import { createServerSupabaseClient } from "@niche/auth"
-import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
@@ -8,11 +7,9 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/"
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerSupabaseClient(cookieStore)
+    const supabase = await createServerSupabaseClient()
     await supabase.auth.exchangeCodeForSession(code)
 
-    // Check membership
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: membership } = await supabase

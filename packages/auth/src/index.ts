@@ -1,4 +1,5 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 import type { AppId, User, AppMembership } from "@niche/shared-types"
 
 // ─── Client-side Supabase client (used in React components) ──────────────────
@@ -10,22 +11,19 @@ export function createClient() {
 }
 
 // ─── Server-side Supabase client (used in Server Components / Route Handlers) ─
-type CookieStore = {
-  get: (name: string) => { value: string } | undefined
-  set: (options: { name: string; value: string; [key: string]: unknown }) => void
-}
-
-export function createServerSupabaseClient(cookieStore: CookieStore) {
+// Now async and no-arg — calls cookies() internally, matching the redesign usage.
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) { return cookieStore.get(name)?.value },
-        set(name: string, value: string, options: Record<string, unknown>) {
+        get(name) { return cookieStore.get(name)?.value },
+        set(name, value, options) {
           try { cookieStore.set({ name, value, ...options }) } catch {}
         },
-        delete(name: string, options: Record<string, unknown>) {
+        remove(name, options) {
           try { cookieStore.set({ name, value: "", ...options }) } catch {}
         },
       },
@@ -34,8 +32,6 @@ export function createServerSupabaseClient(cookieStore: CookieStore) {
 }
 
 // ─── Sign up — creates the shared account ────────────────────────────────────
-// Called once, regardless of which app the user first signs up through.
-// The app_id is recorded so we know where they came from.
 export async function signUp({
   email,
   password,
@@ -64,9 +60,6 @@ export async function signUp({
   })
 
   if (error) throw error
-
-  // The DB trigger (see migrations) auto-creates the profile row
-  // and initial app_membership for source_app_id on user creation.
   return data
 }
 
@@ -112,14 +105,11 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 // ─── Join a new app with an existing account ──────────────────────────────────
-// This is the "Continue as Maya →" flow.
-// Called when a user with an existing account opens a new niche app.
 export async function joinApp(app_id: AppId): Promise<AppMembership> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Not authenticated")
 
-  // Upsert — safe to call multiple times
   const { data, error } = await supabase
     .from("app_memberships")
     .upsert(
