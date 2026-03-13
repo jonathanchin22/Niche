@@ -34,7 +34,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
 
   const { data: following = [] } = useQuery({
     queryKey: ["following", userId],
-    queryFn: () => getFollowing(supabase as any, { user_id: userId }),
+    queryFn: () => getFollowing(supabase as any, userId),
   })
 
   const followingIds = new Set((following as any[]).map((f: any) => f.following_id ?? f.id))
