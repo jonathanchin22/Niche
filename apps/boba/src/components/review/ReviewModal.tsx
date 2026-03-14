@@ -226,11 +226,13 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
   const [editBody, setEditBody] = useState(review.body ?? "")
   const [editTags, setEditTags] = useState<string[]>(review.tags ?? [])
   const [editPhotos, setEditPhotos] = useState<string[]>(review.image_urls ?? [])
+  const [editItemName, setEditItemName] = useState(review.item_name ?? "")
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: () => updateReview(supabase as any, {
       review_id: review.id,
       updates: {
+        item_name: editItemName.trim() || null,
         score: Math.round(editScore * 10) / 10,
         body: editBody.trim() || null,
         tags: editTags,
@@ -375,6 +377,25 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
               <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888", margin: "0 0 16px" }}>
                 editing review
               </p>
+
+              {/* Drink name */}
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>
+                  drink name
+                </p>
+                <input
+                  type="text"
+                  value={editItemName}
+                  onChange={e => setEditItemName(e.target.value)}
+                  placeholder="e.g. Matcha Latte, Milk Tea..."
+                  style={{
+                    width: "100%", fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18,
+                    border: "1px solid #e8e8e4", borderRadius: 10,
+                    padding: "12px 16px", background: "transparent",
+                    color: "#1a1a1a", outline: "none",
+                  }}
+                />
+              </div>
 
               {/* Score slider */}
               <div style={{ marginBottom: 24 }}>

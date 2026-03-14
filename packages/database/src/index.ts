@@ -187,7 +187,7 @@ export async function updateReview(
   supabase: SupabaseClient,
   { review_id, updates }: {
     review_id: string
-    updates: { score?: number; body?: string | null; tags?: string[]; image_urls?: string[] }
+    updates: { item_name?: string | null; score?: number; body?: string | null; tags?: string[]; image_urls?: string[] }
   }
 ) {
   const { data, error } = await supabase
