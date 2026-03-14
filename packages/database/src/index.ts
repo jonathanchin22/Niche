@@ -100,6 +100,16 @@ interface SearchParams {
 
 // ─── Feed ────────────────────────────────────────────────────────────────────
 
+function aggregateVotes(votes: any[], user_id?: string) {
+  let upvotes_count = 0, downvotes_count = 0, user_vote: 1 | -1 | 0 = 0
+  for (const v of votes ?? []) {
+    if (v.vote === 1) upvotes_count++
+    if (v.vote === -1) downvotes_count++
+    if (user_id && v.user_id === user_id) user_vote = v.vote
+  }
+  return { upvotes_count, downvotes_count, user_vote }
+}
+
 export async function getFriendFeed(
   supabase: SupabaseClient,
   { user_id, app_id, cursor, limit = 20 }: FeedParams
@@ -119,7 +129,8 @@ export async function getFriendFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, app_id),
-      likes:review_likes(count)
+      likes:review_likes(count),
+      votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
     .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
@@ -147,7 +158,10 @@ export async function getFriendFeed(
     return { data: items, cursor: nextCursor, has_more: !!nextCursor }
   }
 
-  const items = (data ?? []).map((r: any) => ({ review: r }))
+  const items = (data ?? []).map((r: any) => {
+    const { votes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+  })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
@@ -173,7 +187,8 @@ export async function getMyFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count)
+      likes:review_likes(count),
+      votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
     .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
@@ -201,7 +216,10 @@ export async function getMyFeed(
     return { data: items, cursor: nextCursor, has_more: !!nextCursor }
   }
 
-  const items = (data ?? []).map((r: any) => ({ review: r }))
+  const items = (data ?? []).map((r: any) => {
+    const { votes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+  })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
@@ -216,7 +234,8 @@ export async function getDiscoverFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count)
+      likes:review_likes(count),
+      votes:review_votes(vote)
     `)
     .eq("app_id", app_id)
     .order("created_at", { ascending: false })
@@ -227,7 +246,10 @@ export async function getDiscoverFeed(
   const { data, error } = await query
   if (error) throw error
 
-  const items = (data ?? []).map((r: any) => ({ type: "review" as const, review: r, created_at: r.created_at }))
+  const items = (data ?? []).map((r: any) => {
+    const { votes, ...review } = r
+    return { type: "review" as const, review: { ...review, ...aggregateVotes(votes) }, created_at: r.created_at }
+  })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor ?? null, has_more: !!nextCursor }
 }
@@ -276,7 +298,8 @@ export async function getUserReviews(
       *,
       profile:profiles!reviews_user_id_fkey(*),
       place:places!reviews_place_id_fkey(*),
-      likes:review_likes(count)
+      likes:review_likes(count),
+      votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
     .eq("user_id", user_id)
@@ -288,7 +311,10 @@ export async function getUserReviews(
   const { data, error } = await query
   if (error) throw error
 
-  const items = (data ?? []).map((r: any) => ({ review: r }))
+  const items = (data ?? []).map((r: any) => {
+    const { votes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+  })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
