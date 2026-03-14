@@ -13,7 +13,7 @@ export default async function MyReviewsPage() {
     app_id: "boba",
   }).catch(() => ({ data: [] }))
 
-  const reviews = reviewsResult.data
+  const reviews = reviewsResult.data.map((item: any) => item.review)
 
   return <MyReviewsClient userId={user.id} initialReviews={reviews as any[]} />
 }

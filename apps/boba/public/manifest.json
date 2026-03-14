@@ -8,5 +8,12 @@
   "background_color": "#fafaf8",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "en-US"
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }

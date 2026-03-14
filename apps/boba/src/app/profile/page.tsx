@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   ])
 
   const profile = profileResult?.data ?? null
-  const reviews = reviewsResult.data
+  const reviews = reviewsResult.data.map((item: any) => item.review)
 
   return <ProfileClient userId={user.id} profile={profile} reviews={reviews} />
 }

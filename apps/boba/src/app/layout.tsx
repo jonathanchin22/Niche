@@ -39,6 +39,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "boba!",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   openGraph: {
     title: "boba!",
     description: "Bubble tea, ranked by fans",
