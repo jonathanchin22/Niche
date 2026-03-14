@@ -121,6 +121,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
     const handleTouchMove = (e: React.TouchEvent) => {
       if (!touchDragId.current) return
       const touch = e.touches[0]
+      if (!touch) return
       const overId = getReviewIdFromTouch(touch)
       if (overId && overId !== touchOverId.current) {
         touchOverId.current = overId
