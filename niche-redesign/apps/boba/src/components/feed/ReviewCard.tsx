@@ -24,15 +24,19 @@ function timeAgo(dateStr: string) {
 }
 
 function StarRow({ score }: { score: number }) {
-  const stars = Math.round(score / 2)
+  const pct = score / 10
   return (
     <div style={{ display: "flex", gap: 2 }}>
-      {[1,2,3,4,5].map(n => (
-        <span key={n} style={{
-          fontSize: 13,
-          color: n <= stars ? "#c9a84c" : "#e8e8e4",
-        }}>★</span>
-      ))}
+      {[0, 1, 2, 3, 4].map(i => {
+        const fill = Math.max(0, Math.min(1, pct * 5 - i))
+        const gid = `sr-rc-${i}-${Math.round(score * 10)}`
+        return (
+          <svg key={i} width="13" height="13" viewBox="0 0 24 24">
+            <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>
+            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
+          </svg>
+        )
+      })}
     </div>
   )
 }
@@ -112,7 +116,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           fontFamily: "'DM Serif Display', Georgia, serif",
           fontSize: 22, color: "#1a1a1a", fontWeight: 400,
         }}>
-          {review.score}
+          {typeof review.score === "number" ? review.score.toFixed(1) : review.score}
         </span>
       </div>
 

@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/ui/AppShell"
 import { createClient } from "@niche/auth/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface ProfileClientProps {
   userId: string
@@ -11,12 +12,19 @@ interface ProfileClientProps {
 }
 
 function StarRow({ score }: { score: number }) {
-  const stars = Math.round(score / 2)
+  const pct = score / 10
   return (
     <div style={{ display: "flex", gap: 2 }}>
-      {[1,2,3,4,5].map(n => (
-        <span key={n} style={{ fontSize: 13, color: n <= stars ? "#c9a84c" : "#e8e8e4" }}>★</span>
-      ))}
+      {[0, 1, 2, 3, 4].map(i => {
+        const fill = Math.max(0, Math.min(1, pct * 5 - i))
+        const gid = `sr-pc-${i}-${Math.round(score * 10)}`
+        return (
+          <svg key={i} width="13" height="13" viewBox="0 0 24 24">
+            <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>
+            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
+          </svg>
+        )
+      })}
     </div>
   )
 }
@@ -125,9 +133,19 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
         </div>
 
         {/* Reviews */}
-        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: "#1a1a1a", margin: "0 0 16px" }}>
-          recent reviews
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: "#1a1a1a", margin: 0 }}>
+            recent reviews
+          </p>
+          <Link href="/my-reviews" style={{ textDecoration: "none" }}>
+            <span style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#2d6a4f",
+              border: "1px solid #2d6a4f", borderRadius: 20, padding: "4px 12px",
+            }}>
+              all reviews →
+            </span>
+          </Link>
+        </div>
 
         {reviews.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 0" }}>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="120" height="160">
+  <rect width="120" height="160" rx="24" fill="#fafaf8"/>
+  <!-- Cup body -->
+  <path d="M28 38 L92 38 L83 142 L37 142 Z" stroke="#2d6a4f" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Cup lid / top curve -->
+  <path d="M23 38 Q60 28 97 38" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Straw -->
+  <line x1="60" y1="26" x2="60" y2="-4" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round"/>
+  <!-- Pearls (tapioca) -->
+  <circle cx="45" cy="112" r="7" stroke="#2d6a4f" stroke-width="2" fill="none"/>
+  <circle cx="62" cy="122" r="7" stroke="#2d6a4f" stroke-width="2" fill="none"/>
+  <circle cx="76" cy="110" r="6" stroke="#2d6a4f" stroke-width="2" fill="none"/>
+  <circle cx="51" cy="127" r="6" stroke="#2d6a4f" stroke-width="2" fill="none"/>
+  <!-- Liquid line hint -->
+  <path d="M34 82 Q60 76 86 82" stroke="#2d6a4f" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+</svg>
