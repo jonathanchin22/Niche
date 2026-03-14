@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
@@ -29,12 +29,6 @@ export default function ProfileClient({ profile, userId, followingCount, followe
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
   const [avatar, setAvatar] = useState<string | null>(profile?.avatar_url ?? null)
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [editorImage, setEditorImage] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [xOffset, setXOffset] = useState(0.5)
-  const [yOffset, setYOffset] = useState(0.5)
-  const avRef = useRef<HTMLInputElement>(null)
 
   const { data, isLoading } = useInfiniteQuery({
     queryKey: ["profile-brew-reviews", userId],
@@ -48,65 +42,6 @@ export default function ProfileClient({ profile, userId, followingCount, followe
   const withPhotos = reviews.filter(r => r.image_urls?.length > 0)
   const uniqueCafes = new Set(reviews.map(r => r.place_id)).size
 
-  const handleSignOut = async () => {
-    await getSupabase().auth.signOut()
-    router.push("/auth/login")
-  }
-
-  const openAvatarEditor = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string
-      setEditorImage(base64)
-      setZoom(1)
-      setXOffset(0.5)
-      setYOffset(0.5)
-      setEditorOpen(true)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const cropAndSave = async () => {
-    if (!editorImage) return
-
-    const img = new Image()
-    img.src = editorImage
-    await new Promise((resolve) => { img.onload = () => resolve(null) })
-
-    const size = 256
-    const canvas = document.createElement("canvas")
-    canvas.width = size
-    canvas.height = size
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const scaledW = img.width * zoom
-    const scaledH = img.height * zoom
-
-    const sx = Math.max(0, Math.min(img.width - size / zoom, (img.width - size / zoom) * xOffset))
-    const sy = Math.max(0, Math.min(img.height - size / zoom, (img.height - size / zoom) * yOffset))
-
-    ctx.drawImage(
-      img,
-      sx, sy, size / zoom, size / zoom,
-      0, 0, size, size
-    )
-
-    const croppedBase64 = canvas.toDataURL("image/png")
-    setAvatar(croppedBase64)
-
-    try {
-      const { error } = await getSupabase()
-        .from("profiles")
-        .update({ avatar_url: croppedBase64 })
-        .eq("id", userId)
-      if (error) throw error
-    } catch (err) {
-      console.error("Failed to update avatar:", err)
-    }
-
-    setEditorOpen(false)
-  }
 
   const displayName = profile?.display_name ?? profile?.username ?? "you"
 
@@ -116,15 +51,12 @@ export default function ProfileClient({ profile, userId, followingCount, followe
       <div style={{ padding: "52px 28px 0" }}>
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start", marginBottom: 24 }}>
           {/* Avatar */}
-          <div
-            onClick={() => avRef.current?.click()}
-            style={{
-              width: 70, height: 70, borderRadius: 4, overflow: "hidden",
-              flexShrink: 0, border: "1px solid var(--c-rule)",
-              cursor: "pointer", background: "var(--c-accent-bg)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
+          <div style={{
+            width: 70, height: 70, borderRadius: 4, overflow: "hidden",
+            flexShrink: 0, border: "1px solid var(--c-rule)",
+            background: "var(--c-accent-bg)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             {avatar ? (
               <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -133,116 +65,48 @@ export default function ProfileClient({ profile, userId, followingCount, followe
               </span>
             )}
           </div>
-          <input
-            ref={avRef} type="file" accept="image/*" style={{ display: "none" }}
-            onChange={async (e) => {
-              const f = e.target.files?.[0]
-              if (f) {
-                openAvatarEditor(f)
-              }
-            }}
-          />
 
-          {editorOpen && editorImage && (
-            <div style={{
-              position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              padding: 20, zIndex: 9999,
-            }}>
-              <div style={{
-                background: "var(--c-bg)", borderRadius: 12, width: "100%", maxWidth: 420,
-                padding: 20, boxShadow: "0 16px 40px rgba(0,0,0,0.25)",
-              }}>
-                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0, marginBottom: 12 }}>
-                  Edit profile photo
-                </h3>
-                <div style={{ border: "1px solid var(--c-rule)", borderRadius: 8, overflow: "hidden", position: "relative", height: 260, marginBottom: 12 }}>
-                  <img
-                    src={editorImage}
-                    alt="Editor"
-                    style={{
-                      position: "absolute", top: 0, left: 0,
-                      width: "auto", height: "100%",
-                      transform: `scale(${zoom}) translate(${(xOffset - 0.5) * 100}%, ${(yOffset - 0.5) * 100}%)`,
-                      transformOrigin: "center",
-                    }}
-                  />
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    border: "2px dashed var(--c-accent)",
-                    pointerEvents: "none",
-                  }} />
-                </div>
-
-                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <MonoLabel style={{ display: "block", marginBottom: 4 }}>zoom</MonoLabel>
-                    <input
-                      type="range" min={1} max={3} step={0.05} value={zoom}
-                      onChange={e => setZoom(Number(e.target.value))}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div style={{ width: 120 }}>
-                    <MonoLabel style={{ display: "block", marginBottom: 4 }}>x offset</MonoLabel>
-                    <input
-                      type="range" min={0} max={1} step={0.01} value={xOffset}
-                      onChange={e => setXOffset(Number(e.target.value))}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <MonoLabel style={{ display: "block", marginBottom: 4 }}>y offset</MonoLabel>
-                    <input
-                      type="range" min={0} max={1} step={0.01} value={yOffset}
-                      onChange={e => setYOffset(Number(e.target.value))}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setEditorOpen(false)}
-                    style={{
-                      padding: "10px 14px", border: "1px solid var(--c-rule)", borderRadius: 8,
-                      background: "none", cursor: "pointer",
-                      fontFamily: "var(--font-mono)", fontSize: 10,
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cropAndSave}
-                    style={{
-                      padding: "10px 14px", border: "none", borderRadius: 8,
-                      background: "var(--c-accent)", color: "white", cursor: "pointer",
-                      fontFamily: "var(--font-mono)", fontSize: 10,
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div style={{ flex: 1 }}>
-            <h2 style={{
-              fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 2px",
-              fontWeight: 400, fontStyle: "italic", color: "var(--c-ink)",
-            }}>
-              {displayName}
-            </h2>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <h2 style={{
+                fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 2px",
+                fontWeight: 400, fontStyle: "italic", color: "var(--c-ink)",
+              }}>
+                {displayName}
+              </h2>
+              <button
+                type="button"
+                onClick={() => router.push("/profile/edit")}
+                style={{
+                  padding: "10px 12px", border: "1px solid var(--c-rule)", borderRadius: 8,
+                  background: "none", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10,
+                  color: "var(--c-subtle)", alignSelf: "flex-start",
+                }}
+              >
+                edit profile
+              </button>
+            </div>
+
             {profile?.bio && (
               <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "var(--c-subtle)", margin: 0 }}>
                 {profile.bio}
               </p>
+            )}
+
+            {(profile?.top_coffee || profile?.location) && (
+              <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+                {profile?.top_coffee && (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+                    top coffee: {profile.top_coffee}
+                  </div>
+                )}
+                {profile?.location && (
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+                    location: {profile.location}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -335,22 +199,6 @@ export default function ProfileClient({ profile, userId, followingCount, followe
         </div>
       )}
 
-      {/* Sign out */}
-      <div style={{ padding: "32px 28px 0" }}>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          style={{
-            width: "100%", background: "none",
-            border: "1px solid var(--c-rule)", padding: "14px",
-            fontFamily: "var(--font-mono)", fontSize: 10,
-            color: "var(--c-subtle)", cursor: "pointer",
-            letterSpacing: "0.08em", textTransform: "uppercase",
-          }}
-        >
-          sign out
-        </button>
-      </div>
     </div>
   )
 }

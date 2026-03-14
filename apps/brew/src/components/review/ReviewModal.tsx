@@ -34,6 +34,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [step, setStep] = useState(1)
   const [drinkName, setDrinkName] = useState("")
   const [category, setCategory] = useState("")
+  const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
   const [originRoast, setOriginRoast] = useState("")
   const [score, setScore] = useState(0)             // 0–10 stored, shown as 0–5 stars
@@ -67,7 +68,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
   const handleSubmit = () => {
     if (!drinkName.trim()) { setError("Drink name is required."); setStep(1); return }
-    if (!cafeName.trim()) { setError("Cafe name is required."); setStep(1); return }
+    if (!isHomeBrew && !cafeName.trim()) { setError("Cafe name is required."); setStep(1); return }
     if (score === 0) { setError("Please set a rating."); setStep(2); return }
 
     startTransition(async () => {
@@ -86,14 +87,14 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
         // Upsert the place
         const place = await upsertPlace(supabase, {
           app_id: APP_ID,
-          name: cafeName.trim(),
-          address: "",
-          city: "",
-          state: "",
+          name: isHomeBrew ? "Brewed at home" : cafeName.trim(),
+          address: "", // kept intentionally blank for home logs
+          city: isHomeBrew ? "home" : "",
+          state: isHomeBrew ? "home" : "",
           country: "",
           lat: 0,
           lng: 0,
-          google_place_id: null,
+          google_place_id: isHomeBrew ? "brew_home" : null,
           foursquare_id: null,
           cover_image_url: null,
         })
@@ -180,6 +181,32 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
               </div>
             </div>
 
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsHomeBrew(prev => {
+                    const next = !prev
+                    setCafeName(next ? "Brewed at home" : "")
+                    return next
+                  })
+                }}
+                style={{
+                  padding: "8px 10px", borderRadius: 8, border: "1px solid var(--c-rule)",
+                  background: isHomeBrew ? "var(--c-accent)" : "none",
+                  color: isHomeBrew ? "white" : "var(--c-subtle)", cursor: "pointer",
+                  fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em",
+                }}
+              >
+                {isHomeBrew ? "brewed at home" : "brew at a cafe"}
+              </button>
+              <MonoLabel style={{ fontSize: 10, color: "var(--c-subtle)" }}>
+                {isHomeBrew
+                  ? "Your logged drink will be saved as brewed at home."
+                  : "Add the cafe you visited."}
+              </MonoLabel>
+            </div>
+
             {[
               { label: "drink name", ph: "e.g. oat flat white", val: drinkName, set: setDrinkName },
               { label: "cafe", ph: "e.g. Sightglass SoMa", val: cafeName, set: setCafeName },
@@ -191,11 +218,13 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   value={val}
                   onChange={e => set(e.target.value)}
                   placeholder={ph}
+                  disabled={isHomeBrew && label === "cafe"}
                   style={{
                     width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
                     border: "none", borderBottom: "1px solid var(--c-rule)",
                     padding: "8px 0", background: "transparent", color: "var(--c-ink)",
                     outline: "none", fontStyle: "italic",
+                    opacity: isHomeBrew && label === "cafe" ? 0.5 : 1,
                   }}
                 />
               </div>
