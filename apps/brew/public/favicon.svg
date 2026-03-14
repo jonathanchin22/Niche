@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#8b5e3c"/>
+  <!-- cup body -->
+  <path d="M8 14 Q7.5 24 6 25 Q16 28 26 25 Q24.5 24 24 14 Z" stroke="#f7f3ee" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+  <!-- cup rim -->
+  <ellipse cx="16" cy="14" rx="8" ry="2.5" stroke="#f7f3ee" stroke-width="1.2" fill="none"/>
+  <!-- handle -->
+  <path d="M24 17 Q29 17 29 21 Q29 25 24 24" stroke="#f7f3ee" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- steam 1 -->
+  <path d="M12 10 Q13.5 7 12 4" stroke="#f7f3ee" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <!-- steam 2 -->
+  <path d="M16 9 Q17.5 6 16 3" stroke="#f7f3ee" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <!-- steam 3 -->
+  <path d="M20 10 Q21.5 7 20 4" stroke="#f7f3ee" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.7"/>
+</svg>
