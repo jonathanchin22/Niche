@@ -1,49 +1,70 @@
 "use client"
 
 import { useState } from "react"
-import { createBrowserClient } from "@supabase/ssr"
+import { useRouter } from "next/navigation"
+import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
 import { CupSteamSketch, MonoLabel } from "@/components/ui/Primitives"
 
+type Mode = "login" | "signup"
+
 export default function LoginPage() {
+  const router = useRouter()
+  const [mode, setMode] = useState<Mode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [username, setUsername] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
-  const supabase = typeof window !== "undefined"
-    ? createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-      )
-    : null
+  // After any successful auth, check membership and route appropriately
+  async function handlePostAuth() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    const { data: membership } = await supabase
+      .from("app_memberships")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .eq("app_id", "brew")
+      .single()
 
-    if (!supabase) {
-      setError("Supabase is not configured.")
-      setLoading(false)
-      return
-    }
-
-    if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
-      else window.location.href = "/"
+    if (membership) {
+      router.push("/")
     } else {
-      const { error } = await supabase.auth.signUp({
-        email, password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      })
-      if (error) setError(error.message)
-      else setSuccess("Check your email to confirm your account.")
+      // They have an account (from boba/slice) but haven't joined brew yet
+      router.push("/join")
     }
+  }
 
-    setLoading(false)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      if (mode === "signup") {
+        await signUp({
+          email, password, username,
+          display_name: displayName,
+          source_app_id: "brew",
+        })
+        // Auto-creates profile + brew membership via DB trigger
+        router.push("/")
+      } else {
+        await signIn({ email, password })
+        await handlePostAuth()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleOAuth(provider: "google" | "apple") {
+    const redirectTo = `${window.location.origin}/auth/callback`
+    await signInWithOAuth(provider, redirectTo)
   }
 
   return (
@@ -83,6 +104,42 @@ export default function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+        {mode === "signup" && (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <MonoLabel style={{ marginBottom: 10 }}>display name</MonoLabel>
+              <input
+                type="text"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="Your Name"
+                required
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent",
+                  color: "var(--c-ink)", outline: "none", fontStyle: "italic",
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <MonoLabel style={{ marginBottom: 10 }}>username</MonoLabel>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value.toLowerCase())}
+                placeholder="e.g. brewmaster"
+                required
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent",
+                  color: "var(--c-ink)", outline: "none", fontStyle: "italic",
+                }}
+              />
+            </div>
+          </>
+        )}
         {[
           { label: "email", type: "email", val: email, set: setEmail, ph: "you@example.com" },
           { label: "password", type: "password", val: password, set: setPassword, ph: "••••••••" },
@@ -110,11 +167,6 @@ export default function LoginPage() {
             {error}
           </p>
         )}
-        {success && (
-          <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "var(--c-accent)", marginBottom: 16 }}>
-            {success}
-          </p>
-        )}
 
         <button type="submit" disabled={loading} style={{
           width: "100%", background: "var(--c-accent)", color: "#fff",
@@ -127,6 +179,14 @@ export default function LoginPage() {
           {loading ? "..." : mode === "login" ? "sign in →" : "create account →"}
         </button>
       </form>
+
+      <p style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "var(--c-subtle)", marginTop: 24, textAlign: "center" }}>
+        Already on boba or slice?{" "}
+        <button onClick={() => setMode("login")} style={{ color: "var(--c-accent)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}>
+          Sign in →
+        </button>
+        {" "}— your account works across all niche apps.
+      </p>
     </div>
   )
 }

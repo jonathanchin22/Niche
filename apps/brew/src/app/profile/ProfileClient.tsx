@@ -75,10 +75,25 @@ export default function ProfileClient({ profile, userId, followingCount, followe
           </div>
           <input
             ref={avRef} type="file" accept="image/*" style={{ display: "none" }}
-            onChange={e => {
+            onChange={async (e) => {
               const f = e.target.files?.[0]
-              if (f) setAvatar(URL.createObjectURL(f))
-              // TODO: upload to supabase storage + updateProfile
+              if (f) {
+                const reader = new FileReader()
+                reader.onload = async (event) => {
+                  const base64 = event.target?.result as string
+                  setAvatar(base64)
+                  try {
+                    const { error } = await getSupabase()
+                      .from("profiles")
+                      .update({ avatar_url: base64 })
+                      .eq("id", userId)
+                    if (error) throw error
+                  } catch (err) {
+                    console.error("Failed to update avatar:", err)
+                  }
+                }
+                reader.readAsDataURL(f)
+              }
             }}
           />
 
