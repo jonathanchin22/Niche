@@ -1,4 +1,6 @@
 {
-  "version": 2,
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@niche/boba",
+  "installCommand": "cd ../.. && pnpm install",
+  "outputDirectory": ".next"
 }
