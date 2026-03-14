@@ -53,10 +53,8 @@ function StarDisplay({ score }: { score: number }) {
           <svg key={i} width="26" height="26" viewBox="0 0 24 24">
             <defs>
               <linearGradient id={gradId}>
-                <stop offset="0%" stopColor="#c9a84c" />
                 <stop offset={offset} stopColor="#c9a84c" />
                 <stop offset={offset} stopColor="#e8e8e4" />
-                <stop offset="100%" stopColor="#e8e8e4" />
               </linearGradient>
             </defs>
             <path
@@ -150,7 +148,7 @@ export default function LogPage() {
       await createReview(supabase as any, {
         app_id: "boba", user_id: user.id, place_id: place.id,
         item_name: drinkName, score: Math.round(rating * 10) / 10,
-        body: body.trim() || null, tags: selectedTags, image_urls: [],
+        note: body.trim() || null, tags: selectedTags, image_urls: [],
       } as any)
     },
     onSuccess: () => { setStep("done"); setTimeout(() => router.push("/"), 1800) },

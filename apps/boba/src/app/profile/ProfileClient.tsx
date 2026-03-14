@@ -22,12 +22,7 @@ function StarRow({ score }: { score: number }) {
         const gid = `sr-pc-${i}-${Math.round(scoreNum * 10)}`
         return (
           <svg key={i} width="13" height="13" viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}>
-              <stop offset="0%" stopColor="#c9a84c" />
-              <stop offset={offset} stopColor="#c9a84c" />
-              <stop offset={offset} stopColor="#e8e8e4" />
-              <stop offset="100%" stopColor="#e8e8e4" />
-            </linearGradient></defs>
+            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
             <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
           </svg>
         )
@@ -163,7 +158,7 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {reviews.slice(0, 20).map((r: any) => (
+            {safeReviews.slice(0, 20).map((r: any) => (
               <div key={r.id} style={{
                 background: "white", border: "1px solid #e8e8e4",
                 borderRadius: 12, padding: "16px 18px",
@@ -179,9 +174,9 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
                   </div>
                   <StarRow score={r.score} />
                 </div>
-                {r.body && (
+                {r.note && (
                   <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#555", margin: 0, lineHeight: 1.4 }}>
-                    {r.body}
+                    {r.note}
                   </p>
                 )}
                 {r.tags?.length > 0 && (

@@ -171,9 +171,9 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
                   </div>
                   <StarRow score={r.score} />
                 </div>
-                {r.body && (
+                {r.note && (
                   <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#555", margin: 0, lineHeight: 1.4 }}>
-                    {r.body}
+                    {r.note}
                   </p>
                 )}
                 {r.tags?.length > 0 && (

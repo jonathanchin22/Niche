@@ -11,7 +11,7 @@ interface Review {
   id: string
   item_name: string | null
   score: number
-  body: string | null
+  note: string | null
   tags: string[]
   created_at: string
   place?: { id: string; name: string; city: string; state: string } | null

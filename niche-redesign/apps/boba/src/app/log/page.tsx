@@ -146,7 +146,7 @@ export default function LogPage() {
       await createReview(supabase as any, {
         app_id: "boba", user_id: user.id, place_id: place.id,
         item_name: drinkName, score: Math.round(rating * 10) / 10,
-        body: body.trim() || null, tags: selectedTags, image_urls: [],
+        note: body.trim() || null, tags: selectedTags, image_urls: [],
       } as any)
     },
     onSuccess: () => { setStep("done"); setTimeout(() => router.push("/"), 1800) },

@@ -117,7 +117,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       </div>
 
       {/* Body */}
-      {review.body && (
+      {review.note && (
         <p style={{
           fontFamily: "'Caveat', cursive",
           fontSize: 17, color: "#333",
@@ -125,7 +125,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           borderLeft: "2px solid #e8f4ee",
           paddingLeft: 12,
         }}>
-          {review.body}
+          {review.note}
         </p>
       )}
 

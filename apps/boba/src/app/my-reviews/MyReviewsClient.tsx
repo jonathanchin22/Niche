@@ -11,7 +11,7 @@ interface Review {
   id: string
   item_name: string | null
   score: number
-  body: string | null
+  note: string | null
   tags: string[]
   created_at: string
   place?: { id: string; name: string; city: string; state: string } | null
@@ -32,12 +32,7 @@ function StarRow({ score, size = 12 }: { score: number; size?: number }) {
         const gid = `mr-${i}-${Math.round(scoreNum * 10)}-${size}`
         return (
           <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}>
-              <stop offset="0%" stopColor="#c9a84c" />
-              <stop offset={offset} stopColor="#c9a84c" />
-              <stop offset={offset} stopColor="#e8e8e4" />
-              <stop offset="100%" stopColor="#e8e8e4" />
-            </linearGradient></defs>
+            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
             <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
           </svg>
         )
@@ -133,7 +128,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
     return (
       r.item_name?.toLowerCase().includes(q) ||
       r.place?.name?.toLowerCase().includes(q) ||
-      r.body?.toLowerCase().includes(q) ||
+      r.note?.toLowerCase().includes(q) ||
       r.tags?.some(t => t.toLowerCase().includes(q))
     )
   })
@@ -449,7 +444,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                         {timeAgo(review.created_at)}
                       </span>
                     </div>
-                    {review.body && (
+                    {review.note && (
                       <p style={{
                         fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888",
                         margin: "6px 0 0",
@@ -457,7 +452,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                         display: "-webkit-box", WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical" as any,
                       }}>
-                        {review.body}
+                        {review.note}
                       </p>
                     )}
                   </div>
