@@ -32,7 +32,12 @@ function StarRow({ score, size = 12 }: { score: number; size?: number }) {
         const gid = `mr-${i}-${Math.round(scoreNum * 10)}-${size}`
         return (
           <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
+            <defs><linearGradient id={gid}>
+              <stop offset="0%" stopColor="#c9a84c" />
+              <stop offset={offset} stopColor="#c9a84c" />
+              <stop offset={offset} stopColor="#e8e8e4" />
+              <stop offset="100%" stopColor="#e8e8e4" />
+            </linearGradient></defs>
             <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
           </svg>
         )

@@ -53,8 +53,10 @@ function StarDisplay({ score }: { score: number }) {
           <svg key={i} width="26" height="26" viewBox="0 0 24 24">
             <defs>
               <linearGradient id={gradId}>
+                <stop offset="0%" stopColor="#c9a84c" />
                 <stop offset={offset} stopColor="#c9a84c" />
                 <stop offset={offset} stopColor="#e8e8e4" />
+                <stop offset="100%" stopColor="#e8e8e4" />
               </linearGradient>
             </defs>
             <path
@@ -112,7 +114,7 @@ export default function LogPage() {
   const [placeQuery, setPlaceQuery] = useState("")
   const [placeResults, setPlaceResults] = useState<SelectedPlace[]>([])
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null)
-  const [rating, setRating] = useState(5)
+  const [rating, setRating] = useState(0)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [body, setBody] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -136,9 +138,7 @@ export default function LogPage() {
 
   const { mutate: submitReview, isPending } = useMutation({
     mutationFn: async () => {
-      if (!drinkName.trim()) throw new Error("Please enter a drink name")
-      if (!selectedPlace) throw new Error("Please select a shop")
-      if (rating === 0) throw new Error("Please set a rating")
+      if (!selectedPlace) throw new Error("No place selected")
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
       const place = await upsertPlace(supabase as any, {
