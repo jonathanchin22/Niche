@@ -28,7 +28,6 @@ interface Props {
 export default function ProfileClient({ profile, userId, followingCount, followerCount }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
-  const [avatar, setAvatar] = useState<string | null>(profile?.avatar_url ?? null)
 
   const { data, isLoading } = useInfiniteQuery({
     queryKey: ["profile-brew-reviews", userId],
@@ -57,8 +56,8 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             background: "var(--c-accent-bg)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            {avatar ? (
-              <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
               <span style={{ fontFamily: "var(--font-display)", fontSize: 28, color: "var(--c-accent)", fontStyle: "italic" }}>
                 {displayName[0]?.toUpperCase()}

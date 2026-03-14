@@ -191,20 +191,39 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
       {/* Step indicator */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--c-rule)", margin: "20px 0 0" }}>
-        {["what", "how", "photos"].map((s, i) => (
-          <div key={s} style={{
-            flex: 1, padding: "12px 0", textAlign: "center",
-            borderBottom: `2px solid ${i + 1 <= step ? "var(--c-accent)" : "transparent"}`,
-          }}>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 9,
-              color: i + 1 <= step ? "var(--c-accent)" : "var(--c-subtle)",
-              letterSpacing: "0.1em", textTransform: "uppercase",
-            }}>
-              {i + 1}. {s}
-            </span>
-          </div>
-        ))}
+        {["what", "how", "photos"].map((s, i) => {
+          const canGoBack = i + 1 < step;
+          return (
+            <div
+              key={s}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                textAlign: "center",
+                borderBottom: `2px solid ${i + 1 <= step ? "var(--c-accent)" : "transparent"}`,
+                cursor: canGoBack ? "pointer" : "default",
+                opacity: canGoBack ? 1 : 0.7,
+              }}
+              onClick={() => {
+                if (canGoBack) setStep(i + 1)
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 9,
+                  color: i + 1 <= step ? "var(--c-accent)" : "var(--c-subtle)",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  textDecoration: canGoBack ? "underline" : undefined,
+                  cursor: canGoBack ? "pointer" : "default",
+                }}
+              >
+                {i + 1}. {s}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       <div style={{ padding: "32px 28px 100px" }}>
@@ -251,7 +270,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em",
                 }}
               >
-                {isHomeBrew ? "brewed at home" : "brew at a cafe"}
+                {isHomeBrew ? "brewed at home" : "brew at home"}
               </button>
               <MonoLabel style={{ fontSize: 10, color: "var(--c-subtle)" }}>
                 {isHomeBrew
@@ -283,7 +302,15 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
               </div>
             ))}
 
-            <button type="button" onClick={() => { setError(null); setStep(2) }} style={primaryBtn}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!drinkName.trim()) { setError("Drink name is required."); return }
+                if (!isHomeBrew && !cafeName.trim()) { setError("Cafe name is required."); return }
+                setError(null); setStep(2)
+              }}
+              style={primaryBtn}
+            >
               next →
             </button>
           </>
@@ -330,7 +357,16 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
             <div style={{ display: "flex", gap: 10 }}>
               <button type="button" onClick={() => setStep(1)} style={ghostBtn}>← back</button>
-              <button type="button" onClick={() => { setError(null); setStep(3) }} style={{ ...primaryBtn, flex: 2 }}>next →</button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (score === 0) { setError("Please set a rating."); return }
+                  setError(null); setStep(3)
+                }}
+                style={{ ...primaryBtn, flex: 2 }}
+              >
+                next →
+              </button>
             </div>
           </>
         )}

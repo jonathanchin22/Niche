@@ -23,6 +23,35 @@ const DESCRIPTORS = [
   "chewy pearls", "great value", "fresh", "rich", "light", "classic",
 ]
 
+async function compressImage(file: File, maxWidth = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width)
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement("canvas")
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        URL.revokeObjectURL(url)
+        reject(new Error("Could not process image"))
+        return
+      }
+      ctx.drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL("image/jpeg", 0.82))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error("Failed to load image"))
+    }
+    img.src = url
+  })
+}
+
 async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
   if (!query || query.length < 2) return []
   const encoded = encodeURIComponent(`${query} bubble tea boba`)
@@ -115,8 +144,11 @@ export default function LogPage() {
   const [rating, setRating] = useState(0)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [body, setBody] = useState("")
+  const [photoUrls, setPhotoUrls] = useState<string[]>([])
+  const [photoUploading, setPhotoUploading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const handlePlaceSearch = useCallback((q: string) => {
     setPlaceQuery(q)
@@ -148,11 +180,28 @@ export default function LogPage() {
       await createReview(supabase as any, {
         app_id: "boba", user_id: user.id, place_id: place.id,
         item_name: drinkName, score: Math.round(rating * 10) / 10,
-        note: body.trim() || null, tags: selectedTags, image_urls: [],
+        note: body.trim() || null, tags: selectedTags, image_urls: photoUrls,
       } as any)
     },
     onSuccess: () => { setStep("done"); setTimeout(() => router.push("/"), 1800) },
   })
+
+  const handlePhotoFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setPhotoUploading(true)
+    const newUrls: string[] = []
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue
+      try {
+        const compressed = await compressImage(file)
+        newUrls.push(compressed)
+      } catch {
+        continue
+      }
+    }
+    setPhotoUrls(prev => [...prev, ...newUrls].slice(0, 6))
+    setPhotoUploading(false)
+  }
 
   const stepIndex = { drink: 0, rate: 1, share: 2, done: 3 }[step]
 
@@ -180,10 +229,46 @@ export default function LogPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <button onClick={() => router.back()} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", padding: 0 }}>← cancel</button>
         </div>
+        {/* Step headers clickable for going back */}
         <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-          {[0,1,2].map(n => (
-            <div key={n} style={{ height: 2, flex: 1, borderRadius: 2, background: n <= stepIndex ? "#2d6a4f" : "#e8e8e4", transition: "background 0.3s" }} />
-          ))}
+          {["drink", "rate", "share"].map((s, n) => {
+            const canGoBack = n < stepIndex;
+            return (
+              <div
+                key={s}
+                style={{
+                  flex: 1,
+                  height: 2,
+                  borderRadius: 2,
+                  background: n <= stepIndex ? "#2d6a4f" : "#e8e8e4",
+                  transition: "background 0.3s",
+                  cursor: canGoBack ? "pointer" : "default",
+                  position: "relative",
+                }}
+                onClick={() => {
+                  if (canGoBack) setStep(s as Step)
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -18,
+                    left: 0,
+                    right: 0,
+                    textAlign: "center",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 11,
+                    color: canGoBack ? "#2d6a4f" : "#bbb",
+                    textDecoration: canGoBack ? "underline" : undefined,
+                    cursor: canGoBack ? "pointer" : "default",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {s}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -258,12 +343,71 @@ export default function LogPage() {
         {step === "share" && (
           <div style={{ textAlign: "center" }}>
             <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 36px" }}>share it?</h2>
+            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 16px" }}>share it?</h2>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginBottom: 28 }}>
               <StarDisplay score={rating} />
               <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a" }}>{rating.toFixed(1)}</span>
               <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#bbb" }}>/ 10</span>
             </div>
+
+            <div style={{ marginBottom: 24, textAlign: "left" }}>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>
+                photos
+              </p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: "none" }}
+                onChange={e => handlePhotoFiles(e.target.files)}
+              />
+
+              {photoUrls.length > 0 && (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: photoUrls.length === 1 ? "1fr" : "1fr 1fr",
+                  gap: 8,
+                  marginBottom: 10,
+                }}>
+                  {photoUrls.map((url, i) => (
+                    <div key={`${url.slice(0, 32)}-${i}`} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: photoUrls.length === 1 ? "16/9" : "1/1" }}>
+                      <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <button
+                        onClick={() => setPhotoUrls(prev => prev.filter((_, idx) => idx !== i))}
+                        style={{
+                          position: "absolute", top: 6, right: 6,
+                          border: "none", borderRadius: "50%", width: 22, height: 22,
+                          background: "rgba(0,0,0,0.55)", color: "#fff", cursor: "pointer",
+                          fontSize: 14, lineHeight: 1,
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {photoUrls.length < 6 && (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                  style={{
+                    width: "100%",
+                    background: "#e8f4ee",
+                    border: "1px dashed #2d6a4f",
+                    borderRadius: 10,
+                    padding: "12px",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 13,
+                    color: "#2d6a4f",
+                    cursor: "pointer",
+                  }}
+                >
+                  {photoUploading ? "adding..." : photoUrls.length === 0 ? "add photos" : "add more"}
+                </button>
+              )}
+            </div>
+
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#888", marginBottom: 24 }}>let your friends see what you're sipping</p>
             <button onClick={() => submitReview()} disabled={isPending}
               style={{ width: "100%", background: "#2d6a4f", color: "#fff", border: "none", borderRadius: 10, padding: "16px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, cursor: "pointer", marginBottom: 12, opacity: isPending ? 0.6 : 1 }}>
