@@ -83,27 +83,35 @@ export default function ReviewCard({ review, showAuthor = false, onClick }: Prop
           </p>
         )}
 
-        {/* Footer — author + time */}
+        {/* Footer — reviewed by + time */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-          {showAuthor && review.user ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{
-                width: 24, height: 24, borderRadius: 2,
-                background: "var(--c-accent-bg)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                overflow: "hidden",
-              }}>
-                {review.user.avatar_url ? (
-                  <img src={review.user.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
-                    {review.user.username?.[0]?.toUpperCase()}
-                  </span>
-                )}
+          {showAuthor && (() => {
+            const reviewer = (review as any).profile ?? (review as any).user
+            if (!reviewer) return <div />
+
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: 2,
+                  background: "var(--c-accent-bg)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden",
+                }}>
+                  {reviewer.avatar_url ? (
+                    <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
+                      {reviewer.username?.[0]?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
+                  <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
+                </div>
               </div>
-              <MonoLabel>@{review.user.username}</MonoLabel>
-            </div>
-          ) : <div />}
+            )
+          })()}
           <MonoLabel>{timeAgo} ago</MonoLabel>
         </div>
       </div>
