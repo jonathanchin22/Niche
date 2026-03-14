@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=@niche/brew",
-  "installCommand": "cd ../.. && pnpm install",
-  "outputDirectory": ".next"
-}
