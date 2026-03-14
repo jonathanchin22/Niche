@@ -486,6 +486,25 @@ export async function getProfile(
   return data
 }
 
+export async function getHighestRatedCoffee(
+  supabase: SupabaseClient,
+  { user_id, app_id }: { user_id: string; app_id: AppId }
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("item_name, score, created_at")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .not("item_name", "is", null)
+    .order("score", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.item_name ?? null
+}
+
 export async function updateProfile(
   supabase: SupabaseClient,
   { user_id, updates }: { user_id: string; updates: Record<string, any> }

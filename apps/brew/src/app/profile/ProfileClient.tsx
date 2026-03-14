@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getUserReviews } from "@niche/database"
-import { MonoLabel, Stars } from "@/components/ui/Primitives"
+import { MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
 import type { Review } from "@niche/shared-types"
 
@@ -23,11 +23,14 @@ interface Props {
   userId: string
   followingCount: number
   followerCount: number
+  highestRatedCoffee: string | null
 }
 
-export default function ProfileClient({ profile, userId, followingCount, followerCount }: Props) {
+export default function ProfileClient({ profile, userId, followingCount, followerCount, highestRatedCoffee }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading } = useInfiniteQuery({
     queryKey: ["profile-brew-reviews", userId],
@@ -43,6 +46,22 @@ export default function ProfileClient({ profile, userId, followingCount, followe
 
 
   const displayName = profile?.display_name ?? profile?.username ?? "you"
+  const bioText = profile?.bio?.trim() || "No description yet."
+  const locationText = profile?.location?.trim() || "No location set"
+  const topCoffeeText = highestRatedCoffee || "No rated coffee yet"
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const closeMenu = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", closeMenu)
+    return () => document.removeEventListener("mousedown", closeMenu)
+  }, [menuOpen])
 
   return (
     <div style={{ paddingBottom: 20 }}>
@@ -67,46 +86,114 @@ export default function ProfileClient({ profile, userId, followingCount, followe
 
 
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, justifyContent: "space-between" }}>
               <h2 style={{
                 fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 2px",
                 fontWeight: 400, fontStyle: "italic", color: "var(--c-ink)",
               }}>
                 {displayName}
               </h2>
-              <button
-                type="button"
-                onClick={() => router.push("/profile/edit")}
-                style={{
-                  padding: "10px 12px", border: "1px solid var(--c-rule)", borderRadius: 8,
-                  background: "none", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10,
-                  color: "var(--c-subtle)", alignSelf: "flex-start",
-                }}
-              >
-                edit profile
-              </button>
-            </div>
+              <div ref={menuRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  aria-label="Open profile options"
+                  onClick={() => setMenuOpen(open => !open)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    border: "1px solid var(--c-rule)",
+                    borderRadius: 8,
+                    background: "none",
+                    cursor: "pointer",
+                    color: "var(--c-subtle)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 5h.01M12 12h.01M12 19h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                  </svg>
+                </button>
 
-            {profile?.bio && (
-              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "var(--c-subtle)", margin: 0 }}>
-                {profile.bio}
-              </p>
-            )}
-
-            {(profile?.top_coffee || profile?.location) && (
-              <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-                {profile?.top_coffee && (
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
-                    top coffee: {profile.top_coffee}
-                  </div>
-                )}
-                {profile?.location && (
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
-                    location: {profile.location}
+                {menuOpen && (
+                  <div style={{
+                    position: "absolute",
+                    top: 38,
+                    right: 0,
+                    minWidth: 190,
+                    background: "var(--c-bg)",
+                    border: "1px solid var(--c-rule)",
+                    borderRadius: 10,
+                    boxShadow: "0 10px 28px rgba(0,0,0,0.12)",
+                    padding: 6,
+                    zIndex: 10,
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        router.push("/profile/edit")
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        background: "none",
+                        padding: "10px 10px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        color: "var(--c-ink)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                      }}
+                    >
+                      Edit profile
+                    </button>
+                    <div style={{
+                      padding: "8px 10px",
+                      color: "var(--c-subtle)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      borderTop: "1px solid var(--c-rule)",
+                    }}>
+                      Settings (coming soon)
+                    </div>
+                    <div style={{
+                      padding: "8px 10px",
+                      color: "var(--c-subtle)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                    }}>
+                      App connections (coming soon)
+                    </div>
+                    <div style={{
+                      padding: "8px 10px",
+                      color: "var(--c-subtle)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                    }}>
+                      Account management (coming soon)
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "var(--c-subtle)", margin: 0 }}>
+              {bioText}
+            </p>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+                highest rated: {topCoffeeText}
+              </div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+                location: {locationText}
+              </div>
+            </div>
           </div>
         </div>
 

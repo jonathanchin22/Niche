@@ -270,7 +270,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em",
                 }}
               >
-                {isHomeBrew ? "brewed at home" : "brew at home"}
+                brewed at home
               </button>
               <MonoLabel style={{ fontSize: 10, color: "var(--c-subtle)" }}>
                 {isHomeBrew

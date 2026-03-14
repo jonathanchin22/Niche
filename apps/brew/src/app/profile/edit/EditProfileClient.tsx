@@ -42,12 +42,12 @@ function getSupabase() {
 interface Props {
   profile: any
   userId: string
+  highestRatedCoffee: string | null
 }
 
-export default function EditProfileClient({ profile, userId }: Props) {
+export default function EditProfileClient({ profile, userId, highestRatedCoffee }: Props) {
   const router = useRouter()
   const [description, setDescription] = useState(profile?.bio ?? "")
-  const [topCoffee, setTopCoffee] = useState(profile?.top_coffee ?? "")
   const [location, setLocation] = useState(profile?.location ?? "")
   const [avatar, setAvatar] = useState<string | null>(profile?.avatar_url ?? null)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -286,7 +286,6 @@ export default function EditProfileClient({ profile, userId }: Props) {
         user_id: userId,
         updates: {
           bio: description || null,
-          top_coffee: topCoffee || null,
           location: location || null,
         },
       })
@@ -473,16 +472,24 @@ export default function EditProfileClient({ profile, userId }: Props) {
             </label>
 
             <label style={{ display: "block" }}>
-              <MonoLabel>Top coffee</MonoLabel>
-              <input
-                value={topCoffee}
-                onChange={(e) => setTopCoffee(e.target.value)}
-                placeholder="eg. AeroPress, Cold Brew"
+              <MonoLabel>Highest rated coffee</MonoLabel>
+              <div
                 style={{
-                  width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--c-rule)",
-                  fontFamily: "var(--font-hand)", fontSize: 14,
+                  width: "100%",
+                  padding: 10,
+                  borderRadius: 10,
+                  border: "1px solid var(--c-rule)",
+                  background: "var(--c-tint)",
+                  fontFamily: "var(--font-hand)",
+                  fontSize: 14,
+                  color: "var(--c-ink)",
                 }}
-              />
+              >
+                {highestRatedCoffee || "No rated coffee yet"}
+              </div>
+              <p style={{ margin: "6px 0 0", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)" }}>
+                This is calculated automatically from your highest-scored drink log.
+              </p>
             </label>
 
             <label style={{ display: "block" }}>
