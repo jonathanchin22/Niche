@@ -72,6 +72,14 @@ export interface Review {
   image_urls: string[]
   created_at: string
   updated_at: string
+  // Boba-specific structured data
+  taste_attributes?: BobaTasteAttributes | null
+  customizations?: string[]
+  toppings?: string[]
+  quality_signals?: BobaQualitySignals | null
+  visit_context?: string | null
+  revisit_intent?: boolean | null
+  price_paid?: number | null
   // Joined fields (populated by queries)
   user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">
   place?: Pick<Place, "id" | "name" | "city" | "state">
@@ -149,4 +157,55 @@ export interface ApiError {
   code: string
   message: string
   details?: unknown
+}
+
+// ─── Boba-specific types ──────────────────────────────────────────────────────
+
+export type BobaDrinkType =
+  | "milk tea"
+  | "fruit tea"
+  | "matcha"
+  | "taro"
+  | "brown sugar"
+  | "cheese foam"
+  | "yakult"
+  | "smoothie"
+  | "seasonal special"
+
+export type BobaSugarLevel = 0 | 25 | 50 | 75 | 100
+
+export type BobaIceLevel = "no ice" | "less" | "regular" | "extra"
+
+export type BobaPearlTexture =
+  | "perfect chew"
+  | "too soft"
+  | "too hard"
+  | "overcooked"
+
+export type BobaTeaBase = "real tea" | "powdery" | "artificial"
+
+export type BobaTopping =
+  | "classic boba"
+  | "tiger pearls"
+  | "popping boba"
+  | "lychee jelly"
+  | "grass jelly"
+  | "pudding"
+  | "red bean"
+  | "aloe vera"
+  | "coconut jelly"
+  | "no topping"
+
+export interface BobaTasteAttributes {
+  drink_type: BobaDrinkType
+  sugar_level: BobaSugarLevel
+  ice_level: BobaIceLevel
+  pearl_texture?: BobaPearlTexture | null
+  tea_base?: BobaTeaBase | null
+}
+
+export interface BobaQualitySignals {
+  pearls: number      // 1-5 rating
+  tea_base: number    // 1-5 rating
+  sweetness_accuracy: number  // 1-5 rating
 }

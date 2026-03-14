@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { createReview, upsertPlace } from "@niche/database"
-import { Stars, Pill, MonoLabel } from "@/components/ui/Primitives"
+import { Pill, MonoLabel } from "@/components/ui/Primitives"
 
 const APP_ID = "brew" as const
 
@@ -23,6 +23,59 @@ interface Props {
   onClose: () => void
 }
 
+function StarDisplay({ score, size = 18 }: { score: number; size?: number }) {
+  const pct = score / 10
+  return (
+    <div style={{ display: "flex", gap: 3 }}>
+      {[0, 1, 2, 3, 4].map(i => {
+        const fill = Math.max(0, Math.min(1, pct * 5 - i))
+        const gid = `brew-rate-${i}-${Math.round(score * 10)}-${size}`
+
+        return (
+          <svg key={i} width={size} height={size} viewBox="0 0 24 24">
+            <defs>
+              <linearGradient id={gid}>
+                <stop offset={`${fill * 100}%`} stopColor="var(--c-accent)" />
+                <stop offset={`${fill * 100}%`} stopColor="#e8e8e4" />
+              </linearGradient>
+            </defs>
+            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
+          </svg>
+        )
+      })}
+    </div>
+  )
+}
+
+function RatingSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <style>{`.brew-rating-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;outline:none;cursor:pointer;}.brew-rating-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid var(--c-accent);box-shadow:0 1px 4px rgba(0,0,0,.15);cursor:pointer;}.brew-rating-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid var(--c-accent);cursor:pointer;}`}</style>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <StarDisplay score={value} size={18} />
+        <span style={{ fontFamily: "var(--font-display)", fontSize: 30, color: "var(--c-ink)", minWidth: 56, fontStyle: "italic", lineHeight: 1 }}>
+          {value.toFixed(1)}
+        </span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          / 10.0
+        </span>
+      </div>
+
+      <input
+        type="range"
+        className="brew-rating-slider"
+        min={0}
+        max={10}
+        step={0.1}
+        value={value}
+        onChange={e => onChange(parseFloat(e.target.value))}
+        style={{ background: `linear-gradient(to right, var(--c-accent) ${value * 10}%, #e8e8e4 ${value * 10}%)` }}
+      />
+    </div>
+  )
+}
+
 function getSupabase() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,7 +90,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
   const [originRoast, setOriginRoast] = useState("")
-  const [score, setScore] = useState(0)             // 0–10 stored, shown as 0–5 stars
+  const [score, setScore] = useState(0)             // 0–10 score used directly by slider
   const [tags, setTags] = useState<string[]>([])
   const [note, setNote] = useState("")
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
@@ -248,8 +301,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
             <div style={{ marginBottom: 28 }}>
               <MonoLabel style={{ marginBottom: 12 }}>your rating</MonoLabel>
-              {/* Display as 5 stars, store as 0–10 */}
-              <Stars value={Math.round((score / 10) * 5)} onChange={n => setScore(Math.round((n / 5) * 10))} size={22} />
+              <RatingSlider value={score} onChange={setScore} />
             </div>
 
             <div style={{ marginBottom: 28 }}>

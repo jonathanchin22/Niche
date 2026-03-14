@@ -39,7 +39,7 @@ export async function getFriendFeed(
   let query = supabase
     .from("reviews")
     .select(`
-      id, app_id, user_id, place_id, score, body, image_urls, tags, created_at, updated_at,
+      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, app_id),
       likes:review_likes(count)
@@ -57,7 +57,7 @@ export async function getFriendFeed(
     // Fallback to simple query if joins fail
     let fallback = supabase
       .from("reviews")
-      .select("*")
+      .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
       .eq("app_id", app_id)
       .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
       .order("created_at", { ascending: false })
@@ -93,9 +93,9 @@ export async function getMyFeed(
   let query = supabase
     .from("reviews")
     .select(`
-      id, app_id, user_id, place_id, score, body, image_urls, tags, created_at, updated_at,
-      profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
-      place:places!reviews_place_id_fkey(id, name, address, app_id),
+      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+      user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+      place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
       likes:review_likes(count)
     `)
     .eq("app_id", app_id)
@@ -111,7 +111,7 @@ export async function getMyFeed(
     // Fallback to simple query if joins fail
     let fallback = supabase
       .from("reviews")
-      .select("*")
+      .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
       .eq("app_id", app_id)
       .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
       .order("created_at", { ascending: false })
@@ -127,6 +127,32 @@ export async function getMyFeed(
   const items = (data ?? []).map((r: any) => ({ review: r }))
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+}
+
+export async function getDiscoverFeed(
+  supabase: SupabaseClient,
+  { app_id, cursor, limit = 20 }: Omit<FeedParams, "user_id">
+): Promise<PaginatedResponse<FeedItem>> {
+  let query = supabase
+    .from("reviews")
+    .select(`
+      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+      user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+      place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+      likes:review_likes(count)
+    `)
+    .eq("app_id", app_id)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  if (cursor) query = query.lt("created_at", cursor)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const items = (data ?? []).map((r: any) => ({ type: "review" as const, review: r, created_at: r.created_at }))
+  const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
+  return { data: items, cursor: nextCursor ?? null, has_more: !!nextCursor }
 }
 
 // ─── Reviews ─────────────────────────────────────────────────────────────────
