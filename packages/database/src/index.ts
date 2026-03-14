@@ -75,6 +75,60 @@ export async function getFriendFeed(
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
 
+// My Feed - includes user's own reviews + friends' reviews
+export async function getMyFeed(
+  supabase: SupabaseClient,
+  { user_id, app_id, cursor, limit = 20 }: FeedParams
+): Promise<PaginatedResponse<FeedItem>> {
+  // Step 1: get following IDs
+  const { data: follows } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", user_id)
+
+  const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
+  followingIds.push(user_id) // Include user's own reviews
+
+  // Step 2: fetch reviews with related data
+  let query = supabase
+    .from("reviews")
+    .select(`
+      id, app_id, user_id, place_id, score, body, image_urls, tags, created_at, updated_at,
+      profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+      place:places!reviews_place_id_fkey(id, name, address, app_id),
+      likes:review_likes(count)
+    `)
+    .eq("app_id", app_id)
+    .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  if (cursor) query = query.lt("created_at", cursor)
+
+  const { data, error } = await query
+  if (error) {
+    console.error("getMyFeed error:", error)
+    // Fallback to simple query if joins fail
+    let fallback = supabase
+      .from("reviews")
+      .select("*")
+      .eq("app_id", app_id)
+      .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (cursor) fallback = fallback.lt("created_at", cursor)
+    const { data: fallbackData, error: fallbackError } = await fallback
+    if (fallbackError) throw fallbackError
+    const items = (fallbackData ?? []).map((r: any) => ({ review: r }))
+    const nextCursor = fallbackData?.length === limit ? fallbackData[fallbackData.length - 1]?.created_at : undefined
+    return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+  }
+
+  const items = (data ?? []).map((r: any) => ({ review: r }))
+  const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
+  return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+}
+
 // ─── Reviews ─────────────────────────────────────────────────────────────────
 
 export async function createReview(

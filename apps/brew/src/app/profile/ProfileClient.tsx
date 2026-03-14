@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
-import { getUserReviews } from "@niche/database"
+import { getUserReviews, getMyFeed } from "@niche/database"
 import { MonoLabel, Stars } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
 import type { Review } from "@niche/shared-types"
@@ -42,6 +42,17 @@ export default function ProfileClient({ profile, userId, followingCount, followe
   const reviews = data?.pages.flatMap(p => p.data.map(i => i.review).filter(Boolean)) as Review[] ?? []
   const withPhotos = reviews.filter(r => r.image_urls?.length > 0)
   const uniqueCafes = new Set(reviews.map(r => r.place_id)).size
+
+  // My Feed - user's reviews + friends' reviews
+  const { data: feedData, fetchNextPage: fetchFeedNextPage, hasNextPage: hasFeedNextPage, isFetchingNextPage: isFetchingFeedNextPage } = useInfiniteQuery({
+    queryKey: ["my-feed-brew", userId],
+    queryFn: ({ pageParam }) =>
+      getMyFeed(getSupabase(), { user_id: userId, app_id: APP_ID, cursor: pageParam as string | undefined }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: last => last.has_more ? last.cursor ?? undefined : undefined,
+  })
+
+  const feedReviews = feedData?.pages.flatMap(p => p.data.map(i => i.review).filter(Boolean)) as Review[] ?? []
 
   const handleSignOut = async () => {
     await getSupabase().auth.signOut()
@@ -136,6 +147,45 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             </div>
           ))}
         </div>
+      </div>
+
+      {/* My Feed Section */}
+      <div style={{ padding: "0 28px", marginTop: 32 }}>
+        <h3 style={{
+          fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px",
+          fontWeight: 400, fontStyle: "italic", color: "var(--c-ink)",
+        }}>
+          my feed
+        </h3>
+
+        {feedReviews.length === 0 ? (
+          <div style={{ padding: "20px 0", textAlign: "center" }}>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "var(--c-subtle)", margin: 0 }}>
+              Your feed is empty. Start logging drinks or follow friends!
+            </p>
+          </div>
+        ) : (
+          <div>
+            {feedReviews.map(review => (
+              <ReviewCard key={review.id} review={review} showAuthor />
+            ))}
+            {hasFeedNextPage && (
+              <button
+                onClick={() => fetchFeedNextPage()}
+                disabled={isFetchingFeedNextPage}
+                style={{
+                  width: "100%", padding: "16px", marginTop: 16,
+                  background: "none", border: "1px solid var(--c-rule)",
+                  fontFamily: "var(--font-mono)", fontSize: 10,
+                  color: "var(--c-subtle)", cursor: "pointer",
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                }}
+              >
+                {isFetchingFeedNextPage ? "loading..." : "load more →"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
