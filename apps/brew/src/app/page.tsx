@@ -94,11 +94,6 @@ export default async function HomePage() {
           )}
         </div>
 
-        <SectionDivider label="feed" />
-
-        {/* My Feed */}
-        <MyFeedSection userId={user.id} />
-
         <SectionDivider label="quick access" />
 
         {/* Quick nav tiles */}
@@ -130,6 +125,9 @@ export default async function HomePage() {
             your {new Date().getFullYear()} so far
           </p>
         </div>
+
+        <SectionDivider label="feed" />
+        <MyFeedSection userId={user.id} />
       </div>
     </AppShell>
   )
