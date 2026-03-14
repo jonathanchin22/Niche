@@ -1,10 +1,11 @@
 import { createServerSupabaseClient } from "@niche/auth/server"
-import { getUserReviews, getProfile } from "@niche/database"
+import { getUserReviews, getProfile, getMyFeed } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { MonoLabel, Stars, CupSteamSketch, SectionDivider } from "@/components/ui/Primitives"
 import { formatDistanceToNow } from "date-fns"
 import type { Review } from "@niche/shared-types"
 import Link from "next/link"
+import MyFeedSection from "@/components/MyFeedSection"
 
 const APP_ID = "brew" as const
 
@@ -92,6 +93,11 @@ export default async function HomePage() {
             ))
           )}
         </div>
+
+        <SectionDivider label="feed" />
+
+        {/* My Feed */}
+        <MyFeedSection userId={user.id} />
 
         <SectionDivider label="quick access" />
 
