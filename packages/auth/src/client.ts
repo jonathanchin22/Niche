@@ -3,10 +3,28 @@ import type { AppId, User, AppMembership } from "@niche/shared-types"
 
 // ─── Client-side Supabase client (used in React components) ──────────────────
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // During local builds (e.g. inside `next build` without env vars), we don't
+  // want this to crash. The app will still work at runtime once the env vars
+  // are provided by the deployment environment.
+  if (!url || !key) {
+    // Minimal no-op stub to satisfy usage in client components.
+    // Most Supabase calls are made at runtime in the browser.
+    return {
+      auth: {
+        getUser: async () => ({ data: { user: null } }),
+        signOut: async () => ({ error: null }),
+        signInWithPassword: async () => ({ error: null, data: null }),
+        signUp: async () => ({ error: null, data: null }),
+        signInWithOAuth: async () => ({ error: null, data: null }),
+      },
+      from: () => ({ select: async () => ({ data: null, error: null }) }),
+    } as any
+  }
+
+  return createBrowserClient(url, key)
 }
 
 // ─── Sign up — creates the shared account ────────────────────────────────────

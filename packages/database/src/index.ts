@@ -137,6 +137,17 @@ export async function getUserReviews(
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
 
+export async function updateReviewScore(
+  supabase: SupabaseClient,
+  { review_id, score }: { review_id: string; score: number }
+): Promise<void> {
+  const { error } = await supabase
+    .from("reviews")
+    .update({ score, updated_at: new Date().toISOString() })
+    .eq("id", review_id)
+  if (error) throw error
+}
+
 export async function likeReview(
   supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
