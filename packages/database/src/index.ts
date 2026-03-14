@@ -183,6 +183,23 @@ export async function isReviewLiked(
   return !!data
 }
 
+export async function updateReview(
+  supabase: SupabaseClient,
+  { review_id, updates }: {
+    review_id: string
+    updates: { score?: number; body?: string | null; tags?: string[]; image_urls?: string[] }
+  }
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", review_id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ─── Map ─────────────────────────────────────────────────────────────────────
 
 export async function getMapPins(

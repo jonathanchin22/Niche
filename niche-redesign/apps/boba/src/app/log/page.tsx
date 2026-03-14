@@ -113,7 +113,9 @@ export default function LogPage() {
   const [rating, setRating] = useState(0)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [body, setBody] = useState("")
+  const [photoUrls, setPhotoUrls] = useState<string[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const handlePlaceSearch = useCallback((q: string) => {
@@ -146,7 +148,7 @@ export default function LogPage() {
       await createReview(supabase as any, {
         app_id: "boba", user_id: user.id, place_id: place.id,
         item_name: drinkName, score: Math.round(rating * 10) / 10,
-        note: body.trim() || null, tags: selectedTags, image_urls: [],
+        body: body.trim() || null, tags: selectedTags, image_urls: photoUrls,
       } as any)
     },
     onSuccess: () => { setStep("done"); setTimeout(() => router.push("/"), 1800) },
@@ -256,21 +258,116 @@ export default function LogPage() {
         )}
 
         {step === "share" && (
-          <div style={{ textAlign: "center" }}>
+          <div>
             <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 36px" }}>share it?</h2>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginBottom: 28 }}>
+            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 24px" }}>add photos?</h2>
+
+            {/* Score summary */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, padding: "12px 16px", background: "white", borderRadius: 10, border: "1px solid #e8e8e4" }}>
               <StarDisplay score={rating} />
-              <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a" }}>{rating.toFixed(1)}</span>
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#bbb" }}>/ 10</span>
+              <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, color: "#1a1a1a" }}>{rating.toFixed(1)}</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#bbb" }}>/ 10</span>
+              <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#888", marginLeft: "auto" }}>{drinkName}</span>
             </div>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#888", marginBottom: 24 }}>let your friends see what you're sipping</p>
-            <button onClick={() => submitReview()} disabled={isPending}
-              style={{ width: "100%", background: "#2d6a4f", color: "#fff", border: "none", borderRadius: 10, padding: "16px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, cursor: "pointer", marginBottom: 12, opacity: isPending ? 0.6 : 1 }}>
+
+            {/* Photo upload area */}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={async e => {
+                const files = e.target.files
+                if (!files) return
+                const newUrls: string[] = []
+                for (const file of Array.from(files)) {
+                  if (!file.type.startsWith("image/")) continue
+                  const url = await new Promise<string>(resolve => {
+                    const img = new Image()
+                    const objUrl = URL.createObjectURL(file)
+                    img.onload = () => {
+                      const scale = Math.min(1, 900 / img.width)
+                      const w = Math.round(img.width * scale)
+                      const h = Math.round(img.height * scale)
+                      const canvas = document.createElement("canvas")
+                      canvas.width = w; canvas.height = h
+                      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h)
+                      URL.revokeObjectURL(objUrl)
+                      resolve(canvas.toDataURL("image/jpeg", 0.82))
+                    }
+                    img.src = objUrl
+                  })
+                  newUrls.push(url)
+                }
+                setPhotoUrls(prev => [...prev, ...newUrls].slice(0, 6))
+              }}
+            />
+
+            {/* Photo grid */}
+            {photoUrls.length > 0 && (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: photoUrls.length === 1 ? "1fr" : "1fr 1fr",
+                gap: 4, borderRadius: 10, overflow: "hidden", marginBottom: 12,
+              }}>
+                {photoUrls.map((url, i) => (
+                  <div key={i} style={{ position: "relative", aspectRatio: "1/1" }}>
+                    <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <button
+                      onClick={() => setPhotoUrls(prev => prev.filter((_, j) => j !== i))}
+                      style={{
+                        position: "absolute", top: 5, right: 5, background: "rgba(0,0,0,0.55)",
+                        color: "#fff", border: "none", borderRadius: "50%", width: 22, height: 22,
+                        fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {photoUrls.length < 6 && (
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  width: "100%", fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#2d6a4f",
+                  background: "#e8f4ee", border: "1px dashed #2d6a4f",
+                  borderRadius: 10, padding: "14px", cursor: "pointer", marginBottom: 20,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>◎</span>
+                {photoUrls.length === 0 ? "tap to add photos" : "add more"}
+              </button>
+            )}
+
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", marginBottom: 16, textAlign: "center" }}>
+              let your friends see what you're sipping
+            </p>
+
+            <button
+              onClick={() => submitReview()}
+              disabled={isPending}
+              style={{
+                width: "100%", background: "#2d6a4f", color: "#fff",
+                border: "none", borderRadius: 10, padding: "16px",
+                fontFamily: "'DM Sans', sans-serif", fontSize: 15,
+                cursor: "pointer", marginBottom: 12, opacity: isPending ? 0.6 : 1,
+              }}
+            >
               {isPending ? "saving..." : "log + share"}
             </button>
-            <button onClick={() => submitReview()} disabled={isPending}
-              style={{ width: "100%", background: "none", border: "1px solid #e8e8e4", borderRadius: 10, padding: "16px", fontFamily: "'DM Sans', sans-serif", fontSize: 14, cursor: "pointer", color: "#888" }}>
+            <button
+              onClick={() => submitReview()}
+              disabled={isPending}
+              style={{
+                width: "100%", background: "none",
+                border: "1px solid #e8e8e4", borderRadius: 10, padding: "16px",
+                fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+                cursor: "pointer", color: "#888",
+              }}
+            >
               keep it private
             </button>
           </div>

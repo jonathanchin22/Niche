@@ -11,7 +11,7 @@ interface Review {
   id: string
   item_name: string | null
   score: number
-  note: string | null
+  body: string | null
   tags: string[]
   created_at: string
   place?: { id: string; name: string; city: string; state: string } | null
@@ -103,11 +103,11 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
   const [filterMin, setFilterMin] = useState(0)
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
 
-  // Drag state (track review IDs to avoid stale index issues)
-  const dragId = useRef<string | null>(null)
-  const dragOverId = useRef<string | null>(null)
-  const [dragging, setDragging] = useState<string | null>(null)
-  const [dragOver, setDragOver] = useState<string | null>(null)
+  // Drag state
+  const dragIndex = useRef<number | null>(null)
+  const dragOverIndex = useRef<number | null>(null)
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   // Mutation for persisting score changes
   const { mutate: saveScore } = useMutation({
@@ -150,39 +150,27 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
       })
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
-  const handleDragStart = useCallback((e: React.DragEvent, reviewId: string) => {
-    const idx = reviews.findIndex(r => r.id === reviewId)
-    if (idx === -1) return
-    dragId.current = reviewId
-    setDragging(reviewId)
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    dragIndex.current = index
+    setDragging(index)
     e.dataTransfer.effectAllowed = "move"
-  }, [reviews])
+  }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent, reviewId: string) => {
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
-    const idx = reviews.findIndex(r => r.id === reviewId)
-    if (idx === -1) return
-    if (dragOverId.current !== reviewId) {
-      dragOverId.current = reviewId
-      setDragOver(reviewId)
+    if (dragOverIndex.current !== index) {
+      dragOverIndex.current = index
+      setDragOver(index)
     }
-  }, [reviews])
+  }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent, dropReviewId: string) => {
+  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
     e.preventDefault()
-    const fromId = dragId.current
-    if (!fromId || fromId === dropReviewId) {
+    const fromIndex = dragIndex.current
+    if (fromIndex === null || fromIndex === dropIndex) {
       setDragging(null); setDragOver(null)
-      dragId.current = null; dragOverId.current = null
-      return
-    }
-
-    const fromIndex = reviews.findIndex(r => r.id === fromId)
-    const dropIndex = reviews.findIndex(r => r.id === dropReviewId)
-    if (fromIndex === -1 || dropIndex === -1 || fromIndex === dropIndex) {
-      setDragging(null); setDragOver(null)
-      dragId.current = null; dragOverId.current = null
+      dragIndex.current = null; dragOverIndex.current = null
       return
     }
 
@@ -205,16 +193,21 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
       }
     }
 
-    // Find which reviews actually changed score (compare by review id, not by position)
-    const originalScores = new Map(reviews.map(r => [r.id, r.score]))
+    // Find which reviews actually changed score
     const changed: { review_id: string; score: number }[] = []
-    updated.forEach(r => {
-      const originalScore = originalScores.get(r.id)
-      if (originalScore === undefined) return
-      if (r.score !== originalScore) {
+    updated.forEach((r, i) => {
+      if (r.score !== newReviews[i].score) {
         changed.push({ review_id: r.id, score: r.score })
       }
     })
+    // Also check if the dragged item itself changed
+    const droppedItem = updated[dropIndex]
+    const originalItem = reviews[fromIndex]
+    if (droppedItem.score !== originalItem.score) {
+      if (!changed.find(c => c.review_id === droppedItem.id)) {
+        changed.push({ review_id: droppedItem.id, score: droppedItem.score })
+      }
+    }
 
     setReviews(updated)
 
@@ -234,7 +227,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
 
   const handleDragEnd = useCallback(() => {
     setDragging(null); setDragOver(null)
-    dragId.current = null; dragOverId.current = null
+    dragIndex.current = null; dragOverIndex.current = null
   }, [])
 
   const toggleSort = (key: SortKey) => {
@@ -243,6 +236,9 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
   }
 
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === "desc" ? " ↓" : " ↑") : ""
+
+  // ── Map from sorted display index back to master reviews index ────────────
+  const masterIndexOf = (r: Review) => reviews.findIndex(x => x.id === r.id)
 
   return (
     <AppShell activeTab="profile">
@@ -422,7 +418,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                       fontSize: 16, margin: "0 0 2px", color: "#1a1a1a",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      {review.item_name?.trim() ? review.item_name : "drink"}
+                      {review.item_name ?? "drink"}
                     </p>
                     <p style={{
                       fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888",

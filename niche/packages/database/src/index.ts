@@ -300,3 +300,68 @@ export async function searchUsers(
   if (error) throw error
   return data ?? []
 }
+
+// ─── Update a full review (body, tags, score, image_urls) ─────────────────────
+export async function updateReview(
+  supabase: ReturnType<typeof createClient>,
+  { review_id, updates }: {
+    review_id: string
+    updates: { score?: number; body?: string | null; tags?: string[]; image_urls?: string[] }
+  }
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", review_id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ─── Get a single review by ID (with joins) ───────────────────────────────────
+export async function getReviewById(
+  supabase: ReturnType<typeof createClient>,
+  review_id: string
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*, profile:profiles!reviews_user_id_fkey(id, username, display_name), place:places!reviews_place_id_fkey(id, name, city, state, address)")
+    .eq("id", review_id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ─── Get photo feed for friends ───────────────────────────────────────────────
+export async function getFriendPhotoFeed(
+  supabase: ReturnType<typeof createClient>,
+  { user_id, app_id, limit = 40 }: { user_id: string; app_id: string; limit?: number }
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, image_urls, item_name, score, created_at, user_id, place_id, profile:profiles!reviews_user_id_fkey(id, username, display_name), place:places!reviews_place_id_fkey(id, name)")
+    .eq("app_id", app_id)
+    .not("image_urls", "eq", "{}")
+    .in("user_id", supabase.from("follows").select("following_id").eq("follower_id", user_id))
+    .order("created_at", { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return (data ?? []).filter((r: any) => r.image_urls?.length > 0)
+}
+
+// ─── Get photo feed for a single user ────────────────────────────────────────
+export async function getUserPhotoFeed(
+  supabase: ReturnType<typeof createClient>,
+  { user_id, app_id }: { user_id: string; app_id: string }
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, image_urls, item_name, score, created_at, place:places!reviews_place_id_fkey(id, name)")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .not("image_urls", "eq", "{}")
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return (data ?? []).filter((r: any) => r.image_urls?.length > 0)
+}
