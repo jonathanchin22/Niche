@@ -18,7 +18,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [tab, setTab] = useState<"friends" | "feed" | "photos">("friends")
+  const [tab, setTab] = useState<"friends" | "feed" | "photos">("feed")
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const { data: following = [] } = useQuery({

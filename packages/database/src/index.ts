@@ -34,7 +34,6 @@ export async function getFriendFeed(
     .eq("follower_id", user_id)
 
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
-  followingIds.push(user_id)
 
   // Step 2: fetch reviews with related data
   let query = supabase
