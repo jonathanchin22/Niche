@@ -22,15 +22,17 @@ type SortDir = "desc" | "asc"
 
 // ─── Partial-fill star display ────────────────────────────────────────────────
 function StarRow({ score, size = 12 }: { score: number; size?: number }) {
-  const pct = score / 10
+  const scoreNum = Number(score)
+  const pct = Number.isFinite(scoreNum) ? Math.max(0, Math.min(1, scoreNum / 10)) : 0
   return (
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
-        const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `mr-${i}-${Math.round(score * 10)}-${size}`
+        const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
+        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
+        const gid = `mr-${i}-${Math.round(scoreNum * 10)}-${size}`
         return (
           <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>
+            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
             <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
           </svg>
         )
@@ -95,7 +97,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
 
   // Local ordered list — this is what we actually render + drag
   const [reviews, setReviews] = useState<Review[]>(() =>
-    [...initialReviews].sort((a, b) => b.score - a.score)
+    [...(initialReviews ?? [])].sort((a, b) => b.score - a.score)
   )
   const [search, setSearch] = useState("")
   const [sortKey, setSortKey] = useState<SortKey>("score")
@@ -254,7 +256,6 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
   return (
     <AppShell activeTab="profile">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
         .mr-card { transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s; }
         .mr-card.dragging { opacity: 0.4; }
         .mr-card.drag-over { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(45,106,79,0.12); }
@@ -262,7 +263,6 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
         .mr-handle:active { cursor: grabbing; }
         .mr-chip { transition: background 0.12s, color 0.12s, border-color 0.12s; }
       `}</style>
-
       <div style={{ padding: "52px 0 24px" }}>
 
         {/* Header */}
@@ -440,7 +440,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                     </p>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <StarRow score={review.score} size={11} />
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#bbb" }}>
+                      <span suppressHydrationWarning style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#bbb" }}>
                         {timeAgo(review.created_at)}
                       </span>
                     </div>

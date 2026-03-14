@@ -41,18 +41,20 @@ async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
 }
 
 function StarDisplay({ score }: { score: number }) {
-  const pct = score / 10
+  const scoreNum = Number(score)
+  const pct = Number.isFinite(scoreNum) ? Math.max(0, Math.min(1, scoreNum / 10)) : 0
   return (
     <div style={{ display: "flex", gap: 3 }}>
       {[0, 1, 2, 3, 4].map(i => {
-        const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gradId = `sg-${i}-${Math.round(score * 10)}`
+        const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
+        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
+        const gradId = `sg-${i}-${Math.round(scoreNum * 10)}`
         return (
           <svg key={i} width="26" height="26" viewBox="0 0 24 24">
             <defs>
               <linearGradient id={gradId}>
-                <stop offset={`${fill * 100}%`} stopColor="#c9a84c" />
-                <stop offset={`${fill * 100}%`} stopColor="#e8e8e4" />
+                <stop offset={offset} stopColor="#c9a84c" />
+                <stop offset={offset} stopColor="#e8e8e4" />
               </linearGradient>
             </defs>
             <path
@@ -157,7 +159,6 @@ export default function LogPage() {
   if (step === "done") {
     return (
       <div style={{ minHeight: "100vh", background: "#fafaf8", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "0 28px" }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
         <svg width="80" height="110" viewBox="0 0 120 160" fill="none" style={{ opacity: 0.7 }}>
           <path d="M35 30 L85 30 L78 140 L42 140 Z" stroke="#2d6a4f" strokeWidth="2" strokeLinecap="round" fill="none"/>
           <path d="M30 30 Q60 22 90 30" stroke="#2d6a4f" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
@@ -174,7 +175,6 @@ export default function LogPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fafaf8" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
 
       <div style={{ padding: "16px 28px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>

@@ -1,0 +1,8 @@
+{
+  "name": "boba!",
+  "short_name": "boba",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#7C3AED",
+  "background_color": "#fafaf8",
+}

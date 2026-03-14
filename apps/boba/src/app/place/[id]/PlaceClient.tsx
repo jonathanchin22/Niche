@@ -113,7 +113,7 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
                     </p>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
                       <StarRow score={r.score} />
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#bbb" }}>
+                      <span suppressHydrationWarning style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#bbb" }}>
                         {timeAgo(r.created_at)}
                       </span>
                     </div>

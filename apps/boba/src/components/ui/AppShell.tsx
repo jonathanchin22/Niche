@@ -24,7 +24,6 @@ export function AppShell({ children, activeTab }: AppShellProps) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
         .niche-app * { box-sizing: border-box; }
         .niche-app input::placeholder, .niche-app textarea::placeholder { color: #bbb; }
         .niche-app button:focus { outline: none; }

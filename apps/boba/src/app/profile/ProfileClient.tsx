@@ -12,15 +12,17 @@ interface ProfileClientProps {
 }
 
 function StarRow({ score }: { score: number }) {
-  const pct = score / 10
+  const scoreNum = Number(score)
+  const pct = Number.isFinite(scoreNum) ? Math.max(0, Math.min(1, scoreNum / 10)) : 0
   return (
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
-        const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `sr-pc-${i}-${Math.round(score * 10)}`
+        const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
+        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
+        const gid = `sr-pc-${i}-${Math.round(scoreNum * 10)}`
         return (
           <svg key={i} width="13" height="13" viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>
+            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
             <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
           </svg>
         )
@@ -63,7 +65,8 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
     router.push("/auth/login")
   }
 
-  const uniquePlaces = new Set(reviews.map((r: any) => r.place_id)).size
+  const safeReviews = Array.isArray(reviews) ? reviews : []
+  const uniquePlaces = new Set(safeReviews.map((r: any) => r.place_id)).size
 
   return (
     <AppShell activeTab="profile">
@@ -113,9 +116,9 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
           marginBottom: 36,
         }}>
           {[
-            { label: "drinks", value: reviews.length },
+            { label: "drinks", value: safeReviews.length },
             { label: "shops", value: uniquePlaces },
-            { label: "reviews", value: reviews.length },
+            { label: "reviews", value: safeReviews.length },
           ].map(({ label, value }, i) => (
             <div key={label} style={{
               padding: "16px 12px",
@@ -147,7 +150,7 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
           </Link>
         </div>
 
-        {reviews.length === 0 ? (
+        {safeReviews.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 0" }}>
             <p style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb" }}>
               no reviews yet — go log a drink!
@@ -166,7 +169,7 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
                       {r.item_name ?? "drink"}
                     </p>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
-                      {r.place?.name ?? "unknown shop"} · {timeAgo(r.created_at)}
+                      {r.place?.name ?? "unknown shop"} · <span suppressHydrationWarning>{timeAgo(r.created_at)}</span>
                     </p>
                   </div>
                   <StarRow score={r.score} />
