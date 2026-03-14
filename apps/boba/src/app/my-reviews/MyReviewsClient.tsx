@@ -99,7 +99,8 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
     const [touchDragOver, setTouchDragOver] = useState<string | null>(null)
 
     // Helper to get review id from touch location
-    const getReviewIdFromTouch = (touch: Touch) => {
+    // Accepts either DOM Touch or React.Touch (they are structurally compatible for clientX/clientY)
+    const getReviewIdFromTouch = (touch: Touch | React.Touch) => {
       const elem = document.elementFromPoint(touch.clientX, touch.clientY)
       if (!elem) return null
       let node = elem as HTMLElement | null
@@ -122,7 +123,8 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
       if (!touchDragId.current) return
       const touch = e.touches[0]
       if (!touch) return
-      const overId = getReviewIdFromTouch(touch)
+      // React.Touch is structurally compatible for clientX/clientY, but not a DOM Touch, so cast as needed
+      const overId = getReviewIdFromTouch(touch as unknown as Touch)
       if (overId && overId !== touchOverId.current) {
         touchOverId.current = overId
         setTouchDragOver(overId)

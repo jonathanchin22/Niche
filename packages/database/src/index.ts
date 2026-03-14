@@ -12,6 +12,18 @@ export async function voteReview(
   if (error) throw error
 }
 
+export async function removeReviewVote(
+  supabase: SupabaseClient,
+  { review_id, user_id }: { review_id: string; user_id: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from("review_votes")
+    .delete()
+    .eq("review_id", review_id)
+    .eq("user_id", user_id)
+  if (error) throw error
+}
+
 /**
  * Get upvote/downvote counts and the current user's vote for a review
  */

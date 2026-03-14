@@ -121,7 +121,7 @@ export default function FeedClient({ userId }: { userId: string }) {
                   {!isLoading && tab === "feed" && (
                     <div style={{ padding: "0 28px" }}>
                       {reviews.map(r => r && (
-                        <ReviewCard key={r.id} review={r} showAuthor onClick={() => setSelectedReview(r)} />
+                        <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onClick={() => setSelectedReview(r)} />
                       ))}
                       {hasNextPage && (
                         <button
@@ -151,7 +151,7 @@ export default function FeedClient({ userId }: { userId: string }) {
                       ) : (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                           {withPhotos.map(r => r && (
-                            <ReviewCard key={r.id} review={r} showAuthor onClick={() => setSelectedReview(r)} />
+                            <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onClick={() => setSelectedReview(r)} />
                           ))}
                         </div>
                       )}

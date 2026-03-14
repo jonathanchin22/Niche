@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getReviewVotes, voteReview, getReviewComments, addReviewComment } from "@niche/database"
+import { createBrowserClient } from "@supabase/ssr"
+import { getReviewVotes, voteReview, removeReviewVote, getReviewComments, addReviewComment } from "@niche/database"
 import type { Review, ReviewComment } from "@niche/shared-types"
 import { MonoLabel } from "@/components/ui/Primitives"
 
@@ -9,6 +10,13 @@ interface ReviewDetailModalProps {
   review: Review
   currentUserId: string
   onClose: () => void
+}
+
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 }
 
 export default function ReviewDetailModal({ review, currentUserId, onClose }: ReviewDetailModalProps) {
@@ -21,14 +29,14 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
   const [isCommenting, setIsCommenting] = useState(false)
 
   useEffect(() => {
-    // Fetch latest votes and comments
     async function fetchVotesAndComments() {
-      const { upvotes, downvotes, user_vote } = await getReviewVotes(undefined, { review_id: review.id, user_id: currentUserId })
+      const supabase = getSupabase()
+      const { upvotes, downvotes, user_vote } = await getReviewVotes(supabase, { review_id: review.id, user_id: currentUserId })
       setUpvotes(upvotes)
       setDownvotes(downvotes)
       setUserVote(user_vote)
-      const comments = await getReviewComments(undefined, { review_id: review.id })
-      setComments(comments)
+      const fetchedComments = await getReviewComments(supabase, { review_id: review.id })
+      setComments(fetchedComments)
     }
     fetchVotesAndComments()
   }, [review.id, currentUserId])
@@ -36,22 +44,22 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
   const handleVote = async (vote: 1 | -1) => {
     if (isVoting) return
     setIsVoting(true)
+    const supabase = getSupabase()
     if (userVote === vote) {
-      // Undo vote
       if (vote === 1) setUpvotes(u => u - 1)
       if (vote === -1) setDownvotes(d => d - 1)
       setUserVote(0)
-      await voteReview(undefined, { review_id: review.id, user_id: currentUserId, vote: 0 })
+      await removeReviewVote(supabase, { review_id: review.id, user_id: currentUserId })
     } else {
       if (vote === 1) {
-        setUpvotes(u => userVote === -1 ? u + 1 : u + (userVote === 0 ? 1 : 0))
+        setUpvotes(u => u + 1)
         if (userVote === -1) setDownvotes(d => d - 1)
       } else {
-        setDownvotes(d => userVote === 1 ? d + 1 : d + (userVote === 0 ? 1 : 0))
+        setDownvotes(d => d + 1)
         if (userVote === 1) setUpvotes(u => u - 1)
       }
       setUserVote(vote)
-      await voteReview(undefined, { review_id: review.id, user_id: currentUserId, vote })
+      await voteReview(supabase, { review_id: review.id, user_id: currentUserId, vote })
     }
     setIsVoting(false)
   }
@@ -59,10 +67,11 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
   const handleAddComment = async () => {
     if (!commentText.trim()) return
     setIsCommenting(true)
-    await addReviewComment(undefined, { review_id: review.id, user_id: currentUserId, body: commentText.trim() })
+    const supabase = getSupabase()
+    await addReviewComment(supabase, { review_id: review.id, user_id: currentUserId, body: commentText.trim() })
     setCommentText("")
-    const comments = await getReviewComments(undefined, { review_id: review.id })
-    setComments(comments)
+    const fetchedComments = await getReviewComments(supabase, { review_id: review.id })
+    setComments(fetchedComments)
     setIsCommenting(false)
   }
 

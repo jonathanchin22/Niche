@@ -3,47 +3,56 @@
 import { formatDistanceToNow } from "date-fns"
 import type { Review } from "@niche/shared-types"
 import { useState } from "react"
-import { voteReview, getReviewVotes } from "@niche/database"
+import { createBrowserClient } from "@supabase/ssr"
+import { voteReview, removeReviewVote } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
 
 interface Props {
   review: Review
+  currentUserId?: string
   showAuthor?: boolean
   onClick?: () => void
 }
 
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+export default function ReviewCard({ review, currentUserId, showAuthor = false, onClick }: Props) {
   const timeAgo = formatDistanceToNow(new Date(review.created_at))
   const mainPhoto = review.image_urls?.[0]
 
   // Voting state
   const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
   const [downvotes, setDownvotes] = useState(review.downvotes_count ?? 0)
-  const [userVote, setUserVote] = useState(review.user_vote ?? 0)
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
   const [isVoting, setIsVoting] = useState(false)
 
-  // Comment count
   const commentCount = review.comments_count ?? 0
 
   const handleVote = async (vote: 1 | -1) => {
-    if (isVoting) return
+    if (isVoting || !currentUserId) return
     setIsVoting(true)
-    // Optimistic update
+    const supabase = getSupabase()
     if (userVote === vote) {
       // Undo vote
       if (vote === 1) setUpvotes(u => u - 1)
       if (vote === -1) setDownvotes(d => d - 1)
       setUserVote(0)
-      await voteReview(undefined, { review_id: review.id, user_id: review.user?.id, vote: 0 })
+      await removeReviewVote(supabase, { review_id: review.id, user_id: currentUserId })
     } else {
       if (vote === 1) {
-        setUpvotes(u => userVote === -1 ? u + 1 : u + (userVote === 0 ? 1 : 0))
+        setUpvotes(u => u + 1)
         if (userVote === -1) setDownvotes(d => d - 1)
       } else {
-        setDownvotes(d => userVote === 1 ? d + 1 : d + (userVote === 0 ? 1 : 0))
+        setDownvotes(d => d + 1)
         if (userVote === 1) setUpvotes(u => u - 1)
       }
       setUserVote(vote)
-      await voteReview(undefined, { review_id: review.id, user_id: review.user?.id, vote })
+      await voteReview(supabase, { review_id: review.id, user_id: currentUserId, vote })
     }
     setIsVoting(false)
   }

@@ -54,40 +54,6 @@ export interface Place {
   updated_at: string
 }
 
-// ─── Reviews (the core unit) ──────────────────────────────────────────────────
-export interface Review {
-  id: string
-  app_id: AppId
-  user_id: string
-  place_id: string
-  // Score: 0–10 decimal for brew/slice, 1–5 for boba
-  score: number
-  // What they ordered (e.g. "pour over", "taro milk tea", "detroit style")
-  category: string | null
-  item_name: string | null
-  // The written note (optional)
-  note: string | null
-  // Vibes / tags (e.g. "great study spot", "date night")
-  tags: string[]
-  image_urls: string[]
-  created_at: string
-  updated_at: string
-  // Boba-specific structured data
-  taste_attributes?: BobaTasteAttributes | null
-  customizations?: string[]
-  toppings?: string[]
-  quality_signals?: BobaQualitySignals | null
-  visit_context?: string | null
-  revisit_intent?: boolean | null
-  price_paid?: number | null
-  // Joined fields (populated by queries)
-  user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">
-  place?: Pick<Place, "id" | "name" | "city" | "state">
-  likes_count?: number
-  comments_count?: number
-  user_has_liked?: boolean
-}
-
 // ─── Social interactions ──────────────────────────────────────────────────────
 // Upvote/downvote (vote: 1 = upvote, -1 = downvote)
 export interface ReviewVote {
@@ -167,6 +133,8 @@ export interface Review {
   comments_count?: number
   // Optionally, top_comment?: ReviewComment
 }
+
+export type BobaDrinkType =
   | "milk tea"
   | "fruit tea"
   | "matcha"
@@ -213,4 +181,33 @@ export interface BobaQualitySignals {
   pearls: number      // 1-5 rating
   tea_base: number    // 1-5 rating
   sweetness_accuracy: number  // 1-5 rating
+}
+
+// ─── Feed ─────────────────────────────────────────────────────────────────────
+export interface FeedItem {
+  type: "review" | "follow" | "badge"
+  review?: Review
+  follow?: { follower: Pick<User, "id" | "username" | "avatar_url">; following: Pick<User, "id" | "username" | "avatar_url"> }
+  badge?: { user: Pick<User, "id" | "username" | "avatar_url">; badge: Badge }
+  created_at: string
+}
+
+// ─── API response wrappers ────────────────────────────────────────────────────
+export interface PaginatedResponse<T> {
+  data: T[]
+  cursor: string | null
+  has_more: boolean
+}
+
+export interface SearchResult {
+  type: "place" | "user" | "tag"
+  place?: Place
+  user?: Pick<User, "id" | "username" | "display_name" | "avatar_url">
+  tag?: string
+}
+
+export interface ApiError {
+  code: string
+  message: string
+  details?: unknown
 }

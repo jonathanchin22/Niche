@@ -70,7 +70,7 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
       {!isLoading && tab === "reviews" && (
         <div style={{ padding: "0 28px" }}>
           {reviews.map(r => (
-            <ReviewCard key={r.id} review={r} onClick={() => setSelectedReview(r)} />
+            <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
           ))}
           {hasNextPage && (
             <button
@@ -101,7 +101,7 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => (
-                <ReviewCard key={r.id} review={r} onClick={() => setSelectedReview(r)} />
+                <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
               ))}
             </div>
           )}
@@ -114,29 +114,6 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
           currentUserId={userId}
           onClose={() => setSelectedReview(null)}
         />
-      )}
-    </div>
-  )
-                <div key={r.id} style={{ borderRadius: 4, overflow: "hidden", background: "var(--c-tint)", position: "relative", paddingBottom: "100%" }}>
-                  <img
-                    src={r.image_urls[0]}
-                    alt={r.item_name ?? ""}
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                  <div style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    background: "linear-gradient(transparent, rgba(28,20,16,0.65))",
-                    padding: "8px",
-                  }}>
-                    <p style={{ fontFamily: "var(--font-display)", fontSize: 11, color: "#fff", margin: 0 }}>
-                      {r.item_name}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       )}
     </div>
   )
