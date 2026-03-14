@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
-import { createClient } from "@niche/auth"
+import { createClient } from "@niche/auth/client"
 import { upsertPlace, createReview } from "@niche/database"
 
 type Step = "drink" | "rate" | "share" | "done"

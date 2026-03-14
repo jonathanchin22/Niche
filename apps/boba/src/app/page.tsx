@@ -5,8 +5,7 @@ import { getFriendFeed } from "@niche/database"
 import { FeedClient } from "@/components/feed/FeedClient"
 
 export default async function HomePage() {
-  const cookieStore = cookies()
-  const supabase = createServerSupabaseClient(cookieStore)
+  const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { getCurrentUser, joinApp } from "@niche/auth"
+import { getCurrentUser, joinApp } from "@niche/auth/client"
 import type { User } from "@niche/shared-types"
 
 export default function JoinPage() {

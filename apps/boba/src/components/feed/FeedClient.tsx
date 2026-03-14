@@ -1,7 +1,7 @@
 "use client"
 
 import { useInfiniteQuery } from "@tanstack/react-query"
-import { createClient } from "@niche/auth"
+import { createClient } from "@niche/auth/client"
 import { getFriendFeed } from "@niche/database"
 import { ReviewCard } from "./ReviewCard"
 import { AppShell } from "@/components/ui/AppShell"

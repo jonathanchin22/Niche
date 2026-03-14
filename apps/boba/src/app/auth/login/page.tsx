@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth"
-import { joinApp } from "@niche/auth"
+import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
+import { joinApp } from "@niche/auth/client"
 
 type Mode = "login" | "signup"
 

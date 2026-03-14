@@ -1,7 +1,7 @@
 "use client"
 
 import { AppShell } from "@/components/ui/AppShell"
-import { createClient } from "@niche/auth"
+import { createClient } from "@niche/auth/client"
 import { useRouter } from "next/navigation"
 
 interface ProfileClientProps {

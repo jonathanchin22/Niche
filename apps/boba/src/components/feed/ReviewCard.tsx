@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { createClient } from "@niche/auth"
+import { createClient } from "@niche/auth/client"
 import { likeReview, unlikeReview } from "@niche/database"
 import Link from "next/link"
 

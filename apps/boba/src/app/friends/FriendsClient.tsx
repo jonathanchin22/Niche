@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createClient } from "@niche/auth"
+import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing } from "@niche/database"
 import { AppShell } from "@/components/ui/AppShell"
 
