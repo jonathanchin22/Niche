@@ -8,12 +8,13 @@ export default async function ProfilePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const [profileResult, reviews] = await Promise.all([
+  const [profileResult, reviewsResult] = await Promise.all([
     (supabase as any).from("profiles").select("*").eq("id", user.id).single(),
-    getUserReviews(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => []),
+    getUserReviews(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => ({ data: [] })),
   ])
 
   const profile = profileResult?.data ?? null
+  const reviews = reviewsResult.data
 
-  return <ProfileClient userId={user.id} profile={profile} reviews={reviews as any[]} />
+  return <ProfileClient userId={user.id} profile={profile} reviews={reviews} />
 }
