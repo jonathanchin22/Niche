@@ -92,6 +92,94 @@ function ScoreBadge({ score, isUpdating }: { score: number; isUpdating: boolean 
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function MyReviewsClient({ userId, initialReviews }: { userId: string; initialReviews: Review[] }) {
+    // Touch drag state
+    const touchDragId = useRef<string | null>(null)
+    const touchOverId = useRef<string | null>(null)
+    const [touchDragging, setTouchDragging] = useState<string | null>(null)
+    const [touchDragOver, setTouchDragOver] = useState<string | null>(null)
+
+    // Helper to get review id from touch location
+    const getReviewIdFromTouch = (touch: Touch) => {
+      const elem = document.elementFromPoint(touch.clientX, touch.clientY)
+      if (!elem) return null
+      let node = elem as HTMLElement | null
+      while (node && !node.dataset.reviewId) {
+        node = node.parentElement
+      }
+      return node?.dataset.reviewId || null
+    }
+
+    // Touch event handlers
+    const handleTouchStart = (e: React.TouchEvent, reviewId: string) => {
+      if (e.touches.length !== 1) return
+      touchDragId.current = reviewId
+      setTouchDragging(reviewId)
+      setTouchDragOver(reviewId)
+      touchOverId.current = reviewId
+    }
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+      if (!touchDragId.current) return
+      const touch = e.touches[0]
+      const overId = getReviewIdFromTouch(touch)
+      if (overId && overId !== touchOverId.current) {
+        touchOverId.current = overId
+        setTouchDragOver(overId)
+      }
+    }
+
+    const handleTouchEnd = () => {
+      const fromId = touchDragId.current
+      const dropId = touchOverId.current
+      if (!fromId || !dropId || fromId === dropId) {
+        setTouchDragging(null); setTouchDragOver(null)
+        touchDragId.current = null; touchOverId.current = null
+        return
+      }
+      const fromIndex = reviews.findIndex(r => r.id === fromId)
+      const dropIndex = reviews.findIndex(r => r.id === dropId)
+      if (fromIndex === -1 || dropIndex === -1 || fromIndex === dropIndex) {
+        setTouchDragging(null); setTouchDragOver(null)
+        touchDragId.current = null; touchOverId.current = null
+        return
+      }
+      // Reorder the master reviews array
+      const newReviews = [...reviews]
+      const [moved] = newReviews.splice(fromIndex, 1)
+      if (!moved) return
+      newReviews.splice(dropIndex, 0, moved)
+      // Only update the score of the dragged item to match the drop target
+      const dropTargetScore = reviews[dropIndex].score
+      const updated = newReviews.map(r =>
+        r.id === fromId ? { ...r, score: dropTargetScore } : r
+      )
+      // Find which review actually changed score
+      const originalScores = new Map(reviews.map(r => [r.id, r.score]))
+      const changed: { review_id: string; score: number }[] = []
+      updated.forEach(r => {
+        const originalScore = originalScores.get(r.id)
+        if (originalScore === undefined) return
+        if (r.score !== originalScore) {
+          changed.push({ review_id: r.id, score: r.score })
+        }
+      })
+      setReviews(updated)
+      if (changed.length > 0) {
+        setUpdatingIds(prev => {
+          const s = new Set(prev)
+          changed.forEach(c => s.add(c.review_id))
+          return s
+        })
+        changed.forEach(c => saveScore(c))
+      }
+      setTouchDragging(null); setTouchDragOver(null)
+      touchDragId.current = null; touchOverId.current = null
+    }
+
+    const handleTouchCancel = () => {
+      setTouchDragging(null); setTouchDragOver(null)
+      touchDragId.current = null; touchOverId.current = null
+    }
   const supabase = createClient()
   const queryClient = useQueryClient()
 
@@ -194,23 +282,13 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
     if (!moved) return
     newReviews.splice(dropIndex, 0, moved)
 
-    // ── Recalculate scores based on new order ─────────────────────────────
-    // Rule: item above sets the ceiling. If dragged below something with a lower
-    // score, the dragged item adopts that score. We propagate downward only.
-    const updated = newReviews.map((r, i) => ({ ...r }))
+    // Only update the score of the dragged item to match the drop target
+    const dropTargetScore = reviews[dropIndex].score
+    const updated = newReviews.map(r =>
+      r.id === fromId ? { ...r, score: dropTargetScore } : r
+    )
 
-    for (let i = 0; i < updated.length; i++) {
-      if (i === 0) continue
-      const above = updated[i - 1]
-      const current = updated[i]
-      if (!current || !above) continue
-      if (current.score > above.score) {
-        // Can't be higher than item above — clamp to item above's score
-        updated[i] = { ...current, score: above.score }
-      }
-    }
-
-    // Find which reviews actually changed score (compare by review id, not by position)
+    // Find which review actually changed score
     const originalScores = new Map(reviews.map(r => [r.id, r.score]))
     const changed: { review_id: string; score: number }[] = []
     updated.forEach(r => {
@@ -223,7 +301,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
 
     setReviews(updated)
 
-    // Persist all changed scores
+    // Persist changed score
     if (changed.length > 0) {
       setUpdatingIds(prev => {
         const s = new Set(prev)
@@ -384,24 +462,32 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
               const isUpdating = updatingIds.has(review.id)
               const canDrag = sortKey === "score" && !search
 
+              const isTouchDragging = touchDragging === review.id
+              const isTouchDragOver = touchDragOver === review.id
               return (
                 <div
                   key={review.id}
-                  className={`mr-card${isDragging ? " dragging" : ""}${isDragOver ? " drag-over" : ""}`}
+                  data-review-id={review.id}
+                  className={`mr-card${isDragging ? " dragging" : ""}${isDragOver ? " drag-over" : ""}${isTouchDragging ? " dragging" : ""}${isTouchDragOver ? " drag-over" : ""}`}
                   draggable={canDrag}
                   onDragStart={canDrag ? e => handleDragStart(e, review.id) : undefined}
                   onDragOver={canDrag ? e => handleDragOver(e, review.id) : undefined}
                   onDrop={canDrag ? e => handleDrop(e, review.id) : undefined}
                   onDragEnd={canDrag ? handleDragEnd : undefined}
+                  onTouchStart={canDrag ? e => handleTouchStart(e, review.id) : undefined}
+                  onTouchMove={canDrag ? handleTouchMove : undefined}
+                  onTouchEnd={canDrag ? handleTouchEnd : undefined}
+                  onTouchCancel={canDrag ? handleTouchCancel : undefined}
                   style={{
                     background: "white",
-                    border: `1px solid ${isDragOver ? "#2d6a4f40" : "#e8e8e4"}`,
+                    border: `1px solid ${isDragOver || isTouchDragOver ? "#2d6a4f40" : "#e8e8e4"}`,
                     borderRadius: 12,
                     padding: "14px 16px",
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
                     userSelect: "none",
+                    touchAction: canDrag ? "none" : undefined,
                   }}
                 >
                   {/* Drag handle */}

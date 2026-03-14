@@ -2,6 +2,8 @@
 
 import { formatDistanceToNow } from "date-fns"
 import type { Review } from "@niche/shared-types"
+import { useState } from "react"
+import { voteReview, getReviewVotes } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
 
 interface Props {
@@ -10,9 +12,41 @@ interface Props {
   onClick?: () => void
 }
 
-export default function ReviewCard({ review, showAuthor = false, onClick }: Props) {
   const timeAgo = formatDistanceToNow(new Date(review.created_at))
   const mainPhoto = review.image_urls?.[0]
+
+  // Voting state
+  const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
+  const [downvotes, setDownvotes] = useState(review.downvotes_count ?? 0)
+  const [userVote, setUserVote] = useState(review.user_vote ?? 0)
+  const [isVoting, setIsVoting] = useState(false)
+
+  // Comment count
+  const commentCount = review.comments_count ?? 0
+
+  const handleVote = async (vote: 1 | -1) => {
+    if (isVoting) return
+    setIsVoting(true)
+    // Optimistic update
+    if (userVote === vote) {
+      // Undo vote
+      if (vote === 1) setUpvotes(u => u - 1)
+      if (vote === -1) setDownvotes(d => d - 1)
+      setUserVote(0)
+      await voteReview(undefined, { review_id: review.id, user_id: review.user?.id, vote: 0 })
+    } else {
+      if (vote === 1) {
+        setUpvotes(u => userVote === -1 ? u + 1 : u + (userVote === 0 ? 1 : 0))
+        if (userVote === -1) setDownvotes(d => d - 1)
+      } else {
+        setDownvotes(d => userVote === 1 ? d + 1 : d + (userVote === 0 ? 1 : 0))
+        if (userVote === 1) setUpvotes(u => u - 1)
+      }
+      setUserVote(vote)
+      await voteReview(undefined, { review_id: review.id, user_id: review.user?.id, vote })
+    }
+    setIsVoting(false)
+  }
 
   return (
     <div
@@ -83,12 +117,49 @@ export default function ReviewCard({ review, showAuthor = false, onClick }: Prop
           </p>
         )}
 
+        {/* Voting and comments row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); handleVote(1) }}
+              disabled={isVoting}
+              style={{
+                background: userVote === 1 ? "#e8f4ee" : "#fff",
+                color: userVote === 1 ? "#2d6a4f" : "#888",
+                border: "1px solid #e8e8e4",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >▲ {upvotes}</button>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); handleVote(-1) }}
+              disabled={isVoting}
+              style={{
+                background: userVote === -1 ? "#fbeee6" : "#fff",
+                color: userVote === -1 ? "#c0392b" : "#888",
+                border: "1px solid #e8e8e4",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >▼ {downvotes}</button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 14, color: "#888" }}>💬</span>
+            <span style={{ fontSize: 13, color: "#888" }}>{commentCount}</span>
+          </div>
+        </div>
+
         {/* Footer — reviewed by + time */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
           {showAuthor && (() => {
             const reviewer = (review as any).profile ?? (review as any).user
             if (!reviewer) return <div />
-
             return (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{

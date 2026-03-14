@@ -61,7 +61,14 @@ export default function ExploreClient({ userId }: { userId: string }) {
     }, 400)
   }, [])
 
-  const displayPlaces = searchQuery.length > 1 ? searchResults : places
+  // Filter out 'brewed at home' (homebrew) places
+  const filterHomebrew = (arr: Place[]) => arr.filter(
+    p =>
+      p.name !== "Brewed at home" &&
+      p.city !== "home" &&
+      p.google_place_id !== "brew_home"
+  )
+  const displayPlaces = searchQuery.length > 1 ? filterHomebrew(searchResults) : filterHomebrew(places)
   const displayPending = searchQuery.length > 1 ? isSearching : isPending
 
   return (

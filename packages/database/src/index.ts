@@ -1,3 +1,68 @@
+// ─── Review Voting ─────────────────────────────────────────────────────────
+/**
+ * Upvote or downvote a review. vote = 1 (upvote), -1 (downvote)
+ */
+export async function voteReview(
+  supabase: SupabaseClient,
+  { review_id, user_id, vote }: { review_id: string; user_id: string; vote: 1 | -1 }
+): Promise<void> {
+  const { error } = await supabase
+    .from("review_votes")
+    .upsert({ review_id, user_id, vote }, { onConflict: "review_id,user_id" })
+  if (error) throw error
+}
+
+/**
+ * Get upvote/downvote counts and the current user's vote for a review
+ */
+export async function getReviewVotes(
+  supabase: SupabaseClient,
+  { review_id, user_id }: { review_id: string; user_id: string }
+): Promise<{ upvotes: number; downvotes: number; user_vote: 1 | -1 | 0 }> {
+  // Get counts
+  const { data: votes, error } = await supabase
+    .from("review_votes")
+    .select("vote, user_id")
+    .eq("review_id", review_id)
+  if (error) throw error
+  let upvotes = 0, downvotes = 0, user_vote: 1 | -1 | 0 = 0
+  for (const v of votes ?? []) {
+    if (v.vote === 1) upvotes++
+    if (v.vote === -1) downvotes++
+    if (v.user_id === user_id) user_vote = v.vote
+  }
+  return { upvotes, downvotes, user_vote }
+}
+
+// ─── Review Comments ───────────────────────────────────────────────────────
+/**
+ * Add a comment to a review
+ */
+export async function addReviewComment(
+  supabase: SupabaseClient,
+  { review_id, user_id, body }: { review_id: string; user_id: string; body: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from("review_comments")
+    .insert({ review_id, user_id, body })
+  if (error) throw error
+}
+
+/**
+ * Get all comments for a review (most recent first)
+ */
+export async function getReviewComments(
+  supabase: SupabaseClient,
+  { review_id }: { review_id: string }
+): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("review_comments")
+    .select("*, user:profiles!review_comments_user_id_fkey(id, username, avatar_url)")
+    .eq("review_id", review_id)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
 import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
 
 type SupabaseClient = any

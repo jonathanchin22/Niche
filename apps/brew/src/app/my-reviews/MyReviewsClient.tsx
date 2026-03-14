@@ -5,6 +5,7 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getUserReviews } from "@niche/database"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import { MonoLabel } from "@/components/ui/Primitives"
 import type { Review } from "@niche/shared-types"
 
@@ -30,6 +31,8 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
 
   const reviews = data?.pages.flatMap(p => p.data.map(i => i.review).filter(Boolean)) as Review[] ?? []
   const withPhotos = reviews.filter(r => r.image_urls?.length > 0)
+
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   return (
     <div>
@@ -67,7 +70,7 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
       {!isLoading && tab === "reviews" && (
         <div style={{ padding: "0 28px" }}>
           {reviews.map(r => (
-            <ReviewCard key={r.id} review={r} />
+            <ReviewCard key={r.id} review={r} onClick={() => setSelectedReview(r)} />
           ))}
           {hasNextPage && (
             <button
@@ -82,7 +85,7 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
                 letterSpacing: "0.08em", textTransform: "uppercase",
               }}
             >
-              {isFetchingNextPage ? "loading..." : "load more →"}
+              {isFetchingNextPage ? "loading..." : "load more "}
             </button>
           )}
         </div>
@@ -93,11 +96,27 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
         <div style={{ padding: "16px 28px" }}>
           {withPhotos.length === 0 ? (
             <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "var(--c-subtle)" }}>
-              No photos yet — add one when logging a drink.
+              No photos yet  add one when logging a drink.
             </p>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => (
+                <ReviewCard key={r.id} review={r} onClick={() => setSelectedReview(r)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
+      )}
+    </div>
+  )
                 <div key={r.id} style={{ borderRadius: 4, overflow: "hidden", background: "var(--c-tint)", position: "relative", paddingBottom: "100%" }}>
                   <img
                     src={r.image_urls[0]}
