@@ -112,7 +112,7 @@ export default function LogPage() {
   const [placeQuery, setPlaceQuery] = useState("")
   const [placeResults, setPlaceResults] = useState<SelectedPlace[]>([])
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null)
-  const [rating, setRating] = useState(0)
+  const [rating, setRating] = useState(5)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [body, setBody] = useState("")
   const [isSearching, setIsSearching] = useState(false)
@@ -136,7 +136,9 @@ export default function LogPage() {
 
   const { mutate: submitReview, isPending } = useMutation({
     mutationFn: async () => {
-      if (!selectedPlace) throw new Error("No place selected")
+      if (!drinkName.trim()) throw new Error("Please enter a drink name")
+      if (!selectedPlace) throw new Error("Please select a shop")
+      if (rating === 0) throw new Error("Please set a rating")
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
       const place = await upsertPlace(supabase as any, {
