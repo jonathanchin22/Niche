@@ -166,7 +166,7 @@ export function ProfileClient({ userId, profile, reviews }: ProfileClientProps) 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                   <div>
                     <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 16, margin: "0 0 2px", color: "#1a1a1a" }}>
-                      {r.item_name ?? "drink"}
+                      {r.item_name?.trim() ? r.item_name : "drink"}
                     </p>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
                       {r.place?.name ?? "unknown shop"} · <span suppressHydrationWarning>{timeAgo(r.created_at)}</span>

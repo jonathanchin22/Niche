@@ -198,29 +198,16 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
       }
     }
 
-    // Find which reviews actually changed score
+    // Find which reviews actually changed score (compare by review id, not by position)
+    const originalScores = new Map(reviews.map(r => [r.id, r.score]))
     const changed: { review_id: string; score: number }[] = []
-    updated.forEach((r, i) => {
-      const original = newReviews[i]
-      if (!original) return
-      if (r.score !== original.score) {
+    updated.forEach(r => {
+      const originalScore = originalScores.get(r.id)
+      if (originalScore === undefined) return
+      if (r.score !== originalScore) {
         changed.push({ review_id: r.id, score: r.score })
       }
     })
-    // Also check if the dragged item itself changed
-    const droppedItem = updated[dropIndex]
-    const originalItem = reviews[fromIndex]
-    if (!droppedItem || !originalItem) {
-      setDragging(null); setDragOver(null)
-      dragIndex.current = null; dragOverIndex.current = null
-      return
-    }
-
-    if (droppedItem.score !== originalItem.score) {
-      if (!changed.find(c => c.review_id === droppedItem.id)) {
-        changed.push({ review_id: droppedItem.id, score: droppedItem.score })
-      }
-    }
 
     setReviews(updated)
 
@@ -429,7 +416,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                       fontSize: 16, margin: "0 0 2px", color: "#1a1a1a",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      {review.item_name ?? "drink"}
+                      {review.item_name?.trim() ? review.item_name : "drink"}
                     </p>
                     <p style={{
                       fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888",

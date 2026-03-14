@@ -418,7 +418,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                       fontSize: 16, margin: "0 0 2px", color: "#1a1a1a",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      {review.item_name ?? "drink"}
+                      {review.item_name?.trim() ? review.item_name : "drink"}
                     </p>
                     <p style={{
                       fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888",
