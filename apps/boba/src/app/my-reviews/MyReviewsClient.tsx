@@ -152,7 +152,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
       if (!moved) return
       newReviews.splice(dropIndex, 0, moved)
       // Only update the score of the dragged item to match the drop target
-      const dropTargetScore = reviews[dropIndex].score
+      const dropTargetScore = reviews[dropIndex]?.score ?? moved.score
       const updated = newReviews.map(r =>
         r.id === fromId ? { ...r, score: dropTargetScore } : r
       )

@@ -5,6 +5,17 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getFriendFeed } from "@niche/database"
 import ReviewCard from "./ReviewCard"
+import { MonoLabel } from "@/components/ui/Primitives"
+import ReviewDetailModal from "../review/ReviewDetailModal"
+
+const APP_ID = "brew" as const
+
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 export default function FeedClient({ userId }: { userId: string }) {
   const [tab, setTab] = useState<"feed" | "photos">("feed")
   const [selectedReview, setSelectedReview] = useState<any | null>(null)
@@ -107,4 +118,4 @@ export default function FeedClient({ userId }: { userId: string }) {
       )}
     </div>
   )
-                  )}
+}
