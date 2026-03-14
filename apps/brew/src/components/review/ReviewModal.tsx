@@ -273,9 +273,11 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                 brewed at home
               </button>
               <MonoLabel style={{ fontSize: 10, color: "var(--c-subtle)" }}>
-                {isHomeBrew
-                  ? "Your logged drink will be saved as brewed at home."
-                  : "Add the cafe you visited."}
+                <span style={{ display: "inline-block", minHeight: 16 }}>
+                  {isHomeBrew
+                    ? "Your logged drink will be saved as brewed at home."
+                    : "Add the cafe you visited."}
+                </span>
               </MonoLabel>
             </div>
 

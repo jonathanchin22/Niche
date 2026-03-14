@@ -187,10 +187,10 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             </p>
 
             <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", padding: "6px 0" }}>
                 highest rated: {topCoffeeText}
               </div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", background: "var(--c-tint)", padding: "6px 10px", borderRadius: 8 }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-subtle)", padding: "6px 0" }}>
                 location: {locationText}
               </div>
             </div>

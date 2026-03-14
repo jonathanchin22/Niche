@@ -479,7 +479,7 @@ export default function EditProfileClient({ profile, userId, highestRatedCoffee 
                   padding: 10,
                   borderRadius: 10,
                   border: "1px solid var(--c-rule)",
-                  background: "var(--c-tint)",
+                  background: "var(--c-bg)",
                   fontFamily: "var(--font-hand)",
                   fontSize: 14,
                   color: "var(--c-ink)",
