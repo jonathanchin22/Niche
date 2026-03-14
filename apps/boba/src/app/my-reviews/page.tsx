@@ -8,10 +8,12 @@ export default async function MyReviewsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const reviews = await getUserReviews(supabase as any, {
+  const reviewsResult = await getUserReviews(supabase as any, {
     user_id: user.id,
     app_id: "boba",
-  }).catch(() => [])
+  }).catch(() => ({ data: [] }))
+
+  const reviews = reviewsResult.data
 
   return <MyReviewsClient userId={user.id} initialReviews={reviews as any[]} />
 }

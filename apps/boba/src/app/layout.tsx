@@ -31,6 +31,9 @@ export const metadata: Metadata = {
   title: "boba! — bubble tea, ranked by fans",
   description: "Log, rate, and discover the best bubble tea spots with your friends.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
