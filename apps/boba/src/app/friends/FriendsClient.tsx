@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing } from "@niche/database"
 import { AppShell } from "@/components/ui/AppShell"
+import { FriendProfileModal } from "@/components/profile/FriendProfileModal"
 
 interface FriendsClientProps {
   userId: string
@@ -30,6 +31,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const { data: following = [] } = useQuery({
@@ -67,8 +69,9 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const displayList = searchQuery.length > 1 ? searchResults : (following as any[])
 
   return (
-    <AppShell activeTab="friends-list">
-      <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
+    <>
+      <AppShell activeTab="friends-list">
+        <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* Header */}
         <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
@@ -116,7 +119,10 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                   background: "white", border: "1px solid #e8e8e4",
                   borderRadius: 12, padding: "16px 18px",
                   display: "flex", alignItems: "center", gap: 12,
-                }}>
+                  cursor: "pointer",
+                }}
+                  onClick={() => setSelectedFriendId(pid)}
+                >
                   <div style={{
                     width: 40, height: 40, borderRadius: "50%",
                     border: "1.5px solid #e8e8e4", background: "#e8f4ee",
@@ -138,7 +144,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                   </div>
                   {pid !== userId && (
                     <button
-                      onClick={() => toggleFollow(pid)}
+                      onClick={e => { e.stopPropagation(); toggleFollow(pid) }}
                       style={{
                         fontFamily: "'DM Sans', sans-serif", fontSize: 12,
                         padding: "6px 16px", borderRadius: 20,
@@ -171,7 +177,16 @@ export function FriendsClient({ userId }: FriendsClientProps) {
             )}
           </div>
         )}
-      </div>
-    </AppShell>
+        </div>
+      </AppShell>
+
+      {selectedFriendId && (
+        <FriendProfileModal
+          friendId={selectedFriendId}
+          currentUserId={userId}
+          onClose={() => setSelectedFriendId(null)}
+        />
+      )}
+    </>
   )
 }
