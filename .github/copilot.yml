@@ -1,0 +1,35 @@
+instructions: |
+  # GitHub Copilot Instructions for Niche Repo
+  
+  ## General Coding Style
+  - Use TypeScript for all new code.
+  - Follow existing project structure and naming conventions.
+  - Use functional React components, and prefer hooks over legacy lifecycle methods.
+  - Write clear, concise, and self-explanatory code. Add comments for complex logic.
+  
+  ## Type Safety and API Usage
+  - Strictly respect TypeScript type definitions. If adding properties to types used across backend and frontend (e.g., `Review`), ensure API, database, and frontend types are all updated together.
+  - Validate and safely handle possible `undefined` or `null` values from API/database.
+  - If fetching new fields from the database, update both backend endpoints and frontend types.
+  
+  ## Component & File Organization
+  - Place components in their appropriate directories (e.g., UI in `/components`, pages in `/pages`).
+  - Group related files together.
+  - Name files and exports consistently, matching component or module intent.
+
+  ## Testing
+  - Where possible, add or update tests for any new major functionality.
+  - Use existing test patterns and tools as found in the repo.
+
+  ## Documentation
+  - Document public functions and components with JSDoc or TypeScript doc comments.
+  - Update README.md or relevant docs if introducing new features or breaking changes.
+
+  ## Pull Requests and Reviews
+  - Make small, focused pull requests with clear, descriptive titles and summaries.
+  - Reference related issues, if any.
+  - Outline manual testing steps in the PR description when applicable.
+
+  ## Formatting & Linting
+  - Run `prettier` and `eslint` before committing to ensure code style consistency.
+  - Fix any lint/type errors before requesting review.
