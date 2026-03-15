@@ -195,9 +195,9 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                         )}
                       </div>
                     )}
-                    {r.body && (
+                    {(r.note ?? r.body) && (
                       <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#555", margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
-                        {r.body}
+                        {r.note ?? r.body}
                       </p>
                     )}
                   </div>

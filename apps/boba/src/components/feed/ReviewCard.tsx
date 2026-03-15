@@ -40,8 +40,8 @@ function StarRow({ score }: { score: number }) {
 export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const likeCount = review.likes?.[0]?.count ?? 0
-  const [optimisticLiked, setOptimisticLiked] = useState(false)
+  const likeCount = review.upvotes_count ?? review.likes_count ?? 0
+  const [optimisticLiked, setOptimisticLiked] = useState(review.user_vote === 1)
   const [optimisticCount, setOptimisticCount] = useState(Number(likeCount))
 
   const { mutate: toggleLike } = useMutation({
@@ -53,12 +53,18 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       }
     },
     onMutate: () => {
-      setOptimisticLiked(prev => !prev)
-      setOptimisticCount(prev => optimisticLiked ? prev - 1 : prev + 1)
+      setOptimisticLiked(prev => {
+        const next = !prev
+        setOptimisticCount(count => (next ? count + 1 : Math.max(0, count - 1)))
+        return next
+      })
     },
     onError: () => {
-      setOptimisticLiked(prev => !prev)
-      setOptimisticCount(prev => optimisticLiked ? prev + 1 : prev - 1)
+      setOptimisticLiked(prev => {
+        const next = !prev
+        setOptimisticCount(count => (next ? count + 1 : Math.max(0, count - 1)))
+        return next
+      })
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["feed"] }),
   })

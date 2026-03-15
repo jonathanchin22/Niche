@@ -119,13 +119,13 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
                     </div>
                   </div>
                 </div>
-                {r.body && (
+                {(r.note ?? r.body) && (
                   <p style={{
                     fontFamily: "'Caveat', cursive", fontSize: 16, color: "#333",
                     margin: "0 0 8px", lineHeight: 1.5,
                     borderLeft: "2px solid #e8f4ee", paddingLeft: 10,
                   }}>
-                    {r.body}
+                    {r.note ?? r.body}
                   </p>
                 )}
                 {r.tags?.length > 0 && (

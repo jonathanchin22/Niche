@@ -10,6 +10,7 @@ interface Review {
   user_id: string
   item_name: string | null
   score: number
+  note: string | null
   body: string | null
   tags: string[]
   image_urls: string[]
@@ -223,7 +224,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
 
   const [editing, setEditing] = useState(false)
   const [editScore, setEditScore] = useState(review.score)
-  const [editBody, setEditBody] = useState(review.body ?? "")
+  const [editBody, setEditBody] = useState(review.note ?? review.body ?? "")
   const [editTags, setEditTags] = useState<string[]>(review.tags ?? [])
   const [editPhotos, setEditPhotos] = useState<string[]>(review.image_urls ?? [])
   const [editItemName, setEditItemName] = useState(review.item_name ?? "")
@@ -234,7 +235,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
       updates: {
         item_name: editItemName.trim() || null,
         score: Math.round(editScore * 10) / 10,
-        body: editBody.trim() || null,
+        note: editBody.trim() || null,
         tags: editTags,
         image_urls: editPhotos,
       },
@@ -320,13 +321,13 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
               <PhotoGrid urls={review.image_urls ?? []} />
 
               {/* Body */}
-              {review.body && (
+              {(review.note ?? review.body) && (
                 <p style={{
                   fontFamily: "'Caveat', cursive", fontSize: 18, color: "#333",
                   lineHeight: 1.55, margin: "0 0 16px",
                   borderLeft: "2px solid #e8f4ee", paddingLeft: 12,
                 }}>
-                  {review.body}
+                  {review.note ?? review.body}
                 </p>
               )}
 

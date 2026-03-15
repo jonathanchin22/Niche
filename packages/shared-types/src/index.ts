@@ -129,6 +129,7 @@ export interface Review {
   place?: Pick<Place, "id" | "name" | "city" | "state">
   upvotes_count?: number
   downvotes_count?: number
+  likes_count?: number
   user_vote?: 1 | -1 | 0
   comments_count?: number
   // Optionally, top_comment?: ReviewComment

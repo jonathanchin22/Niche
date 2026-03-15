@@ -31,12 +31,23 @@ export async function getReviewVotes(
   supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
 ): Promise<{ upvotes: number; downvotes: number; user_vote: 1 | -1 | 0 }> {
-  // Get counts
   const { data: votes, error } = await supabase
     .from("review_votes")
     .select("vote, user_id")
     .eq("review_id", review_id)
-  if (error) throw error
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
+
+    const { data: likes, error: likesError } = await supabase
+      .from("review_likes")
+      .select("user_id")
+      .eq("review_id", review_id)
+    if (likesError) throw likesError
+
+    const upvotes = likes?.length ?? 0
+    const user_vote = (likes ?? []).some((like: any) => like.user_id === user_id) ? 1 : 0
+    return { upvotes, downvotes: 0, user_vote }
+  }
   let upvotes = 0, downvotes = 0, user_vote: 1 | -1 | 0 = 0
   for (const v of votes ?? []) {
     if (v.vote === 1) upvotes++
@@ -98,6 +109,29 @@ interface SearchParams {
   user_id: string
 }
 
+function isReviewVotesSchemaError(error: any) {
+  const message = `${error?.message ?? ""} ${error?.details ?? ""} ${error?.hint ?? ""}`.toLowerCase()
+  return error?.code === "PGRST200" || message.includes("review_votes") || message.includes("could not find a relationship")
+}
+
+function aggregateLegacyLikes(likes: any[]) {
+  const firstLike = Array.isArray(likes) ? likes[0] : likes
+  const count = Number(firstLike?.count ?? 0)
+  return { upvotes_count: count, downvotes_count: 0, likes_count: count, user_vote: 0 as const }
+}
+
+function normalizeReviewRecord(review: any, user_id?: string) {
+  const { votes, likes, user, profile, ...rest } = review
+  const actor = user ?? profile ?? null
+  const voteState = votes ? aggregateVotes(votes, user_id) : aggregateLegacyLikes(likes)
+
+  return {
+    ...rest,
+    ...(actor ? { user: actor, profile: actor } : null),
+    ...voteState,
+  }
+}
+
 // ─── Feed ────────────────────────────────────────────────────────────────────
 
 function aggregateVotes(votes: any[], user_id?: string) {
@@ -107,7 +141,7 @@ function aggregateVotes(votes: any[], user_id?: string) {
     if (v.vote === -1) downvotes_count++
     if (user_id && v.user_id === user_id) user_vote = v.vote
   }
-  return { upvotes_count, downvotes_count, user_vote }
+  return { upvotes_count, downvotes_count, likes_count: upvotes_count, user_vote }
 }
 
 export async function getFriendFeed(
@@ -123,45 +157,66 @@ export async function getFriendFeed(
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
 
   // Step 2: fetch reviews with related data
-  let query = supabase
-    .from("reviews")
-    .select(`
-      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
-      profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
-      place:places!reviews_place_id_fkey(id, name, address, app_id),
-      likes:review_likes(count),
-      votes:review_votes(vote, user_id)
-    `)
-    .eq("app_id", app_id)
-    .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
-    .order("created_at", { ascending: false })
-    .limit(limit)
-
-  if (cursor) query = query.lt("created_at", cursor)
-
-  const { data, error } = await query
-  if (error) {
-    console.error("getFriendFeed error:", error)
-    // Fallback to simple query if joins fail
-    let fallback = supabase
+  const buildVotesQuery = () => {
+    let query = supabase
       .from("reviews")
-      .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
+      .select(`
+        id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+        profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        place:places!reviews_place_id_fkey(id, name, address, app_id),
+        votes:review_votes(vote, user_id)
+      `)
       .eq("app_id", app_id)
       .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
       .order("created_at", { ascending: false })
       .limit(limit)
-    if (cursor) fallback = fallback.lt("created_at", cursor)
-    const { data: fallbackData, error: fallbackError } = await fallback
-    if (fallbackError) throw fallbackError
-    const items = (fallbackData ?? []).map((r: any) => ({ review: r }))
-    const nextCursor = fallbackData?.length === limit ? fallbackData[fallbackData.length - 1]?.created_at : undefined
+
+    if (cursor) query = query.lt("created_at", cursor)
+    return query
+  }
+
+  const { data, error } = await buildVotesQuery()
+  if (error) {
+    console.error("getFriendFeed error:", error)
+
+    if (!isReviewVotesSchemaError(error)) {
+      let fallback = supabase
+        .from("reviews")
+        .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
+        .eq("app_id", app_id)
+        .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+        .order("created_at", { ascending: false })
+        .limit(limit)
+      if (cursor) fallback = fallback.lt("created_at", cursor)
+      const { data: fallbackData, error: fallbackError } = await fallback
+      if (fallbackError) throw fallbackError
+      const items = (fallbackData ?? []).map((r: any) => ({ review: r }))
+      const nextCursor = fallbackData?.length === limit ? fallbackData[fallbackData.length - 1]?.created_at : undefined
+      return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+    }
+
+    let legacyQuery = supabase
+      .from("reviews")
+      .select(`
+        id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+        profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        place:places!reviews_place_id_fkey(id, name, address, app_id),
+        likes:review_likes(count)
+      `)
+      .eq("app_id", app_id)
+      .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (cursor) legacyQuery = legacyQuery.lt("created_at", cursor)
+
+    const { data: legacyData, error: legacyError } = await legacyQuery
+    if (legacyError) throw legacyError
+    const items = (legacyData ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
+    const nextCursor = legacyData?.length === limit ? legacyData[legacyData.length - 1]?.created_at : undefined
     return { data: items, cursor: nextCursor, has_more: !!nextCursor }
   }
 
-  const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
-  })
+  const items = (data ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
@@ -181,45 +236,66 @@ export async function getMyFeed(
   followingIds.push(user_id) // Include user's own reviews
 
   // Step 2: fetch reviews with related data
-  let query = supabase
-    .from("reviews")
-    .select(`
-      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
-      user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
-      place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count),
-      votes:review_votes(vote, user_id)
-    `)
-    .eq("app_id", app_id)
-    .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
-    .order("created_at", { ascending: false })
-    .limit(limit)
-
-  if (cursor) query = query.lt("created_at", cursor)
-
-  const { data, error } = await query
-  if (error) {
-    console.error("getMyFeed error:", error)
-    // Fallback to simple query if joins fail
-    let fallback = supabase
+  const buildVotesQuery = () => {
+    let query = supabase
       .from("reviews")
-      .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
+      .select(`
+        id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+        user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        votes:review_votes(vote, user_id)
+      `)
       .eq("app_id", app_id)
       .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
       .order("created_at", { ascending: false })
       .limit(limit)
-    if (cursor) fallback = fallback.lt("created_at", cursor)
-    const { data: fallbackData, error: fallbackError } = await fallback
-    if (fallbackError) throw fallbackError
-    const items = (fallbackData ?? []).map((r: any) => ({ review: r }))
-    const nextCursor = fallbackData?.length === limit ? fallbackData[fallbackData.length - 1]?.created_at : undefined
+
+    if (cursor) query = query.lt("created_at", cursor)
+    return query
+  }
+
+  const { data, error } = await buildVotesQuery()
+  if (error) {
+    console.error("getMyFeed error:", error)
+
+    if (!isReviewVotesSchemaError(error)) {
+      let fallback = supabase
+        .from("reviews")
+        .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
+        .eq("app_id", app_id)
+        .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+        .order("created_at", { ascending: false })
+        .limit(limit)
+      if (cursor) fallback = fallback.lt("created_at", cursor)
+      const { data: fallbackData, error: fallbackError } = await fallback
+      if (fallbackError) throw fallbackError
+      const items = (fallbackData ?? []).map((r: any) => ({ review: r }))
+      const nextCursor = fallbackData?.length === limit ? fallbackData[fallbackData.length - 1]?.created_at : undefined
+      return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+    }
+
+    let legacyQuery = supabase
+      .from("reviews")
+      .select(`
+        id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+        user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        likes:review_likes(count)
+      `)
+      .eq("app_id", app_id)
+      .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (cursor) legacyQuery = legacyQuery.lt("created_at", cursor)
+
+    const { data: legacyData, error: legacyError } = await legacyQuery
+    if (legacyError) throw legacyError
+    const items = (legacyData ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
+    const nextCursor = legacyData?.length === limit ? legacyData[legacyData.length - 1]?.created_at : undefined
     return { data: items, cursor: nextCursor, has_more: !!nextCursor }
   }
 
-  const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
-  })
+  const items = (data ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
@@ -234,7 +310,6 @@ export async function getDiscoverFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count),
       votes:review_votes(vote)
     `)
     .eq("app_id", app_id)
@@ -244,12 +319,31 @@ export async function getDiscoverFeed(
   if (cursor) query = query.lt("created_at", cursor)
 
   const { data, error } = await query
-  if (error) throw error
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
 
-  const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { type: "review" as const, review: { ...review, ...aggregateVotes(votes) }, created_at: r.created_at }
-  })
+    let legacyQuery = supabase
+      .from("reviews")
+      .select(`
+        id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+        user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+        place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        likes:review_likes(count)
+      `)
+      .eq("app_id", app_id)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (cursor) legacyQuery = legacyQuery.lt("created_at", cursor)
+
+    const { data: legacyData, error: legacyError } = await legacyQuery
+    if (legacyError) throw legacyError
+
+    const items = (legacyData ?? []).map((r: any) => ({ type: "review" as const, review: normalizeReviewRecord(r), created_at: r.created_at }))
+    const nextCursor = legacyData?.length === limit ? legacyData[legacyData.length - 1]?.created_at : undefined
+    return { data: items, cursor: nextCursor ?? null, has_more: !!nextCursor }
+  }
+
+  const items = (data ?? []).map((r: any) => ({ type: "review" as const, review: normalizeReviewRecord(r), created_at: r.created_at }))
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor ?? null, has_more: !!nextCursor }
 }
@@ -279,13 +373,31 @@ export async function getReviewById(
       *,
       profile:profiles!reviews_user_id_fkey(*),
       place:places!reviews_place_id_fkey(*),
-      likes:review_likes(count),
+      votes:review_votes(vote, user_id),
       comments:review_comments(*, profile:profiles!review_comments_user_id_fkey(*))
     `)
     .eq("id", review_id)
     .single()
-  if (error) return null
-  return data
+
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) return null
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("reviews")
+      .select(`
+        *,
+        profile:profiles!reviews_user_id_fkey(*),
+        place:places!reviews_place_id_fkey(*),
+        likes:review_likes(count),
+        comments:review_comments(*, profile:profiles!review_comments_user_id_fkey(*))
+      `)
+      .eq("id", review_id)
+      .single()
+    if (legacyError) return null
+    return normalizeReviewRecord(legacyData) as Review
+  }
+
+  return normalizeReviewRecord(data) as Review
 }
 
 export async function getUserReviews(
@@ -298,7 +410,6 @@ export async function getUserReviews(
       *,
       profile:profiles!reviews_user_id_fkey(*),
       place:places!reviews_place_id_fkey(*),
-      likes:review_likes(count),
       votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
@@ -309,12 +420,31 @@ export async function getUserReviews(
   if (cursor) query = query.lt("created_at", cursor)
 
   const { data, error } = await query
-  if (error) throw error
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
 
-  const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
-  })
+    let legacyQuery = supabase
+      .from("reviews")
+      .select(`
+        *,
+        profile:profiles!reviews_user_id_fkey(*),
+        place:places!reviews_place_id_fkey(*),
+        likes:review_likes(count)
+      `)
+      .eq("app_id", app_id)
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (cursor) legacyQuery = legacyQuery.lt("created_at", cursor)
+
+    const { data: legacyData, error: legacyError } = await legacyQuery
+    if (legacyError) throw legacyError
+    const items = (legacyData ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
+    const nextCursor = legacyData?.length === limit ? legacyData[legacyData.length - 1]?.created_at : undefined
+    return { data: items, cursor: nextCursor, has_more: !!nextCursor }
+  }
+
+  const items = (data ?? []).map((r: any) => ({ review: normalizeReviewRecord(r, user_id) }))
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
 }
@@ -334,34 +464,59 @@ export async function likeReview(
   supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
 ): Promise<void> {
-  const { error } = await supabase
-    .from("review_likes")
-    .upsert({ review_id, user_id }, { onConflict: "review_id,user_id", ignoreDuplicates: true })
-  if (error) throw error
+  try {
+    await voteReview(supabase, { review_id, user_id, vote: 1 })
+  } catch (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
+
+    const { error: likeError } = await supabase
+      .from("review_likes")
+      .upsert({ review_id, user_id }, { onConflict: "review_id,user_id", ignoreDuplicates: true })
+    if (likeError) throw likeError
+  }
 }
 
 export async function unlikeReview(
   supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
 ): Promise<void> {
-  const { error } = await supabase
-    .from("review_likes")
-    .delete()
-    .eq("review_id", review_id)
-    .eq("user_id", user_id)
-  if (error) throw error
+  try {
+    await removeReviewVote(supabase, { review_id, user_id })
+  } catch (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
+
+    const { error: unlikeError } = await supabase
+      .from("review_likes")
+      .delete()
+      .eq("review_id", review_id)
+      .eq("user_id", user_id)
+    if (unlikeError) throw unlikeError
+  }
 }
 
 export async function isReviewLiked(
   supabase: SupabaseClient,
   { review_id, user_id }: { review_id: string; user_id: string }
 ): Promise<boolean> {
-  const { data } = await supabase
-    .from("review_likes")
-    .select("id")
+  const { data, error } = await supabase
+    .from("review_votes")
+    .select("review_id")
     .eq("review_id", review_id)
     .eq("user_id", user_id)
+    .eq("vote", 1)
     .maybeSingle()
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("review_likes")
+      .select("review_id")
+      .eq("review_id", review_id)
+      .eq("user_id", user_id)
+      .maybeSingle()
+    if (legacyError) throw legacyError
+    return !!legacyData
+  }
   return !!data
 }
 
@@ -369,12 +524,15 @@ export async function updateReview(
   supabase: SupabaseClient,
   { review_id, updates }: {
     review_id: string
-    updates: { item_name?: string | null; score?: number; body?: string | null; tags?: string[]; image_urls?: string[] }
+    updates: { item_name?: string | null; score?: number; body?: string | null; note?: string | null; tags?: string[]; image_urls?: string[] }
   }
 ) {
+  const { body, note, ...restUpdates } = updates
+  const normalizedNote = note ?? body
+
   const { data, error } = await supabase
     .from("reviews")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...restUpdates, ...(normalizedNote !== undefined ? { note: normalizedNote } : null), updated_at: new Date().toISOString() })
     .eq("id", review_id)
     .select()
     .single()
@@ -461,13 +619,28 @@ export async function getPlaceReviews(
     .select(`
       *,
       profile:profiles!reviews_user_id_fkey(*),
-      likes:review_likes(count)
+      votes:review_votes(vote)
     `)
     .eq("place_id", place_id)
     .order("created_at", { ascending: false })
     .limit(limit)
-  if (error) throw error
-  return (data ?? []).map((r: any) => ({ review: r }))
+  if (error) {
+    if (!isReviewVotesSchemaError(error)) throw error
+
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("reviews")
+      .select(`
+        *,
+        profile:profiles!reviews_user_id_fkey(*),
+        likes:review_likes(count)
+      `)
+      .eq("place_id", place_id)
+      .order("created_at", { ascending: false })
+      .limit(limit)
+    if (legacyError) throw legacyError
+    return (legacyData ?? []).map((r: any) => ({ review: normalizeReviewRecord(r) }))
+  }
+  return (data ?? []).map((r: any) => ({ review: normalizeReviewRecord(r) }))
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
