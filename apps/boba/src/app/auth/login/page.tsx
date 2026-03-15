@@ -4,8 +4,21 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
 import { joinApp } from "@niche/auth/client"
+import { BobaSketch } from "@/components/illustrations/BobaSketch"
 
 type Mode = "login" | "signup"
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  fontFamily: "'DM Sans', system-ui, sans-serif",
+  fontSize: 14,
+  border: "1px solid #e8e8e4",
+  borderRadius: 8,
+  padding: "11px 14px",
+  background: "white",
+  color: "#1a1a1a",
+  outline: "none",
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -67,47 +80,90 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-boba-soft to-white flex flex-col items-center justify-center p-6">
-      {/* App icon */}
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-boba-accent to-purple-800 flex items-center justify-center text-4xl shadow-xl shadow-boba-accent/30 mb-6">
-        🧋
+    <div style={{
+      minHeight: "100vh",
+      background: "#fafaf8",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "32px 20px",
+      maxWidth: 430,
+      margin: "0 auto",
+    }}>
+      {/* App header */}
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <BobaSketch />
+        </div>
+        <h1 style={{
+          fontFamily: "'DM Serif Display', Georgia, serif",
+          fontSize: 38, color: "#1a1a1a",
+          margin: "0 0 6px", fontWeight: 400, lineHeight: 1,
+        }}>
+          boba!
+        </h1>
+        <p style={{
+          fontFamily: "'Caveat', cursive",
+          fontSize: 16, color: "#888", margin: 0,
+        }}>
+          bubble tea, ranked by fans
+        </p>
       </div>
-      <h1 className="text-3xl font-black text-boba-text mb-1">boba!</h1>
-      <p className="text-sm text-boba-tertiary mb-8">bubble tea, ranked by fans</p>
 
       {/* Form card */}
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-xl">
+      <div style={{
+        width: "100%",
+        background: "white",
+        border: "1px solid #e8e8e4",
+        borderRadius: 12,
+        padding: "28px 24px",
+      }}>
         {/* Mode toggle */}
-        <div className="flex bg-boba-soft rounded-2xl p-1 mb-5">
+        <div style={{
+          display: "flex",
+          background: "#f5f5f3",
+          borderRadius: 8,
+          padding: 3,
+          marginBottom: 20,
+        }}>
           {(["login", "signup"] as Mode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
-                mode === m
-                  ? "bg-boba-accent text-white shadow-md shadow-boba-accent/30"
-                  : "text-boba-secondary"
-              }`}
+              style={{
+                flex: 1,
+                padding: "8px 0",
+                borderRadius: 6,
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: mode === m ? 600 : 400,
+                background: mode === m ? "white" : "transparent",
+                color: mode === m ? "#1a1a1a" : "#888",
+                border: mode === m ? "1px solid #e8e8e4" : "1px solid transparent",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
             >
-              {m === "login" ? "Sign in" : "Join"}
+              {m === "login" ? "sign in" : "join"}
             </button>
           ))}
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {mode === "signup" && (
             <>
               <input
                 placeholder="Display name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
+                style={inputStyle}
               />
               <input
                 placeholder="Username (e.g. teafairy)"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
+                style={inputStyle}
               />
             </>
           )}
@@ -116,46 +172,85 @@ export default function LoginPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
+            style={inputStyle}
           />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
+            style={inputStyle}
           />
 
           {error && (
-            <p className="text-red-500 text-xs px-1">{error}</p>
+            <p style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 12, color: "#c04040", margin: 0 }}>
+              {error}
+            </p>
           )}
 
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-boba-accent text-white font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-boba-accent/40 disabled:opacity-60 transition-opacity mt-1"
+            style={{
+              width: "100%",
+              background: "#2d6a4f",
+              color: "white",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontWeight: 600,
+              fontSize: 14,
+              padding: "13px 0",
+              borderRadius: 8,
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+              marginTop: 4,
+            }}
           >
-            {loading ? "..." : mode === "login" ? "Sign in →" : "Create account →"}
+            {loading ? "..." : mode === "login" ? "sign in →" : "create account →"}
           </button>
 
-          <div className="flex items-center gap-3 my-1">
-            <div className="flex-1 h-px bg-boba-divider" />
-            <span className="text-xs text-boba-tertiary">or</span>
-            <div className="flex-1 h-px bg-boba-divider" />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}>
+            <div style={{ flex: 1, height: 1, background: "#e8e8e4" }} />
+            <span style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 11, color: "#bbb" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: "#e8e8e4" }} />
           </div>
 
           <button
             onClick={() => handleOAuth("google")}
-            className="w-full border border-boba-divider rounded-xl py-3 text-sm font-bold text-boba-secondary flex items-center justify-center gap-2"
+            style={{
+              width: "100%",
+              border: "1px solid #e8e8e4",
+              borderRadius: 8,
+              padding: "12px 0",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: 13,
+              color: "#888",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
           >
-            <span>G</span> Continue with Google
+            <span style={{ fontWeight: 700 }}>G</span> Continue with Google
           </button>
         </div>
       </div>
 
-      <p className="text-xs text-boba-tertiary mt-6 text-center max-w-xs">
+      <p style={{
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontSize: 12,
+        color: "#888",
+        marginTop: 20,
+        textAlign: "center",
+        maxWidth: 280,
+      }}>
         Already on brew. or slice.?{" "}
-        <button onClick={() => setMode("login")} className="text-boba-accent font-bold">
+        <button
+          onClick={() => setMode("login")}
+          style={{ color: "#2d6a4f", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", fontSize: "inherit" }}
+        >
           Sign in →
         </button>
         {" "}— your account works across all niche apps.
