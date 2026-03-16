@@ -120,15 +120,22 @@ function aggregateLegacyLikes(likes: any[]) {
   return { upvotes_count: count, downvotes_count: 0, likes_count: count, user_vote: 0 as const }
 }
 
+function aggregateCommentsCount(comments_meta: any[]) {
+  const firstMeta = Array.isArray(comments_meta) ? comments_meta[0] : comments_meta
+  return Number(firstMeta?.count ?? 0)
+}
+
 function normalizeReviewRecord(review: any, user_id?: string) {
-  const { votes, likes, user, profile, ...rest } = review
+  const { votes, likes, comments_meta, user, profile, ...rest } = review
   const actor = user ?? profile ?? null
   const voteState = votes ? aggregateVotes(votes, user_id) : aggregateLegacyLikes(likes)
+  const comments_count = aggregateCommentsCount(comments_meta)
 
   return {
     ...rest,
     ...(actor ? { user: actor, profile: actor } : null),
     ...voteState,
+    comments_count,
   }
 }
 
@@ -164,6 +171,7 @@ export async function getFriendFeed(
         id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
         profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
         place:places!reviews_place_id_fkey(id, name, address, app_id),
+        comments_meta:review_comments(count),
         votes:review_votes(vote, user_id)
       `)
       .eq("app_id", app_id)
@@ -201,6 +209,7 @@ export async function getFriendFeed(
         id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
         profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
         place:places!reviews_place_id_fkey(id, name, address, app_id),
+        comments_meta:review_comments(count),
         likes:review_likes(count)
       `)
       .eq("app_id", app_id)
@@ -243,6 +252,7 @@ export async function getMyFeed(
         id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
         user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
         place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        comments_meta:review_comments(count),
         votes:review_votes(vote, user_id)
       `)
       .eq("app_id", app_id)
@@ -280,6 +290,7 @@ export async function getMyFeed(
         id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
         user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
         place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        comments_meta:review_comments(count),
         likes:review_likes(count)
       `)
       .eq("app_id", app_id)
@@ -310,6 +321,7 @@ export async function getDiscoverFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+      comments_meta:review_comments(count),
       votes:review_votes(vote)
     `)
     .eq("app_id", app_id)
@@ -328,6 +340,7 @@ export async function getDiscoverFeed(
         id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
         user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
         place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
+        comments_meta:review_comments(count),
         likes:review_likes(count)
       `)
       .eq("app_id", app_id)
@@ -410,6 +423,7 @@ export async function getUserReviews(
       *,
       profile:profiles!reviews_user_id_fkey(*),
       place:places!reviews_place_id_fkey(*),
+      comments_meta:review_comments(count),
       votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
@@ -429,6 +443,7 @@ export async function getUserReviews(
         *,
         profile:profiles!reviews_user_id_fkey(*),
         place:places!reviews_place_id_fkey(*),
+        comments_meta:review_comments(count),
         likes:review_likes(count)
       `)
       .eq("app_id", app_id)

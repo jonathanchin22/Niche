@@ -31,7 +31,7 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
   const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
   const [isVoting, setIsVoting] = useState(false)
 
-  const commentCount = review.comments_count ?? 0
+  const commentCount = review.comments_count ?? ((review as any).comments?.length ?? 0)
 
   const handleVote = async (vote: 1 | -1) => {
     if (isVoting || !currentUserId) return
@@ -91,8 +91,8 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Stars value={(review.score / 10) * 5} />
-            <MonoLabel style={{ fontSize: 10 }}>{review.score?.toFixed(1)} / 10</MonoLabel>
+            <Stars value={(review.score / 10) * 5} size={20} />
+            <MonoLabel style={{ fontSize: 10 }}>{review.score?.toFixed(1)}</MonoLabel>
           </div>
         </div>
 
@@ -162,8 +162,9 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
             >▼ {downvotes}</button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, color: "#888" }}>💬</span>
-            <span style={{ fontSize: 13, color: "#888" }}>{commentCount}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              {commentCount} comment{commentCount === 1 ? "" : "s"}
+            </span>
           </div>
         </div>
 
