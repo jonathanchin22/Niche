@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
-import { likeReview, unlikeReview } from "@niche/database"
+import { voteReview, removeReviewVote } from "@niche/database"
 import Link from "next/link"
 import Image from "next/image"
 import type { Review } from "@niche/shared-types"
@@ -126,35 +126,40 @@ export function ReviewCard({ review, currentUserId, onClick }: ReviewCardProps) 
   const actorUsername = actor?.username
   const actorDisplayName = actor?.display_name ?? actor?.username ?? "user"
   const actorAvatar = actor?.avatar_url
-  const likeCount = review.upvotes_count ?? review.likes_count ?? 0
+  const initialUpvotes = review.upvotes_count ?? review.likes_count ?? 0
+  const initialDownvotes = review.downvotes_count ?? 0
   const commentCount = review.comments_count ?? 0
-  const [optimisticLiked, setOptimisticLiked] = useState(review.user_vote === 1)
-  const [optimisticCount, setOptimisticCount] = useState(Number(likeCount))
+  const [upvotes, setUpvotes] = useState(Number(initialUpvotes))
+  const [downvotes, setDownvotes] = useState(Number(initialDownvotes))
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
+  const [isVoting, setIsVoting] = useState(false)
 
-  const { mutate: toggleLike } = useMutation({
-    mutationFn: async () => {
-      if (optimisticLiked) {
-        await unlikeReview(supabase as any, { review_id: review.id, user_id: currentUserId })
+  const handleVote = async (vote: 1 | -1) => {
+    if (isVoting) return
+    setIsVoting(true)
+
+    if (userVote === vote) {
+      // unselect existing vote
+      if (vote === 1) setUpvotes(u => Math.max(0, u - 1))
+      if (vote === -1) setDownvotes(d => Math.max(0, d - 1))
+      setUserVote(0)
+      await removeReviewVote(supabase as any, { review_id: review.id, user_id: currentUserId })
+    } else {
+      if (vote === 1) {
+        setUpvotes(u => u + 1)
+        if (userVote === -1) setDownvotes(d => Math.max(0, d - 1))
       } else {
-        await likeReview(supabase as any, { review_id: review.id, user_id: currentUserId })
+        setDownvotes(d => d + 1)
+        if (userVote === 1) setUpvotes(u => Math.max(0, u - 1))
       }
-    },
-    onMutate: () => {
-      setOptimisticLiked(prev => {
-        const next = !prev
-        setOptimisticCount(count => (next ? count + 1 : Math.max(0, count - 1)))
-        return next
-      })
-    },
-    onError: () => {
-      setOptimisticLiked(prev => {
-        const next = !prev
-        setOptimisticCount(count => (next ? count + 1 : Math.max(0, count - 1)))
-        return next
-      })
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["feed"] }),
-  })
+      setUserVote(vote)
+      await voteReview(supabase as any, { review_id: review.id, user_id: currentUserId, vote })
+    }
+
+    setIsVoting(false)
+    queryClient.invalidateQueries({ queryKey: ["feed"] })
+    queryClient.invalidateQueries({ queryKey: ["feed", "boba", currentUserId] })
+  }
 
   const tasteChips = []
   if (review.taste_attributes) {
@@ -290,8 +295,9 @@ export function ReviewCard({ review, currentUserId, onClick }: ReviewCardProps) 
           <button
             onClick={e => {
               e.stopPropagation()
-              toggleLike()
+              handleVote(1)
             }}
+            disabled={isVoting}
             style={{
               display: "flex",
               alignItems: "center",
@@ -301,11 +307,32 @@ export function ReviewCard({ review, currentUserId, onClick }: ReviewCardProps) 
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
               fontSize: 13,
-              color: optimisticLiked ? "#2d6a4f" : "#888",
+              color: userVote === 1 ? "#2d6a4f" : "#888",
             }}
           >
             <span style={{ fontSize: 16 }}>▲</span>
-            {optimisticCount}
+            {upvotes}
+          </button>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              handleVote(-1)
+            }}
+            disabled={isVoting}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13,
+              color: userVote === -1 ? "#c0392b" : "#888",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>▼</span>
+            {downvotes}
           </button>
           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
             {commentCount} comment{commentCount === 1 ? "" : "s"}
