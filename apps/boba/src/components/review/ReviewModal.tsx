@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useId, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
 import { updateReview } from "@niche/database"
@@ -33,12 +33,13 @@ const DESCRIPTORS = [
 
 // ─── Star display (partial fill, 0–10) ───────────────────────────────────────
 function StarDisplay({ score, size = 18 }: { score: number; size?: number }) {
+  const id = useId()
   const pct = score / 10
   return (
     <div style={{ display: "flex", gap: 3 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `rm-${i}-${Math.round(score * 10)}-${size}`
+        const gid = `${id}-${i}-${Math.round(score * 10)}-${size}`
         return (
           <svg key={i} width={size} height={size} viewBox="0 0 24 24">
             <defs>

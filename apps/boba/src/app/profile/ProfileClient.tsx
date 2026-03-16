@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { AppShell } from "@/components/ui/AppShell"
 import { createClient } from "@niche/auth/client"
 import { useRouter } from "next/navigation"
@@ -14,12 +14,13 @@ interface ProfileClientProps {
 }
 
 function StarRow({ score }: { score: number }) {
+  const id = useId()
   const pct = score / 10
   return (
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `sr-pc-${i}-${Math.round(score * 10)}`
+        const gid = `${id}-${i}-${Math.round(score * 10)}`
         return (
           <svg key={i} width="13" height="13" viewBox="0 0 24 24">
             <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useCallback, useId, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
@@ -70,6 +70,7 @@ async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
 }
 
 function StarDisplay({ score }: { score: number }) {
+  const id = useId()
   const scoreNum = Number(score)
   const pct = Number.isFinite(scoreNum) ? Math.max(0, Math.min(1, scoreNum / 10)) : 0
   return (
@@ -77,7 +78,7 @@ function StarDisplay({ score }: { score: number }) {
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
         const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
-        const gradId = `sg-${i}-${Math.round(scoreNum * 10)}`
+        const gradId = `${id}-${i}-${Math.round(scoreNum * 10)}`
         return (
           <svg key={i} width="26" height="26" viewBox="0 0 24 24">
             <defs>
