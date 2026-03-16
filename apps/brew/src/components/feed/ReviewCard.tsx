@@ -6,6 +6,7 @@ import { useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { voteReview, removeReviewVote } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
+import Link from "next/link"
 
 interface Props {
   review: Review
@@ -173,27 +174,55 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
           {showAuthor && (() => {
             const reviewer = (review as any).profile ?? (review as any).user
             if (!reviewer) return <div />
+            const username = reviewer.username
             return (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 24, height: 24, borderRadius: 2,
-                  background: "var(--c-accent-bg)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  overflow: "hidden",
-                }}>
-                  {reviewer.avatar_url ? (
-                    <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
-                      {reviewer.username?.[0]?.toUpperCase()}
-                    </span>
-                  )}
+              username ? (
+                <Link
+                  href={`/profile/${username}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+                >
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 2,
+                    background: "var(--c-accent-bg)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                    {reviewer.avatar_url ? (
+                      <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
+                        {reviewer.username?.[0]?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
+                    <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
+                  </div>
+                </Link>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 2,
+                    background: "var(--c-accent-bg)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                    {reviewer.avatar_url ? (
+                      <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
+                        {reviewer.username?.[0]?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
+                    <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
+                  </div>
                 </div>
-                <div>
-                  <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
-                  <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
-                </div>
-              </div>
+              )
             )
           })()}
           <MonoLabel>{timeAgo} ago</MonoLabel>

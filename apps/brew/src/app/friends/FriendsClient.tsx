@@ -8,6 +8,7 @@ import { CupSteamSketch, MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
 import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { FeedItem } from "@niche/shared-types"
+import { useRouter } from "next/navigation"
 
 interface FriendsClientProps {
   userId: string
@@ -15,6 +16,7 @@ interface FriendsClientProps {
 
 export default function FriendsClient({ userId }: FriendsClientProps) {
   const supabase = createClient()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -72,6 +74,30 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
 
   return (
     <div style={{ padding: "0 28px 20px" }}>
+      <button
+        type="button"
+        onClick={() => router.back()}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "1px solid var(--c-rule)",
+          borderRadius: 999,
+          padding: "6px 12px",
+          marginBottom: 14,
+          cursor: "pointer",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          color: "var(--c-subtle)",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}
+        aria-label="Go back"
+      >
+        ← back
+      </button>
+
       {/* Search - always at top */}
       <div style={{
         display: "flex", alignItems: "center",
@@ -126,11 +152,18 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
                 const isFollowing = followingIds.has(pid)
 
                 return (
-                  <div key={pid} style={{
-                    background: "var(--c-bg)", border: "1px solid var(--c-rule)",
-                    borderRadius: 8, padding: "16px 18px",
-                    display: "flex", alignItems: "center", gap: 12,
-                  }}>
+                  <div
+                    key={pid}
+                    onClick={() => {
+                      if (handle) router.push(`/profile/${handle}`)
+                    }}
+                    style={{
+                      background: "var(--c-bg)", border: "1px solid var(--c-rule)",
+                      borderRadius: 8, padding: "16px 18px",
+                      display: "flex", alignItems: "center", gap: 12,
+                      cursor: handle ? "pointer" : "default",
+                    }}
+                  >
                     <div style={{
                       width: 40, height: 40, borderRadius: 4,
                       border: "1.5px solid var(--c-rule)", background: "var(--c-accent-bg)",
@@ -150,7 +183,10 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
                     </div>
                     {pid !== userId && (
                       <button
-                        onClick={() => toggleFollow(pid)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleFollow(pid)
+                        }}
                         style={{
                           fontFamily: "var(--font-mono)", fontSize: 10,
                           padding: "6px 16px", borderRadius: 20,

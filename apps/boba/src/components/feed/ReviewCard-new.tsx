@@ -121,6 +121,10 @@ function QualitySignals({ signals }: { signals: any }) {
 export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
+  const actor = review.user ?? (review as any).profile
+  const actorUsername = actor?.username
+  const actorDisplayName = actor?.display_name ?? actor?.username ?? "user"
+  const actorAvatar = actor?.avatar_url
   const likeCount = review.upvotes_count ?? review.likes_count ?? 0
   const commentCount = review.comments_count ?? 0
   const [optimisticLiked, setOptimisticLiked] = useState(review.user_vote === 1)
@@ -178,25 +182,47 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <Link href={`/profile/${review.user?.username}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          {review.user?.avatar_url && (
-            <Image
-              src={review.user.avatar_url}
-              alt={review.user.display_name}
-              width={32}
-              height={32}
-              style={{ borderRadius: "50%" }}
-            />
-          )}
-          <div>
-            <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#1a1a1a", fontWeight: 400 }}>
-              {review.user?.display_name}
+        {actorUsername ? (
+          <Link href={`/profile/${actorUsername}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", cursor: "pointer" }}>
+            {actorAvatar && (
+              <Image
+                src={actorAvatar}
+                alt={actorDisplayName}
+                width={32}
+                height={32}
+                style={{ borderRadius: "50%" }}
+              />
+            )}
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#1a1a1a", fontWeight: 400 }}>
+                {actorDisplayName}
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+                @{actorUsername} • {timeAgo(review.created_at)}
+              </div>
             </div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
-              @{review.user?.username} • {timeAgo(review.created_at)}
+          </Link>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {actorAvatar && (
+              <Image
+                src={actorAvatar}
+                alt={actorDisplayName}
+                width={32}
+                height={32}
+                style={{ borderRadius: "50%" }}
+              />
+            )}
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#1a1a1a", fontWeight: 400 }}>
+                {actorDisplayName}
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+                {timeAgo(review.created_at)}
+              </div>
             </div>
           </div>
-        </Link>
+        )}
         <Link href={`/place/${review.place?.id}`} style={{ textDecoration: "none" }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#666", textAlign: "right" }}>
             {review.place?.name}

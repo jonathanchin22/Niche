@@ -6,7 +6,7 @@ import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing, getFriendFeed } from "@niche/database"
 import { AppShell } from "@/components/ui/AppShell"
 import { ReviewCard } from "@/components/feed/ReviewCard"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface FriendsClientProps {
   userId: string
@@ -30,6 +30,7 @@ function EmptySketch() {
 
 export function FriendsClient({ userId }: FriendsClientProps) {
   const supabase = createClient()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -90,6 +91,30 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   return (
     <AppShell activeTab="friends-list">
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
+
+        <button
+          type="button"
+          onClick={() => router.back()}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "none",
+            border: "1px solid #e8e8e4",
+            borderRadius: 999,
+            padding: "6px 12px",
+            marginBottom: 14,
+            cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 11,
+            color: "#888",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
+          aria-label="Go back"
+        >
+          ← back
+        </button>
 
         {/* Header */}
         <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
@@ -156,52 +181,64 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                   const isFollowing = followingIds.has(pid)
 
                   return (
-                    <div key={pid} style={{
-                      background: "white", border: "1px solid #e8e8e4",
-                      borderRadius: 12, padding: "16px 18px",
-                      display: "flex", alignItems: "center", gap: 12,
-                    }}>
-                      {handle ? (
-                        <Link href={`/profile/${handle}`} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textDecoration: "none" }}>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: "50%",
-                            border: "1.5px solid #e8e8e4", background: "#e8f4ee",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontFamily: "'DM Serif Display', Georgia, serif",
-                            fontSize: 18, color: "#2d6a4f", flexShrink: 0,
-                          }}>
-                            {name[0]?.toUpperCase()}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
-                              {name}
-                            </p>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, margin: 0, color: "#bbb" }}>
-                              @{handle}
-                            </p>
-                          </div>
-                        </Link>
-                      ) : (
-                        <>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: "50%",
-                            border: "1.5px solid #e8e8e4", background: "#e8f4ee",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontFamily: "'DM Serif Display', Georgia, serif",
-                            fontSize: 18, color: "#2d6a4f", flexShrink: 0,
-                          }}>
-                            {name[0]?.toUpperCase()}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
-                              {name}
-                            </p>
-                          </div>
-                        </>
-                      )}
+                    <div
+                      key={pid}
+                      onClick={() => {
+                        if (handle) router.push(`/profile/${handle}`)
+                      }}
+                      style={{
+                        background: "white", border: "1px solid #e8e8e4",
+                        borderRadius: 12, padding: "16px 18px",
+                        display: "flex", alignItems: "center", gap: 12,
+                        cursor: handle ? "pointer" : "default",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                        {handle ? (
+                          <>
+                            <div style={{
+                              width: 40, height: 40, borderRadius: "50%",
+                              border: "1.5px solid #e8e8e4", background: "#e8f4ee",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontFamily: "'DM Serif Display', Georgia, serif",
+                              fontSize: 18, color: "#2d6a4f", flexShrink: 0,
+                            }}>
+                              {name[0]?.toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
+                                {name}
+                              </p>
+                              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, margin: 0, color: "#bbb" }}>
+                                @{handle}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{
+                              width: 40, height: 40, borderRadius: "50%",
+                              border: "1.5px solid #e8e8e4", background: "#e8f4ee",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontFamily: "'DM Serif Display', Georgia, serif",
+                              fontSize: 18, color: "#2d6a4f", flexShrink: 0,
+                            }}>
+                              {name[0]?.toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
+                                {name}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
                       {pid !== userId && (
                         <button
-                          onClick={() => toggleFollow(pid)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFollow(pid)
+                          }}
                           style={{
                             fontFamily: "'DM Sans', sans-serif", fontSize: 12,
                             padding: "6px 16px", borderRadius: 20,
