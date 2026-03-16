@@ -260,24 +260,32 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
   const handleVote = async (vote: 1 | -1) => {
     if (isVoting) return
     setIsVoting(true)
+    const prev = { upvotes, downvotes, userVote }
     const supa = createClient()
-    if (userVote === vote) {
-      if (vote === 1) setUpvotes(u => u - 1)
-      if (vote === -1) setDownvotes(d => d - 1)
-      setUserVote(0)
-      await removeReviewVote(supa as any, { review_id: review.id, user_id: currentUserId })
-    } else {
-      if (vote === 1) {
-        setUpvotes(u => u + 1)
-        if (userVote === -1) setDownvotes(d => d - 1)
+    try {
+      if (userVote === vote) {
+        if (vote === 1) setUpvotes(u => u - 1)
+        if (vote === -1) setDownvotes(d => d - 1)
+        setUserVote(0)
+        await removeReviewVote(supa as any, { review_id: review.id, user_id: currentUserId })
       } else {
-        setDownvotes(d => d + 1)
-        if (userVote === 1) setUpvotes(u => u - 1)
+        if (vote === 1) {
+          setUpvotes(u => u + 1)
+          if (userVote === -1) setDownvotes(d => d - 1)
+        } else {
+          setDownvotes(d => d + 1)
+          if (userVote === 1) setUpvotes(u => u - 1)
+        }
+        setUserVote(vote)
+        await voteReview(supa as any, { review_id: review.id, user_id: currentUserId, vote })
       }
-      setUserVote(vote)
-      await voteReview(supa as any, { review_id: review.id, user_id: currentUserId, vote })
+    } catch {
+      setUpvotes(prev.upvotes)
+      setDownvotes(prev.downvotes)
+      setUserVote(prev.userVote)
+    } finally {
+      setIsVoting(false)
     }
-    setIsVoting(false)
   }
 
   const handleAddComment = async () => {

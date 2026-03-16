@@ -137,28 +137,35 @@ export function ReviewCard({ review, currentUserId, onClick }: ReviewCardProps) 
   const handleVote = async (vote: 1 | -1) => {
     if (isVoting) return
     setIsVoting(true)
+    const prev = { upvotes, downvotes, userVote }
 
-    if (userVote === vote) {
-      // unselect existing vote
-      if (vote === 1) setUpvotes(u => Math.max(0, u - 1))
-      if (vote === -1) setDownvotes(d => Math.max(0, d - 1))
-      setUserVote(0)
-      await removeReviewVote(supabase as any, { review_id: review.id, user_id: currentUserId })
-    } else {
-      if (vote === 1) {
-        setUpvotes(u => u + 1)
-        if (userVote === -1) setDownvotes(d => Math.max(0, d - 1))
+    try {
+      if (userVote === vote) {
+        // unselect existing vote
+        if (vote === 1) setUpvotes(u => Math.max(0, u - 1))
+        if (vote === -1) setDownvotes(d => Math.max(0, d - 1))
+        setUserVote(0)
+        await removeReviewVote(supabase as any, { review_id: review.id, user_id: currentUserId })
       } else {
-        setDownvotes(d => d + 1)
-        if (userVote === 1) setUpvotes(u => Math.max(0, u - 1))
+        if (vote === 1) {
+          setUpvotes(u => u + 1)
+          if (userVote === -1) setDownvotes(d => Math.max(0, d - 1))
+        } else {
+          setDownvotes(d => d + 1)
+          if (userVote === 1) setUpvotes(u => Math.max(0, u - 1))
+        }
+        setUserVote(vote)
+        await voteReview(supabase as any, { review_id: review.id, user_id: currentUserId, vote })
       }
-      setUserVote(vote)
-      await voteReview(supabase as any, { review_id: review.id, user_id: currentUserId, vote })
+      queryClient.invalidateQueries({ queryKey: ["feed"] })
+      queryClient.invalidateQueries({ queryKey: ["feed", "boba", currentUserId] })
+    } catch {
+      setUpvotes(prev.upvotes)
+      setDownvotes(prev.downvotes)
+      setUserVote(prev.userVote)
+    } finally {
+      setIsVoting(false)
     }
-
-    setIsVoting(false)
-    queryClient.invalidateQueries({ queryKey: ["feed"] })
-    queryClient.invalidateQueries({ queryKey: ["feed", "boba", currentUserId] })
   }
 
   const tasteChips = []
