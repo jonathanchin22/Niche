@@ -20,6 +20,8 @@ function getSupabase() {
 }
 
 export default function ReviewDetailModal({ review, currentUserId, onClose }: ReviewDetailModalProps) {
+  const reviewer = (review as any).profile ?? (review as any).user
+  const reviewerUsername = reviewer?.username
   const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
   const [downvotes, setDownvotes] = useState(review.downvotes_count ?? 0)
   const [userVote, setUserVote] = useState(review.user_vote ?? 0)
@@ -85,6 +87,9 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
           <Stars value={(review.score / 10) * 5} />
           <MonoLabel style={{ fontSize: 12 }}>{review.score?.toFixed(1)} / 10</MonoLabel>
         </div>
+        {reviewerUsername && (
+          <MonoLabel style={{ fontSize: 12, marginBottom: 6 }}>@{reviewerUsername}</MonoLabel>
+        )}
         <div style={{ margin: "16px 0" }}>
           <span style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#333" }}>{review.note}</span>
         </div>

@@ -1,9 +1,10 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
-import { updateReview } from "@niche/database"
+import { updateReview, getReviewVotes, voteReview, removeReviewVote, getReviewComments, addReviewComment } from "@niche/database"
+import type { ReviewComment } from "@niche/shared-types"
 
 interface Review {
   id: string
@@ -17,6 +18,9 @@ interface Review {
   created_at: string
   place?: { id: string; name: string; city?: string; state?: string; address?: string } | null
   profile?: { id: string; username?: string; display_name?: string } | null
+  upvotes_count?: number
+  downvotes_count?: number
+  user_vote?: 1 | -1 | 0
 }
 
 interface ReviewModalProps {
@@ -229,6 +233,67 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
   const [editTags, setEditTags] = useState<string[]>(review.tags ?? [])
   const [editPhotos, setEditPhotos] = useState<string[]>(review.image_urls ?? [])
   const [editItemName, setEditItemName] = useState(review.item_name ?? "")
+  const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
+  const [downvotes, setDownvotes] = useState(review.downvotes_count ?? 0)
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
+  const [comments, setComments] = useState<ReviewComment[]>([])
+  const [commentText, setCommentText] = useState("")
+  const [isVoting, setIsVoting] = useState(false)
+  const [isCommenting, setIsCommenting] = useState(false)
+
+  useEffect(() => {
+    async function fetchVotesAndComments() {
+      const supa = createClient()
+      const { upvotes, downvotes, user_vote } = await getReviewVotes(supa as any, {
+        review_id: review.id,
+        user_id: currentUserId,
+      })
+      setUpvotes(upvotes)
+      setDownvotes(downvotes)
+      setUserVote(user_vote)
+      const fetchedComments = await getReviewComments(supa as any, { review_id: review.id })
+      setComments(fetchedComments)
+    }
+    fetchVotesAndComments()
+  }, [review.id, currentUserId])
+
+  const handleVote = async (vote: 1 | -1) => {
+    if (isVoting) return
+    setIsVoting(true)
+    const supa = createClient()
+    if (userVote === vote) {
+      if (vote === 1) setUpvotes(u => u - 1)
+      if (vote === -1) setDownvotes(d => d - 1)
+      setUserVote(0)
+      await removeReviewVote(supa as any, { review_id: review.id, user_id: currentUserId })
+    } else {
+      if (vote === 1) {
+        setUpvotes(u => u + 1)
+        if (userVote === -1) setDownvotes(d => d - 1)
+      } else {
+        setDownvotes(d => d + 1)
+        if (userVote === 1) setUpvotes(u => u - 1)
+      }
+      setUserVote(vote)
+      await voteReview(supa as any, { review_id: review.id, user_id: currentUserId, vote })
+    }
+    setIsVoting(false)
+  }
+
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return
+    setIsCommenting(true)
+    const supa = createClient()
+    await addReviewComment(supa as any, {
+      review_id: review.id,
+      user_id: currentUserId,
+      body: commentText.trim(),
+    })
+    setCommentText("")
+    const fetchedComments = await getReviewComments(supa as any, { review_id: review.id })
+    setComments(fetchedComments)
+    setIsCommenting(false)
+  }
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: () => updateReview(supabase as any, {
@@ -253,6 +318,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
     setEditTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const name = review.profile?.display_name ?? review.profile?.username ?? "someone"
+  const username = review.profile?.username
 
   return (
     <>
@@ -323,13 +389,25 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
 
               {/* Body */}
               {(review.note ?? review.body) && (
-                <p style={{
-                  fontFamily: "var(--font-hand)", fontSize: 18, color: "#333",
-                  lineHeight: 1.55, margin: "0 0 16px",
-                  borderLeft: "2px solid #e8f4ee", paddingLeft: 12,
-                }}>
-                  {review.note ?? review.body}
-                </p>
+                <div style={{ marginBottom: 16 }}>
+                  {username && (
+                    <p style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      color: "#888",
+                      margin: "0 0 6px",
+                    }}>
+                      @{username}
+                    </p>
+                  )}
+                  <p style={{
+                    fontFamily: "var(--font-hand)", fontSize: 18, color: "#333",
+                    lineHeight: 1.55, margin: 0,
+                    borderLeft: "2px solid #e8f4ee", paddingLeft: 12,
+                  }}>
+                    {review.note ?? review.body}
+                  </p>
+                </div>
               )}
 
               {/* Tags */}
@@ -344,6 +422,103 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
                   ))}
                 </div>
               )}
+
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => handleVote(1)}
+                  disabled={isVoting}
+                  style={{
+                    background: userVote === 1 ? "#e8f4ee" : "#fff",
+                    color: userVote === 1 ? "#2d6a4f" : "#888",
+                    border: "1px solid #e8e8e4",
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  ▲ {upvotes}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVote(-1)}
+                  disabled={isVoting}
+                  style={{
+                    background: userVote === -1 ? "#fbeee6" : "#fff",
+                    color: userVote === -1 ? "#c0392b" : "#888",
+                    border: "1px solid #e8e8e4",
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  ▼ {downvotes}
+                </button>
+              </div>
+
+              <div style={{ margin: "16px 0 12px" }}>
+                <h3 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, margin: 0, color: "#1a1a1a", fontWeight: 400 }}>
+                  comments
+                </h3>
+                <div style={{ margin: "12px 0" }}>
+                  {comments.length === 0 && (
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#bbb", margin: 0 }}>
+                      no comments yet.
+                    </p>
+                  )}
+                  {comments.map(c => (
+                    <div key={c.id} style={{ marginBottom: 10, padding: 10, background: "#f8f8f8", borderRadius: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        {c.user?.avatar_url && (
+                          <img src={c.user.avatar_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%" }} />
+                        )}
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
+                          @{c.user?.username ?? "user"}
+                        </p>
+                      </div>
+                      <div style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#333" }}>{c.body}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    placeholder="add a comment..."
+                    style={{
+                      flex: 1,
+                      fontFamily: "'DM Serif Display', Georgia, serif",
+                      fontSize: 15,
+                      border: "1px solid #e8e8e4",
+                      borderRadius: 6,
+                      padding: "8px 10px",
+                    }}
+                    disabled={isCommenting}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddComment}
+                    disabled={isCommenting || !commentText.trim()}
+                    style={{
+                      background: "#2d6a4f",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      opacity: isCommenting || !commentText.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    post
+                  </button>
+                </div>
+              </div>
 
               {/* Edit button (owner only) */}
               {isOwner && (

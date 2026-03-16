@@ -6,8 +6,9 @@ import { getFriendFeed } from "@niche/database"
 import { ReviewCard } from "./ReviewCard"
 import { AppShell } from "@/components/ui/AppShell"
 import type { PaginatedResponse, FeedItem } from "@niche/shared-types"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { ReviewModal } from "@/components/review/ReviewModal"
 
 interface FeedClientProps {
   initialData: PaginatedResponse<FeedItem>
@@ -17,6 +18,7 @@ interface FeedClientProps {
 export function FeedClient({ initialData, userId }: FeedClientProps) {
   const supabase = createClient()
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const [selectedReview, setSelectedReview] = useState<any | null>(null)
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["feed", "boba", userId],
@@ -97,7 +99,12 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
           <>
             {items.map((item, i) =>
               item.review ? (
-                <ReviewCard key={item.review.id ?? i} review={item.review} currentUserId={userId} />
+                <ReviewCard
+                  key={item.review.id ?? i}
+                  review={item.review}
+                  currentUserId={userId}
+                  onClick={() => setSelectedReview(item.review)}
+                />
               ) : null
             )}
             <div ref={loadMoreRef} style={{ padding: "16px 0", display: "flex", justifyContent: "center" }}>
@@ -108,6 +115,14 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
               )}
             </div>
           </>
+        )}
+
+        {selectedReview && (
+          <ReviewModal
+            review={selectedReview}
+            currentUserId={userId}
+            onClose={() => setSelectedReview(null)}
+          />
         )}
       </div>
     </AppShell>

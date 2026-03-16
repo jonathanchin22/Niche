@@ -7,6 +7,7 @@ import { searchUsers, followUser, unfollowUser, getFollowing, getFriendFeed } fr
 import { AppShell } from "@/components/ui/AppShell"
 import { ReviewCard } from "@/components/feed/ReviewCard"
 import { useRouter } from "next/navigation"
+import { ReviewModal } from "@/components/review/ReviewModal"
 
 interface FriendsClientProps {
   userId: string
@@ -36,6 +37,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [tab, setTab] = useState<Tab>("friends")
+  const [selectedReview, setSelectedReview] = useState<any | null>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const { data: following = [] } = useQuery({
@@ -294,7 +296,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
             {!feedLoading && (
               <div>
                 {reviews.map(r => r && (
-                  <ReviewCard key={r.id} review={r} currentUserId={userId} />
+                  <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
                 ))}
                 {hasNextPage && (
                   <button
@@ -337,7 +339,11 @@ export function FriendsClient({ userId }: FriendsClientProps) {
               <div style={{ padding: "16px 0" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                   {withPhotos.map(r => r && (
-                    <div key={r.id} style={{ height: 150, borderRadius: 4, overflow: "hidden", background: "#f0f0ec", position: "relative" }}>
+                    <div
+                      key={r.id}
+                      onClick={() => setSelectedReview(r)}
+                      style={{ height: 150, borderRadius: 4, overflow: "hidden", background: "#f0f0ec", position: "relative", cursor: "pointer" }}
+                    >
                       <img src={r.image_urls[0]} alt={r.item_name ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       <div style={{
                         position: "absolute", bottom: 0, left: 0, right: 0,
@@ -354,6 +360,14 @@ export function FriendsClient({ userId }: FriendsClientProps) {
               </div>
             )}
           </>
+        )}
+
+        {selectedReview && (
+          <ReviewModal
+            review={selectedReview}
+            currentUserId={userId}
+            onClose={() => setSelectedReview(null)}
+          />
         )}
       </div>
     </AppShell>

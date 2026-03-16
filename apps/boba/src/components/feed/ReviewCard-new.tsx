@@ -11,6 +11,7 @@ import type { Review } from "@niche/shared-types"
 interface ReviewCardProps {
   review: Review
   currentUserId: string
+  onClick?: () => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -118,7 +119,7 @@ function QualitySignals({ signals }: { signals: any }) {
   )
 }
 
-export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
+export function ReviewCard({ review, currentUserId, onClick }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const actor = review.user ?? (review as any).profile
@@ -172,18 +173,22 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   }
 
   return (
-    <div style={{
+    <div
+      onClick={onClick}
+      style={{
       background: "white",
       borderRadius: 12,
       padding: 16,
       boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
       marginBottom: 12,
-    }}>
+      cursor: onClick ? "pointer" : "default",
+      }}
+    >
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         {actorUsername ? (
-          <Link href={`/profile/${actorUsername}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", cursor: "pointer" }}>
+          <Link href={`/profile/${actorUsername}`} onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", cursor: "pointer" }}>
             {actorAvatar && (
               <Image
                 src={actorAvatar}
@@ -223,7 +228,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             </div>
           </div>
         )}
-        <Link href={`/place/${review.place?.id}`} style={{ textDecoration: "none" }}>
+        <Link href={`/place/${review.place?.id}`} onClick={e => e.stopPropagation()} style={{ textDecoration: "none" }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#666", textAlign: "right" }}>
             {review.place?.name}
           </div>
@@ -283,7 +288,10 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
-            onClick={() => toggleLike()}
+            onClick={e => {
+              e.stopPropagation()
+              toggleLike()
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -293,10 +301,10 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
               fontSize: 13,
-              color: optimisticLiked ? "#e63946" : "#888",
+              color: optimisticLiked ? "#2d6a4f" : "#888",
             }}
           >
-            <span style={{ fontSize: 16 }}>{optimisticLiked ? "♥" : "♡"}</span>
+            <span style={{ fontSize: 16 }}>▲</span>
             {optimisticCount}
           </button>
           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
