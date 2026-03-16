@@ -26,45 +26,67 @@ export function Stars({ value = 0, onChange, size = 16 }: {
   size?: number
 }) {
   const normalized = Math.max(0, Math.min(5, value))
-  const fillPercent = (normalized / 5) * 100
+  const full = Math.floor(normalized)
+  const hasHalf = normalized - full >= 0.5
+  const empty = 5 - full - (hasHalf ? 1 : 0)
 
   return (
-    <div style={{ position: "relative", display: "inline-flex", lineHeight: 1 }}>
-      <div style={{ display: "flex", gap: 3, color: "var(--c-rule)", fontSize: size, pointerEvents: "auto" }}>
-        {[1, 2, 3, 4, 5].map(n => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange?.(n)}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: onChange ? "pointer" : "default",
-            }}
-          >
-            ★
-          </button>
-        ))}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: `${fillPercent}%`,
-          overflow: "hidden",
-          display: "flex",
-          gap: 3,
-          color: "var(--c-gold)",
-          fontSize: size,
-          pointerEvents: "none",
-        }}
-      >
-        {[1, 2, 3, 4, 5].map(n => (
-          <span key={n}>★</span>
-        ))}
-      </div>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 3, lineHeight: 1, fontSize: size }}>
+      {Array.from({ length: full }).map((_, i) => (
+        <button
+          key={`f-${i}`}
+          type="button"
+          onClick={() => onChange?.(i + 1)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "var(--c-gold)",
+            cursor: onChange ? "pointer" : "default",
+            fontSize: "inherit",
+            lineHeight: 1,
+          }}
+        >
+          ★
+        </button>
+      ))}
+
+      {hasHalf && (
+        <button
+          type="button"
+          onClick={() => onChange?.(full + 1)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "var(--c-gold)",
+            cursor: onChange ? "pointer" : "default",
+            fontSize: "inherit",
+            lineHeight: 1,
+          }}
+        >
+          ✦
+        </button>
+      )}
+
+      {Array.from({ length: empty }).map((_, i) => (
+        <button
+          key={`e-${i}`}
+          type="button"
+          onClick={() => onChange?.(full + (hasHalf ? 1 : 0) + i + 1)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "var(--c-rule)",
+            cursor: onChange ? "pointer" : "default",
+            fontSize: "inherit",
+            lineHeight: 1,
+          }}
+        >
+          ★
+        </button>
+      ))}
     </div>
   )
 }
