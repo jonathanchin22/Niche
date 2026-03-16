@@ -12,7 +12,7 @@ const nunito = Nunito({
 const nanumPenScript = Nanum_Pen_Script({
   subsets: ["latin"],
   variable: "--font-hand",
-  weight: ["400", "700"],
+  weight: ["400"],
 })
 
 const dmSerif = DM_Serif_Display({

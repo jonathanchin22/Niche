@@ -75,7 +75,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
 
   return (
     <AppShell activeTab="profile">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script:wght@400;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script:wght@400&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* Profile header */}
