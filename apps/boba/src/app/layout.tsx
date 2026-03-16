@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Nunito, Caveat, DM_Serif_Display, DM_Sans } from "next/font/google"
+import { Nunito, Nanum_Pen_Script, DM_Serif_Display, DM_Sans } from "next/font/google"
 import { Providers } from "./providers"
 import "./globals.css"
 
@@ -9,10 +9,10 @@ const nunito = Nunito({
   weight: ["400", "600", "700", "800", "900"],
 })
 
-const caveat = Caveat({
+const nanumPenScript = Nanum_Pen_Script({
   subsets: ["latin"],
-  variable: "--font-caveat",
-  weight: ["400", "600", "700"],
+  variable: "--font-hand",
+  weight: ["400", "700"],
 })
 
 const dmSerif = DM_Serif_Display({
@@ -55,7 +55,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={nunito.variable}>
+    <html lang="en" className={`${nunito.variable} ${nanumPenScript.variable}`}>
       <body className="bg-boba-bg font-nunito antialiased">
         <Providers>{children}</Providers>
       </body>

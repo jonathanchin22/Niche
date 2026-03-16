@@ -284,7 +284,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
           {/* Header row */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
-              <p style={{ fontFamily: "cursive", fontSize: 14, color: "#888", margin: "0 0 2px" }}>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: "0 0 2px" }}>
                 {name} · {timeAgo(review.created_at)}
               </p>
               <h2 style={{
@@ -323,7 +323,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
               {/* Body */}
               {(review.note ?? review.body) && (
                 <p style={{
-                  fontFamily: "cursive", fontSize: 18, color: "#333",
+                  fontFamily: "var(--font-hand)", fontSize: 18, color: "#333",
                   lineHeight: 1.55, margin: "0 0 16px",
                   borderLeft: "2px solid #e8f4ee", paddingLeft: 12,
                 }}>
@@ -375,7 +375,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
           ) : (
             /* ── Edit mode ─────────────────────────────────────────────── */
             <>
-              <p style={{ fontFamily: "cursive", fontSize: 14, color: "#888", margin: "0 0 16px" }}>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: "0 0 16px" }}>
                 editing review
               </p>
 
@@ -447,7 +447,7 @@ export function ReviewModal({ review, currentUserId, onClose, onUpdated }: Revie
                   onChange={e => setEditBody(e.target.value)}
                   placeholder="your thoughts..."
                   style={{
-                    width: "100%", fontFamily: "cursive", fontSize: 16,
+                    width: "100%", fontFamily: "var(--font-hand)", fontSize: 16,
                     border: "1px solid #e8e8e4", borderRadius: 10,
                     padding: "12px", background: "transparent",
                     color: "#1a1a1a", outline: "none",

@@ -99,7 +99,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: "#1a1a1a" }}>
               {name}
             </span>
-            <span style={{ fontFamily: "cursive", fontSize: 13, color: "#888" }}>drank at</span>
+            <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#888" }}>drank at</span>
             <Link href={`/place/${review.place_id}`} style={{
               fontFamily: "'DM Serif Display', Georgia, serif",
               fontSize: 15, color: "#2d6a4f", textDecoration: "none",
@@ -125,7 +125,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       {/* Body */}
       {review.note && (
         <p style={{
-          fontFamily: "cursive",
+          fontFamily: "var(--font-hand)",
           fontSize: 17, color: "#333",
           lineHeight: 1.5, marginBottom: 12,
           borderLeft: "2px solid #e8f4ee",

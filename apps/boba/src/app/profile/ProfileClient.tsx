@@ -75,7 +75,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
 
   return (
     <AppShell activeTab="profile">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script:wght@400;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* Profile header */}
@@ -92,7 +92,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
               {name}
             </h2>
             {handle && (
-              <p style={{ fontFamily: "cursive", fontSize: 14, color: "#888", margin: 0 }}>@{handle}</p>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: 0 }}>@{handle}</p>
             )}
           </div>
           <button onClick={handleSignOut} style={{
@@ -143,7 +143,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
         {tab === "reviews" && (
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <p style={{ fontFamily: "cursive", fontSize: 18, color: "#1a1a1a", margin: 0 }}>recent reviews</p>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#1a1a1a", margin: 0 }}>recent reviews</p>
               <Link href="/my-reviews" style={{ textDecoration: "none" }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#2d6a4f", border: "1px solid #2d6a4f", borderRadius: 20, padding: "4px 12px" }}>
                   all reviews →
@@ -153,7 +153,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
 
             {reviews.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <p style={{ fontFamily: "cursive", fontSize: 16, color: "#bbb" }}>no reviews yet — go log a drink!</p>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>no reviews yet — go log a drink!</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -196,7 +196,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                       </div>
                     )}
                     {(r.note ?? r.body) && (
-                      <p style={{ fontFamily: "cursive", fontSize: 14, color: "#555", margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
+                      <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#555", margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
                         {r.note ?? r.body}
                       </p>
                     )}
@@ -212,7 +212,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
           <>
             {allPhotos.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <p style={{ fontFamily: "cursive", fontSize: 16, color: "#bbb" }}>no photos yet — add some when logging!</p>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>no photos yet — add some when logging!</p>
                 <Link href="/log">
                   <button style={{ marginTop: 12, fontFamily: "'DM Sans', sans-serif", fontSize: 13, background: "#2d6a4f", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", cursor: "pointer" }}>
                     log a drink

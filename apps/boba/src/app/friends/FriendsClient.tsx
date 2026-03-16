@@ -91,7 +91,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* Header */}
-        <p style={{ fontFamily: "cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
           what they've been sipping
         </p>
         <h1 style={{
@@ -119,7 +119,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
               fontSize: 16, color: "#1a1a1a",
             }}
           />
-          {isSearching && <span style={{ fontFamily: "cursive", fontSize: 13, color: "#bbb" }}>...</span>}
+          {isSearching && <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb" }}>...</span>}
         </div>
 
         {/* Tabs */}
@@ -208,7 +208,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                   {searchQuery.length > 1 ? "no one found" : "find boba friends"}
                 </span>
                 {searchQuery.length < 2 && (
-                  <p style={{ fontFamily: "cursive", fontSize: 15, color: "#bbb", textAlign: "center", margin: 0 }}>
+                  <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#bbb", textAlign: "center", margin: 0 }}>
                     search above to find people
                   </p>
                 )}
@@ -222,13 +222,13 @@ export function FriendsClient({ userId }: FriendsClientProps) {
           <>
             {feedLoading && (
               <div style={{ padding: "40px 0", textAlign: "center" }}>
-                <span style={{ fontFamily: "cursive", fontSize: 13, color: "#bbb" }}>loading...</span>
+                <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb" }}>loading...</span>
               </div>
             )}
 
             {!feedLoading && reviews.length === 0 && (
               <div style={{ padding: "40px 0", textAlign: "center" }}>
-                <p style={{ fontFamily: "cursive", fontSize: 16, color: "#bbb", lineHeight: 1.5 }}>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb", lineHeight: 1.5 }}>
                   Follow friends to see their boba picks here.
                 </p>
               </div>
@@ -264,13 +264,13 @@ export function FriendsClient({ userId }: FriendsClientProps) {
           <>
             {feedLoading && (
               <div style={{ padding: "40px 0", textAlign: "center" }}>
-                <span style={{ fontFamily: "cursive", fontSize: 13, color: "#bbb" }}>loading...</span>
+                <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb" }}>loading...</span>
               </div>
             )}
 
             {!feedLoading && withPhotos.length === 0 && (
               <div style={{ padding: "16px 0" }}>
-                <p style={{ fontFamily: "cursive", fontSize: 15, color: "#bbb" }}>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#bbb" }}>
                   No photos from friends yet.
                 </p>
               </div>

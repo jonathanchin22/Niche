@@ -42,7 +42,7 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
 
         {/* Place header */}
         <div style={{ marginBottom: 28 }}>
-          <p style={{ fontFamily: "cursive", fontSize: 14, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: "0 0 4px" }}>
             {place.city ?? ""}{place.city && place.state ? ", " : ""}{place.state ?? ""}
           </p>
           <h1 style={{
@@ -85,7 +85,7 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
         </Link>
 
         {/* Reviews */}
-        <p style={{ fontFamily: "cursive", fontSize: 18, color: "#1a1a1a", margin: "0 0 16px" }}>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#1a1a1a", margin: "0 0 16px" }}>
           {reviews.length > 0 ? `${reviews.length} review${reviews.length !== 1 ? "s" : ""}` : "no reviews yet"}
         </p>
 
@@ -121,7 +121,7 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
                 </div>
                 {(r.note ?? r.body) && (
                   <p style={{
-                    fontFamily: "cursive", fontSize: 16, color: "#333",
+                    fontFamily: "var(--font-hand)", fontSize: 16, color: "#333",
                     margin: "0 0 8px", lineHeight: 1.5,
                     borderLeft: "2px solid #e8f4ee", paddingLeft: 10,
                   }}>

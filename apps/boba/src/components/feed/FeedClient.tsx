@@ -50,7 +50,7 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
       <div style={{ padding: "52px 20px 20px" }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
-          <p style={{ fontFamily: "cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
             good to see you
           </p>
           <h1 style={{
@@ -102,7 +102,7 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
             )}
             <div ref={loadMoreRef} style={{ padding: "16px 0", display: "flex", justifyContent: "center" }}>
               {isFetchingNextPage && (
-                <span style={{ fontFamily: "cursive", fontSize: 16, color: "#bbb" }}>
+                <span style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>
                   loading more...
                 </span>
               )}
@@ -132,7 +132,7 @@ function EmptyFeed() {
           <circle cx="52" cy="125" r="5" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
           <path d="M40 75 Q60 68 80 75" stroke="#1a1a1a" strokeWidth="1" strokeLinecap="round" fill="none"/>
         </svg>
-        <p style={{ fontFamily: "cursive", fontSize: 13, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
           your feed is empty
         </p>
       </div>
