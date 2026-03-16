@@ -39,18 +39,12 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
       <div style={{ padding: "20px 28px 0" }}>
         <MonoLabel>loading feed...</MonoLabel>
       </div>
-
-    {selectedReview && (
-      <ReviewDetailModal
-        review={selectedReview}
-        currentUserId={userId}
-        onClose={() => setSelectedReview(null)}
-      />
-    )}
+    )
   }
 
   return (
-    <div style={{ padding: "20px 28px 0" }}>
+    <>
+      <div style={{ padding: "20px 28px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <p style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--c-ink)", margin: 0, fontWeight: 400, fontStyle: "italic" }}>
           my feed
@@ -84,5 +78,14 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
         </div>
       )}
     </div>
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
+      )}
+  </>
   )
 }
