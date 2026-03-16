@@ -12,6 +12,7 @@ interface ProfileClientProps {
   profile: any
   reviews: any[]
   showSignOut?: boolean
+  showBackButton?: boolean
 }
 
 function StarRow({ score }: { score: number }) {
@@ -59,7 +60,7 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export function ProfileClient({ userId, profile, reviews: initialReviews, showSignOut = true }: ProfileClientProps) {
+export function ProfileClient({ userId, profile, reviews: initialReviews, showSignOut = true, showBackButton = false }: ProfileClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const name = profile?.display_name ?? profile?.username ?? "you"
@@ -84,6 +85,32 @@ export function ProfileClient({ userId, profile, reviews: initialReviews, showSi
     <AppShell activeTab="profile">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script:wght@400&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
+
+        {showBackButton && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "1px solid #e8e8e4",
+              borderRadius: 999,
+              padding: "6px 12px",
+              marginBottom: 14,
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 11,
+              color: "#888",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+            aria-label="Go back"
+          >
+            ← back
+          </button>
+        )}
 
         {/* Profile header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24 }}>

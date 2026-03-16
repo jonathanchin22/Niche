@@ -34,6 +34,7 @@ export default async function ProfileByUsernamePage({ params }: ProfileByUsernam
       profile={profile}
       reviews={reviews}
       showSignOut={user.id === profile.id}
+      showBackButton={user.id !== profile.id}
     />
   )
 }

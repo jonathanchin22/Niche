@@ -27,6 +27,7 @@ interface Props {
   followerCount: number
   highestRatedCoffee: string | null
   showOwnActions?: boolean
+  showBackButton?: boolean
 }
 
 export default function ProfileClient({
@@ -37,6 +38,7 @@ export default function ProfileClient({
   followerCount,
   highestRatedCoffee,
   showOwnActions = true,
+  showBackButton = false,
 }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
@@ -80,6 +82,32 @@ export default function ProfileClient({
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ padding: "52px 28px 0" }}>
+        {showBackButton && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "1px solid var(--c-rule)",
+              borderRadius: 999,
+              padding: "6px 12px",
+              marginBottom: 14,
+              cursor: "pointer",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "var(--c-subtle)",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+            aria-label="Go back"
+          >
+            ← back
+          </button>
+        )}
+
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start", marginBottom: 24 }}>
           {/* Avatar */}
           <div style={{

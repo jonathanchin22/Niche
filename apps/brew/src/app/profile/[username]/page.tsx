@@ -40,6 +40,7 @@ export default async function ProfileByUsernamePage({ params }: ProfileByUsernam
         followerCount={followers.length}
         highestRatedCoffee={highestRatedCoffee}
         showOwnActions={user.id === profile.id}
+        showBackButton={user.id !== profile.id}
       />
     </AppShell>
   )
