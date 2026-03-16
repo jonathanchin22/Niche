@@ -70,28 +70,24 @@ async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
 }
 
 function StarDisplay({ score }: { score: number }) {
-  const id = useId()
   const scoreNum = Number(score)
   const pct = Number.isFinite(scoreNum) ? Math.max(0, Math.min(1, scoreNum / 10)) : 0
   return (
     <div style={{ display: "flex", gap: 3 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
-        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
-        const gradId = `${id}-${i}-${Math.round(scoreNum * 10)}`
         return (
-          <svg key={i} width="26" height="26" viewBox="0 0 24 24">
-            <defs>
-              <linearGradient id={gradId}>
-                <stop offset={offset} stopColor="#c9a84c" />
-                <stop offset={offset} stopColor="#e8e8e4" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z"
-              fill={`url(#${gradId})`}
-            />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: 26,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>

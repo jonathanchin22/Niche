@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
 import { updateReview } from "@niche/database"
@@ -33,23 +33,23 @@ const DESCRIPTORS = [
 
 // ─── Star display (partial fill, 0–10) ───────────────────────────────────────
 function StarDisplay({ score, size = 18 }: { score: number; size?: number }) {
-  const id = useId()
   const pct = score / 10
   return (
     <div style={{ display: "flex", gap: 3 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `${id}-${i}-${Math.round(score * 10)}-${size}`
         return (
-          <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs>
-              <linearGradient id={gid}>
-                <stop offset={`${fill * 100}%`} stopColor="#c9a84c" />
-                <stop offset={`${fill * 100}%`} stopColor="#e8e8e4" />
-              </linearGradient>
-            </defs>
-            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: size,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>

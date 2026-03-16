@@ -28,13 +28,18 @@ function StarRow({ score, size = 12 }: { score: number; size?: number }) {
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
-        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
-        const gid = `mr-${i}-${Math.round(scoreNum * 10)}-${size}`
         return (
-          <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
-            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: size,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>
