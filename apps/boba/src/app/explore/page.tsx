@@ -85,7 +85,7 @@ export default function ExplorePage() {
 
         {/* Header */}
         <div style={{ padding: "0 28px 20px" }}>
-          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
             boba spots worth knowing
           </p>
           <h1 style={{
@@ -113,7 +113,7 @@ export default function ExplorePage() {
                 fontSize: 16, color: "#1a1a1a",
               }}
             />
-            {isSearching && <span style={{ fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb" }}>...</span>}
+            {isSearching && <span style={{ fontFamily: "cursive", fontSize: 13, color: "#bbb" }}>...</span>}
           </div>
         </div>
 
@@ -197,7 +197,7 @@ export default function ExplorePage() {
           )) : (
             <>
               {query.length > 1 && !isSearching && (
-                <p style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb", textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontFamily: "cursive", fontSize: 16, color: "#bbb", textAlign: "center", padding: "20px 0" }}>
                   no results for "{query}"
                 </p>
               )}

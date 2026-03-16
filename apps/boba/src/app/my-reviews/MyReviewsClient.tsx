@@ -356,7 +356,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
           <Link href="/profile" style={{ textDecoration: "none" }}>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", margin: "0 0 12px" }}>← profile</p>
           </Link>
-          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
             your taste, ranked
           </p>
           <h1 style={{
@@ -436,7 +436,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
         {sortKey === "score" && sorted.length > 1 && (
           <div style={{ padding: "0 28px 12px" }}>
             <p style={{
-              fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb",
+              fontFamily: "cursive", fontSize: 13, color: "#bbb",
               margin: 0, display: "flex", alignItems: "center", gap: 6,
             }}>
               <DragHandle />
@@ -448,7 +448,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
         {/* Review list */}
         {sorted.length === 0 ? (
           <div style={{ padding: "40px 28px", textAlign: "center" }}>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "#bbb" }}>
+            <p style={{ fontFamily: "cursive", fontSize: 17, color: "#bbb" }}>
               {search ? `nothing matches "${search}"` : "no reviews yet — go log a drink!"}
             </p>
             {!search && (
@@ -539,7 +539,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                     </div>
                     {review.note && (
                       <p style={{
-                        fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888",
+                        fontFamily: "cursive", fontSize: 14, color: "#888",
                         margin: "6px 0 0",
                         overflow: "hidden", textOverflow: "ellipsis",
                         display: "-webkit-box", WebkitLineClamp: 2,
