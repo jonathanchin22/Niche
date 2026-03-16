@@ -62,6 +62,35 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
           </h1>
         </div>
 
+        {/* Quick access */}
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#888", margin: "0 0 10px" }}>
+            quick access
+          </p>
+          <div style={{ display: "flex", gap: 10, paddingBottom: 8, overflowX: "auto" }}>
+            {[
+              { href: "/explore", icon: "◎", label: "cafes" },
+              { href: "/log", icon: "✦", label: "new drink" },
+              { href: "/friends", icon: "♡", label: "their picks" },
+              { href: "/profile", icon: "◯", label: "your stats" },
+            ].map(({ href, icon, label }) => (
+              <Link key={href} href={href} style={{ textDecoration: "none" }}>
+                <div style={{
+                  flexShrink: 0, background: "white", border: "1px solid #e8e8e4",
+                  borderRadius: 12, padding: "16px 18px", minWidth: 92,
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 18, color: "#2d6a4f", marginBottom: 8 }}>{icon}</div>
+                  <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 13, color: "#1a1a1a", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#888" }}>
+                    go
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {items.length === 0 ? (
           <EmptyFeed />
         ) : (
