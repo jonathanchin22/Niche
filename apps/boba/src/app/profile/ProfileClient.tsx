@@ -11,6 +11,7 @@ interface ProfileClientProps {
   userId: string
   profile: any
   reviews: any[]
+  showSignOut?: boolean
 }
 
 function StarRow({ score }: { score: number }) {
@@ -58,7 +59,7 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export function ProfileClient({ userId, profile, reviews: initialReviews }: ProfileClientProps) {
+export function ProfileClient({ userId, profile, reviews: initialReviews, showSignOut = true }: ProfileClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const name = profile?.display_name ?? profile?.username ?? "you"
@@ -101,11 +102,13 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
               <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: 0 }}>@{handle}</p>
             )}
           </div>
-          <button onClick={handleSignOut} style={{
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-            background: "none", border: "1px solid #e8e8e4",
-            borderRadius: 6, padding: "6px 14px", cursor: "pointer", color: "#888",
-          }}>sign out</button>
+          {showSignOut && (
+            <button onClick={handleSignOut} style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+              background: "none", border: "1px solid #e8e8e4",
+              borderRadius: 6, padding: "6px 14px", cursor: "pointer", color: "#888",
+            }}>sign out</button>
+          )}
         </div>
 
         {/* Stats */}
@@ -150,9 +153,9 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <p style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#1a1a1a", margin: 0 }}>recent reviews</p>
-              <Link href="/my-reviews" style={{ textDecoration: "none" }}>
+              <Link href={showSignOut ? "/my-reviews" : `/profile/${profile?.username ?? ""}`} style={{ textDecoration: "none" }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#2d6a4f", border: "1px solid #2d6a4f", borderRadius: 20, padding: "4px 12px" }}>
-                  all reviews →
+                  {showSignOut ? "all reviews →" : "profile"}
                 </span>
               </Link>
             </div>
@@ -260,7 +263,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
       {/* Review modal */}
       {selectedReview && (
         <ReviewModal
-          review={{ ...selectedReview, profile: { id: userId, username: handle, display_name: name } }}
+          review={{ ...selectedReview, profile: { id: profile?.id, username: handle, display_name: name } }}
           currentUserId={userId}
           onClose={() => setSelectedReview(null)}
           onUpdated={updated => {

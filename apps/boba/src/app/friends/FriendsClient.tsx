@@ -6,6 +6,7 @@ import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing, getFriendFeed } from "@niche/database"
 import { AppShell } from "@/components/ui/AppShell"
 import { ReviewCard } from "@/components/feed/ReviewCard"
+import Link from "next/link"
 
 interface FriendsClientProps {
   userId: string
@@ -160,25 +161,44 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                       borderRadius: 12, padding: "16px 18px",
                       display: "flex", alignItems: "center", gap: 12,
                     }}>
-                      <div style={{
-                        width: 40, height: 40, borderRadius: "50%",
-                        border: "1.5px solid #e8e8e4", background: "#e8f4ee",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontFamily: "'DM Serif Display', Georgia, serif",
-                        fontSize: 18, color: "#2d6a4f", flexShrink: 0,
-                      }}>
-                        {name[0]?.toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
-                          {name}
-                        </p>
-                        {handle && (
-                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, margin: 0, color: "#bbb" }}>
-                            @{handle}
-                          </p>
-                        )}
-                      </div>
+                      {handle ? (
+                        <Link href={`/profile/${handle}`} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textDecoration: "none" }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: "50%",
+                            border: "1.5px solid #e8e8e4", background: "#e8f4ee",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontFamily: "'DM Serif Display', Georgia, serif",
+                            fontSize: 18, color: "#2d6a4f", flexShrink: 0,
+                          }}>
+                            {name[0]?.toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
+                              {name}
+                            </p>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, margin: 0, color: "#bbb" }}>
+                              @{handle}
+                            </p>
+                          </div>
+                        </Link>
+                      ) : (
+                        <>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: "50%",
+                            border: "1.5px solid #e8e8e4", background: "#e8f4ee",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontFamily: "'DM Serif Display', Georgia, serif",
+                            fontSize: 18, color: "#2d6a4f", flexShrink: 0,
+                          }}>
+                            {name[0]?.toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>
+                              {name}
+                            </p>
+                          </div>
+                        </>
+                      )}
                       {pid !== userId && (
                         <button
                           onClick={() => toggleFollow(pid)}
