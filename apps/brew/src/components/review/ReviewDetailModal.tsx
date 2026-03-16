@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { getReviewVotes, voteReview, removeReviewVote, getReviewComments, addReviewComment } from "@niche/database"
 import type { Review, ReviewComment } from "@niche/shared-types"
-import { MonoLabel } from "@/components/ui/Primitives"
+import { MonoLabel, Stars } from "@/components/ui/Primitives"
 
 interface ReviewDetailModalProps {
   review: Review
@@ -81,6 +81,10 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
         <button onClick={onClose} style={{ float: "right", background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 8px" }}>{review.item_name ?? review.category ?? "brew"}</h2>
         <MonoLabel>{review.place?.name}</MonoLabel>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0" }}>
+          <Stars value={(review.score / 10) * 5} />
+          <MonoLabel style={{ fontSize: 12 }}>{review.score?.toFixed(1)} / 10</MonoLabel>
+        </div>
         <div style={{ margin: "16px 0" }}>
           <span style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#333" }}>{review.note}</span>
         </div>

@@ -172,7 +172,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                           {r.item_name ?? "drink"}
                         </p>
                         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
-                          {r.place?.name ?? "unknown shop"} · {timeAgo(r.created_at)}
+                          {r.place?.name ?? "unknown shop"} · {timeAgo(r.created_at)} · {r.comments_count ?? 0} comment{(r.comments_count ?? 0) === 1 ? "" : "s"}
                         </p>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>

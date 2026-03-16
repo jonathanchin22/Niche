@@ -25,26 +25,46 @@ export function Stars({ value = 0, onChange, size = 16 }: {
   onChange?: (n: number) => void
   size?: number
 }) {
+  const normalized = Math.max(0, Math.min(5, value))
+  const fillPercent = (normalized / 5) * 100
+
   return (
-    <div style={{ display: "flex", gap: 3 }}>
-      {[1, 2, 3, 4, 5].map(n => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange?.(n)}
-          style={{
-            background: "none",
-            border: "none",
-            fontSize: size,
-            padding: 0,
-            cursor: onChange ? "pointer" : "default",
-            color: n <= value ? "var(--c-gold)" : "var(--c-rule)",
-            lineHeight: 1,
-          }}
-        >
-          ★
-        </button>
-      ))}
+    <div style={{ position: "relative", display: "inline-flex", lineHeight: 1 }}>
+      <div style={{ display: "flex", gap: 3, color: "var(--c-rule)", fontSize: size, pointerEvents: "auto" }}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange?.(n)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: onChange ? "pointer" : "default",
+            }}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: `${fillPercent}%`,
+          overflow: "hidden",
+          display: "flex",
+          gap: 3,
+          color: "var(--c-gold)",
+          fontSize: size,
+          pointerEvents: "none",
+        }}
+      >
+        {[1, 2, 3, 4, 5].map(n => (
+          <span key={n}>★</span>
+        ))}
+      </div>
     </div>
   )
 }

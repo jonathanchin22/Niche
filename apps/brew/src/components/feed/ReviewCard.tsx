@@ -90,7 +90,10 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
               <MonoLabel>{review.place.name}</MonoLabel>
             )}
           </div>
-          <Stars value={Math.round((review.score / 10) * 5)} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Stars value={(review.score / 10) * 5} />
+            <MonoLabel style={{ fontSize: 10 }}>{review.score?.toFixed(1)} / 10</MonoLabel>
+          </div>
         </div>
 
         {/* Tasting note tags */}

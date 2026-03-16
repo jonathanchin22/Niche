@@ -122,6 +122,7 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const likeCount = review.upvotes_count ?? review.likes_count ?? 0
+  const commentCount = review.comments_count ?? 0
   const [optimisticLiked, setOptimisticLiked] = useState(review.user_vote === 1)
   const [optimisticCount, setOptimisticCount] = useState(Number(likeCount))
 
@@ -254,23 +255,28 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
-        <button
-          onClick={() => toggleLike()}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: 13,
-            color: optimisticLiked ? "#e63946" : "#888",
-          }}
-        >
-          <span style={{ fontSize: 16 }}>{optimisticLiked ? "♥" : "♡"}</span>
-          {optimisticCount}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => toggleLike()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13,
+              color: optimisticLiked ? "#e63946" : "#888",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{optimisticLiked ? "♥" : "♡"}</span>
+            {optimisticCount}
+          </button>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+            {commentCount} comment{commentCount === 1 ? "" : "s"}
+          </span>
+        </div>
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
           {review.tags?.join(" • ")}
         </div>

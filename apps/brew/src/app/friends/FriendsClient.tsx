@@ -13,7 +13,7 @@ interface FriendsClientProps {
   userId: string
 }
 
-export function FriendsClient({ userId }: FriendsClientProps) {
+export default function FriendsClient({ userId }: FriendsClientProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
@@ -280,4 +280,3 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   )
 }
 
-export default FriendsClient
