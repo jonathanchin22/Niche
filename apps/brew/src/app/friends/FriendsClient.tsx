@@ -6,6 +6,7 @@ import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing, getFriendFeed } from "@niche/database"
 import { CupSteamSketch, MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { FeedItem } from "@niche/shared-types"
 
 interface FriendsClientProps {
@@ -19,6 +20,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [tab, setTab] = useState<"friends" | "feed" | "photos">("feed")
+  const [selectedReview, setSelectedReview] = useState<any | null>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const { data: following = [] } = useQuery({
@@ -204,7 +206,13 @@ export function FriendsClient({ userId }: FriendsClientProps) {
           {!feedLoading && (
             <div>
               {reviews.map(r => r && (
-                <ReviewCard key={r.id} review={r} showAuthor />
+                <ReviewCard
+                  key={r.id}
+                  review={r}
+                  currentUserId={userId}
+                  showAuthor
+                  onClick={() => setSelectedReview(r)}
+                />
               ))}
               {hasNextPage && (
                 <button
@@ -247,23 +255,26 @@ export function FriendsClient({ userId }: FriendsClientProps) {
             <div style={{ padding: "16px 0" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 {withPhotos.map(r => r && (
-                  <div key={r.id} style={{ height: 150, borderRadius: 4, overflow: "hidden", background: "var(--c-tint)", position: "relative" }}>
-                    <img src={r.image_urls[0]} alt={r.item_name ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    <div style={{
-                      position: "absolute", bottom: 0, left: 0, right: 0,
-                      background: "linear-gradient(transparent, rgba(28,20,16,0.65))",
-                      padding: "8px",
-                    }}>
-                      <p style={{ fontFamily: "var(--font-display)", fontSize: 11, color: "#fff", margin: 0 }}>
-                        {r.item_name}
-                      </p>
-                    </div>
-                  </div>
+                  <ReviewCard
+                    key={r.id}
+                    review={r}
+                    currentUserId={userId}
+                    showAuthor
+                    onClick={() => setSelectedReview(r)}
+                  />
                 ))}
               </div>
             </div>
           )}
         </>
+      )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
       )}
     </div>
   )

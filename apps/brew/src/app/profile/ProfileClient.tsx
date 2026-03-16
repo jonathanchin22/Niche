@@ -7,6 +7,7 @@ import { createBrowserClient } from "@supabase/ssr"
 import { getUserReviews } from "@niche/database"
 import { MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { Review } from "@niche/shared-types"
 
 const APP_ID = "brew" as const
@@ -30,6 +31,7 @@ export default function ProfileClient({ profile, userId, followingCount, followe
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
   const [menuOpen, setMenuOpen] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading } = useInfiniteQuery({
@@ -255,7 +257,12 @@ export default function ProfileClient({ profile, userId, followingCount, followe
               </p>
             </div>
           ) : reviews.map(r => (
-            <ReviewCard key={r.id} review={r} />
+            <ReviewCard
+              key={r.id}
+              review={r}
+              currentUserId={userId}
+              onClick={() => setSelectedReview(r)}
+            />
           ))}
         </div>
       )}
@@ -270,10 +277,15 @@ export default function ProfileClient({ profile, userId, followingCount, followe
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => (
-                <div key={r.id} style={{
-                  borderRadius: 4, overflow: "hidden",
-                  background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
-                }}>
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedReview(r)}
+                  style={{
+                    borderRadius: 4, overflow: "hidden",
+                    background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
+                    cursor: "pointer",
+                  }}
+                >
                   <img
                     src={r.image_urls[0]} alt={r.item_name ?? ""}
                     style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
@@ -283,6 +295,14 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             </div>
           )}
         </div>
+      )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
       )}
 
     </div>
