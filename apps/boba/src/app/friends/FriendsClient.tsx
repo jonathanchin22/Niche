@@ -342,6 +342,10 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                     <div
                       key={r.id}
                       onClick={() => setSelectedReview(r)}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={r.item_name ?? "review photo"}
                       style={{ height: 150, borderRadius: 4, overflow: "hidden", background: "#f0f0ec", position: "relative", cursor: "pointer" }}
                     >
                       <img src={r.image_urls[0]} alt={r.item_name ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
