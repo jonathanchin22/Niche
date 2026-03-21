@@ -321,6 +321,10 @@ export default function ProfileClient({
                 <div
                   key={r.id}
                   onClick={() => setSelectedReview(r)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setSelectedReview(r) }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={r.item_name ?? "review photo"}
                   style={{
                     borderRadius: 4, overflow: "hidden",
                     background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
