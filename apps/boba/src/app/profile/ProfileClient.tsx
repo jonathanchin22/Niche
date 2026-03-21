@@ -265,6 +265,10 @@ export function ProfileClient({ userId, profile, reviews: initialReviews, showSi
                   <div
                     key={`${r.id}-${i}`}
                     onClick={() => setSelectedReview(r)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={r.item_name ?? "review photo"}
                     style={{ position: "relative", aspectRatio: "1/1", cursor: "pointer" }}
                   >
                     <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />

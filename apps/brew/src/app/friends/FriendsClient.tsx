@@ -294,7 +294,7 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
                   <div
                     key={r.id}
                     onClick={() => setSelectedReview(r)}
-                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setSelectedReview(r) }}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
                     role="button"
                     tabIndex={0}
                     aria-label={r.item_name ?? "review photo"}
