@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getUserReviews } from "@niche/database"
@@ -41,7 +42,10 @@ export default function ProfileClient({ profile, userId, followingCount, followe
   })
 
   const reviews = data?.pages.flatMap(p => p.data.map(i => i.review).filter(Boolean)) as Review[] ?? []
-  const withPhotos = reviews.filter(r => r.image_urls?.length > 0)
+  const withPhotos = reviews.filter(
+    (r): r is Review & { image_urls: [string, ...string[]] } =>
+      Array.isArray(r.image_urls) && r.image_urls.length > 0 && Boolean(r.image_urls[0])
+  )
   const uniqueCafes = new Set(reviews.map(r => r.place_id)).size
 
 
@@ -76,7 +80,14 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Image
+                src={profile.avatar_url}
+                alt=""
+                width={70}
+                height={70}
+                sizes="70px"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
             ) : (
               <span style={{ fontFamily: "var(--font-display)", fontSize: 28, color: "var(--c-accent)", fontStyle: "italic" }}>
                 {displayName[0]?.toUpperCase()}
@@ -274,8 +285,10 @@ export default function ProfileClient({ profile, userId, followingCount, followe
                   borderRadius: 4, overflow: "hidden",
                   background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
                 }}>
-                  <img
+                  <Image
                     src={r.image_urls[0]} alt={r.item_name ?? ""}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 220px"
                     style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 </div>

@@ -73,6 +73,23 @@ export interface ReviewComment {
   // Optionally, add parent_id for threaded comments in the future
 }
 
+export type NotificationType = "new_follower" | "review_like" | "review_comment" | "badge_earned"
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  actor_id: string | null
+  review_id: string | null
+  comment_id: string | null
+  badge_id: string | null
+  read: boolean
+  created_at: string
+  actor?: Pick<User, "id" | "username" | "display_name" | "avatar_url"> | null
+  review?: Pick<Review, "id" | "item_name"> | null
+  place?: Pick<Place, "id" | "name"> | null
+}
+
 // ─── Gamification ─────────────────────────────────────────────────────────────
 export type BadgeId =
   | "first_review"     // logged their first review
@@ -97,6 +114,18 @@ export interface MapPin {
   friend_count: number       // how many friends have reviewed this
   friend_avatars: string[]   // first 3 friend avatar URLs
   top_score: number | null
+}
+
+export type PlaceSaveListType = "favorites" | "want_to_try"
+
+export interface PlaceSave {
+  id: string
+  user_id: string
+  place_id: string
+  app_id: AppId
+  list_type: PlaceSaveListType
+  created_at: string
+  place?: Pick<Place, "id" | "name" | "city" | "state" | "address" | "avg_score" | "review_count"> | null
 }
 
 export interface Review {
@@ -130,6 +159,8 @@ export interface Review {
   upvotes_count?: number
   downvotes_count?: number
   user_vote?: 1 | -1 | 0
+  likes_count?: number
+  user_has_liked?: boolean
   comments_count?: number
   // Optionally, top_comment?: ReviewComment
 }

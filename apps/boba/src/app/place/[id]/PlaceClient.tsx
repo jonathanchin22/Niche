@@ -1,11 +1,15 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { AppShell } from "@/components/ui/AppShell"
 import Link from "next/link"
+import { createClient } from "@niche/auth/client"
+import { isPlaceSaved, savePlaceToList, unsavePlaceFromList } from "@niche/database"
 
 interface PlaceClientProps {
   place: any
   reviews: any[]
+  userId: string | null
 }
 
 function StarRow({ score }: { score: number }) {
@@ -28,7 +32,101 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export function PlaceClient({ place, reviews }: PlaceClientProps) {
+export function PlaceClient({ place, reviews, userId }: PlaceClientProps) {
+  const supabase = useMemo(() => createClient(), [])
+  const [favoritesSaved, setFavoritesSaved] = useState(false)
+  const [wantToTrySaved, setWantToTrySaved] = useState(false)
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    const hydrate = async () => {
+      if (!userId) return
+      try {
+        const [fav, want] = await Promise.all([
+          isPlaceSaved(supabase as any, {
+            user_id: userId,
+            place_id: place.id,
+            app_id: "boba",
+            list_type: "favorites",
+          }),
+          isPlaceSaved(supabase as any, {
+            user_id: userId,
+            place_id: place.id,
+            app_id: "boba",
+            list_type: "want_to_try",
+          }),
+        ])
+
+        if (active) {
+          setFavoritesSaved(fav)
+          setWantToTrySaved(want)
+        }
+      } catch {
+        // Keep page usable if saves table is not migrated yet.
+      }
+    }
+
+    void hydrate()
+
+    return () => {
+      active = false
+    }
+  }, [place.id, supabase, userId])
+
+  const toggleSave = async (listType: "favorites" | "want_to_try") => {
+    if (!userId) return
+
+    const isSaved = listType === "favorites" ? favoritesSaved : wantToTrySaved
+    try {
+      if (isSaved) {
+        await unsavePlaceFromList(supabase as any, {
+          user_id: userId,
+          place_id: place.id,
+          app_id: "boba",
+          list_type: listType,
+        })
+      } else {
+        await savePlaceToList(supabase as any, {
+          user_id: userId,
+          place_id: place.id,
+          app_id: "boba",
+          list_type: listType,
+        })
+      }
+
+      if (listType === "favorites") setFavoritesSaved(!isSaved)
+      if (listType === "want_to_try") setWantToTrySaved(!isSaved)
+      setSaveMessage(!isSaved ? "saved" : "removed")
+      setTimeout(() => setSaveMessage(null), 1500)
+    } catch {
+      setSaveMessage("save failed")
+      setTimeout(() => setSaveMessage(null), 1500)
+    }
+  }
+
+  const handleSharePlace = async () => {
+    const url = `${window.location.origin}/place/${place.id}`
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({
+          title: place.name,
+          text: `check out ${place.name} on boba!`,
+          url,
+        })
+      } else if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+      }
+      setSaveMessage("link shared")
+      setTimeout(() => setSaveMessage(null), 1500)
+    } catch {
+      setSaveMessage("share cancelled")
+      setTimeout(() => setSaveMessage(null), 1500)
+    }
+  }
+
   return (
     <AppShell activeTab="explore">
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
@@ -42,6 +140,97 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
 
         {/* Place header */}
         <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8 }}>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setSaveMenuOpen((v) => !v)}
+                style={{
+                  border: "1px solid #dfe6e0",
+                  background: "#fff",
+                  color: "#2d6a4f",
+                  borderRadius: 999,
+                  padding: "6px 11px",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                save
+              </button>
+
+              {saveMenuOpen && (
+                <div style={{
+                  position: "absolute",
+                  right: 0,
+                  top: 34,
+                  width: 180,
+                  background: "#fff",
+                  border: "1px solid #dfe6e0",
+                  borderRadius: 10,
+                  boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+                  zIndex: 5,
+                  overflow: "hidden",
+                }}>
+                  <button
+                    onClick={() => {
+                      void toggleSave("favorites")
+                      setSaveMenuOpen(false)
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      border: "none",
+                      borderBottom: "1px solid #eef2ef",
+                      background: "#fff",
+                      padding: "10px 12px",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      color: "#223025",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {favoritesSaved ? "✓ " : ""}favorites
+                  </button>
+                  <button
+                    onClick={() => {
+                      void toggleSave("want_to_try")
+                      setSaveMenuOpen(false)
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      border: "none",
+                      background: "#fff",
+                      padding: "10px 12px",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                      color: "#223025",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {wantToTrySaved ? "✓ " : ""}want to try
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => void handleSharePlace()}
+              style={{
+                border: "1px solid #dfe6e0",
+                background: "#fff",
+                color: "#2d6a4f",
+                borderRadius: 999,
+                padding: "6px 11px",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              share
+            </button>
+          </div>
+
           <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888", margin: "0 0 4px" }}>
             {place.city ?? ""}{place.city && place.state ? ", " : ""}{place.state ?? ""}
           </p>
@@ -71,6 +260,17 @@ export function PlaceClient({ place, reviews }: PlaceClientProps) {
             </span>
           </div>
         </div>
+
+        {saveMessage && (
+          <p style={{
+            margin: "-14px 0 16px",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 12,
+            color: "#6b746d",
+          }}>
+            {saveMessage}
+          </p>
+        )}
 
         {/* Log CTA */}
         <Link href="/log">

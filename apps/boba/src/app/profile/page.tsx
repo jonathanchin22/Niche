@@ -1,20 +1,21 @@
 import { createServerSupabaseClient } from "@niche/auth"
 import { ProfileClient } from "./ProfileClient"
 import { redirect } from "next/navigation"
-import { getUserReviews } from "@niche/database"
+import { getUserBadges, getUserReviews } from "@niche/database"
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const [profileResult, reviewsResult] = await Promise.all([
+  const [profileResult, reviewsResult, badges] = await Promise.all([
     (supabase as any).from("profiles").select("*").eq("id", user.id).single(),
     getUserReviews(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => ({ data: [] })),
+    getUserBadges(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => []),
   ])
 
   const profile = profileResult?.data ?? null
   const reviews = reviewsResult.data.map((item: any) => item.review)
 
-  return <ProfileClient userId={user.id} profile={profile} reviews={reviews} />
+  return <ProfileClient userId={user.id} profile={profile} reviews={reviews} badges={badges as string[]} />
 }

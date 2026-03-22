@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import type { Place, Review } from "@niche/shared-types"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
@@ -27,7 +28,13 @@ export default function PlaceClient({ place, reviews, userId }: Props) {
         display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
       }}>
         {place.cover_image_url ? (
-          <img src={place.cover_image_url} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <Image
+            src={place.cover_image_url}
+            alt={place.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 430px"
+            style={{ objectFit: "cover" }}
+          />
         ) : (
           <span style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "var(--c-subtle)", fontStyle: "italic" }}>
             {place.name}

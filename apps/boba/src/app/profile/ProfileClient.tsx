@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { AppShell } from "@/components/ui/AppShell"
+import Image from "next/image"
 import { createClient } from "@niche/auth/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -11,6 +12,18 @@ interface ProfileClientProps {
   userId: string
   profile: any
   reviews: any[]
+  badges: string[]
+}
+
+const BADGE_META: Record<string, { label: string; icon: string }> = {
+  first_review: { label: "first review", icon: "✦" },
+  explorer: { label: "explorer", icon: "◎" },
+  century_club: { label: "century club", icon: "100" },
+  trendsetter: { label: "trendsetter", icon: "↗" },
+  social_butterfly: { label: "social butterfly", icon: "♡" },
+  brew_purist: { label: "brew purist", icon: "☕" },
+  boba_royalty: { label: "boba royalty", icon: "◉" },
+  slice_lord: { label: "slice lord", icon: "◭" },
 }
 
 function StarRow({ score }: { score: number }) {
@@ -52,7 +65,7 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export function ProfileClient({ userId, profile, reviews: initialReviews }: ProfileClientProps) {
+export function ProfileClient({ userId, profile, reviews: initialReviews, badges }: ProfileClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const name = profile?.display_name ?? profile?.username ?? "you"
@@ -122,6 +135,47 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
           ))}
         </div>
 
+        {/* Badges */}
+        {badges.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{
+              margin: "0 0 10px",
+              fontFamily: "'DM Sans', sans-serif",
+              color: "#8a8f89",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontSize: 11,
+            }}>
+              earned badges
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {badges.map((badgeId) => {
+                const meta = BADGE_META[badgeId] ?? { label: badgeId.replace(/_/g, " "), icon: "✦" }
+                return (
+                  <span
+                    key={badgeId}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      border: "1px solid #dce7df",
+                      background: "#f4faf6",
+                      color: "#2d6a4f",
+                      borderRadius: 999,
+                      padding: "5px 10px",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 12 }}>{meta.icon}</span>
+                    <span>{meta.label}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Tab switcher */}
         <div style={{ display: "flex", borderBottom: "1px solid #e8e8e4", marginBottom: 20, gap: 0 }}>
           {(["reviews", "photos"] as const).map(t => (
@@ -186,7 +240,15 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                     {(r.image_urls ?? []).length > 0 && (
                       <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
                         {r.image_urls.slice(0, 4).map((url: string, i: number) => (
-                          <img key={i} src={url} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6 }} />
+                          <Image
+                            key={i}
+                            src={url}
+                            alt=""
+                            width={44}
+                            height={44}
+                            sizes="44px"
+                            style={{ objectFit: "cover", borderRadius: 6 }}
+                          />
                         ))}
                         {r.image_urls.length > 4 && (
                           <div style={{ width: 44, height: 44, borderRadius: 6, background: "#e8e8e4", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888" }}>
@@ -231,7 +293,13 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                     onClick={() => setSelectedReview(r)}
                     style={{ position: "relative", aspectRatio: "1/1", cursor: "pointer" }}
                   >
-                    <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <Image
+                      src={url}
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) 33vw, 140px"
+                      style={{ objectFit: "cover", display: "block" }}
+                    />
                     {/* Score overlay on hover-like dimming for first photo */}
                     <div style={{
                       position: "absolute", bottom: 0, left: 0, right: 0,

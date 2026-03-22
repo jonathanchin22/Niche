@@ -72,10 +72,11 @@ export async function getReviewComments(
     .select("*, user:profiles!review_comments_user_id_fkey(id, username, avatar_url)")
     .eq("review_id", review_id)
     .order("created_at", { ascending: false })
+    .limit(50)
   if (error) throw error
   return data ?? []
 }
-import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
+import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult, Notification, PlaceSaveListType, PlaceSave } from "@niche/shared-types"
 
 type SupabaseClient = any
 
@@ -110,6 +111,17 @@ function aggregateVotes(votes: any[], user_id?: string) {
   return { upvotes_count, downvotes_count, user_vote }
 }
 
+function aggregateLikes(likes: any[], user_id?: string) {
+  const likeRows = likes ?? []
+  const likes_count = likeRows.length
+  const user_has_liked = !!user_id && likeRows.some((l: any) => l.user_id === user_id)
+  return {
+    likes_count,
+    user_has_liked,
+    likes: [{ count: likes_count }],
+  }
+}
+
 export async function getFriendFeed(
   supabase: SupabaseClient,
   { user_id, app_id, cursor, limit = 20 }: FeedParams
@@ -122,6 +134,10 @@ export async function getFriendFeed(
 
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
 
+  if (followingIds.length === 0) {
+    return { data: [], cursor: null, has_more: false }
+  }
+
   // Step 2: fetch reviews with related data
   let query = supabase
     .from("reviews")
@@ -129,11 +145,11 @@ export async function getFriendFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, app_id),
-      likes:review_likes(count),
+      likes:review_likes(user_id),
       votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
-    .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+    .in("user_id", followingIds)
     .order("created_at", { ascending: false })
     .limit(limit)
 
@@ -147,7 +163,7 @@ export async function getFriendFeed(
       .from("reviews")
       .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
       .eq("app_id", app_id)
-      .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+      .in("user_id", followingIds)
       .order("created_at", { ascending: false })
       .limit(limit)
     if (cursor) fallback = fallback.lt("created_at", cursor)
@@ -159,8 +175,8 @@ export async function getFriendFeed(
   }
 
   const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+    const { votes, likes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id), ...aggregateLikes(likes, user_id) } }
   })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
@@ -178,7 +194,7 @@ export async function getMyFeed(
     .eq("follower_id", user_id)
 
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
-  followingIds.push(user_id) // Include user's own reviews
+  const feedUserIds = Array.from(new Set([...followingIds, user_id]))
 
   // Step 2: fetch reviews with related data
   let query = supabase
@@ -187,11 +203,11 @@ export async function getMyFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count),
+      likes:review_likes(user_id),
       votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
-    .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+    .in("user_id", feedUserIds)
     .order("created_at", { ascending: false })
     .limit(limit)
 
@@ -205,7 +221,7 @@ export async function getMyFeed(
       .from("reviews")
       .select("id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at")
       .eq("app_id", app_id)
-      .in("user_id", followingIds.length > 0 ? followingIds : ["00000000-0000-0000-0000-000000000000"])
+      .in("user_id", feedUserIds)
       .order("created_at", { ascending: false })
       .limit(limit)
     if (cursor) fallback = fallback.lt("created_at", cursor)
@@ -217,8 +233,8 @@ export async function getMyFeed(
   }
 
   const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+    const { votes, likes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id), ...aggregateLikes(likes, user_id) } }
   })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
@@ -234,7 +250,7 @@ export async function getDiscoverFeed(
       id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
       user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
       place:places!reviews_place_id_fkey(id, name, address, city, state, app_id),
-      likes:review_likes(count),
+      likes:review_likes(user_id),
       votes:review_votes(vote)
     `)
     .eq("app_id", app_id)
@@ -247,8 +263,8 @@ export async function getDiscoverFeed(
   if (error) throw error
 
   const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { type: "review" as const, review: { ...review, ...aggregateVotes(votes) }, created_at: r.created_at }
+    const { votes, likes, ...review } = r
+    return { type: "review" as const, review: { ...review, ...aggregateVotes(votes), ...aggregateLikes(likes) }, created_at: r.created_at }
   })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor ?? null, has_more: !!nextCursor }
@@ -295,10 +311,10 @@ export async function getUserReviews(
   let query = supabase
     .from("reviews")
     .select(`
-      *,
-      profile:profiles!reviews_user_id_fkey(*),
-      place:places!reviews_place_id_fkey(*),
-      likes:review_likes(count),
+      id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, customizations, toppings, quality_signals, visit_context, revisit_intent, price_paid, created_at, updated_at,
+      profile:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
+      place:places!reviews_place_id_fkey(id, app_id, name, address, city, state, country, latitude, longitude, google_place_id, foursquare_id, cover_image_url, avg_score, review_count, created_at, updated_at),
+      likes:review_likes(user_id),
       votes:review_votes(vote, user_id)
     `)
     .eq("app_id", app_id)
@@ -312,8 +328,8 @@ export async function getUserReviews(
   if (error) throw error
 
   const items = (data ?? []).map((r: any) => {
-    const { votes, ...review } = r
-    return { review: { ...review, ...aggregateVotes(votes, user_id) } }
+    const { votes, likes, ...review } = r
+    return { review: { ...review, ...aggregateVotes(votes, user_id), ...aggregateLikes(likes, user_id) } }
   })
   const nextCursor = data?.length === limit ? data[data.length - 1]?.created_at : undefined
   return { data: items, cursor: nextCursor, has_more: !!nextCursor }
@@ -515,6 +531,110 @@ export async function search(
   return [...placeResults, ...userResults]
 }
 
+// ─── Collections / Saved Places ─────────────────────────────────────────────
+
+export async function savePlaceToList(
+  supabase: SupabaseClient,
+  {
+    user_id,
+    place_id,
+    app_id,
+    list_type,
+  }: {
+    user_id: string
+    place_id: string
+    app_id: AppId
+    list_type: PlaceSaveListType
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from("place_saves")
+    .upsert(
+      { user_id, place_id, app_id, list_type },
+      { onConflict: "user_id,place_id,app_id,list_type", ignoreDuplicates: true }
+    )
+
+  if (error) throw error
+}
+
+export async function unsavePlaceFromList(
+  supabase: SupabaseClient,
+  {
+    user_id,
+    place_id,
+    app_id,
+    list_type,
+  }: {
+    user_id: string
+    place_id: string
+    app_id: AppId
+    list_type: PlaceSaveListType
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from("place_saves")
+    .delete()
+    .eq("user_id", user_id)
+    .eq("place_id", place_id)
+    .eq("app_id", app_id)
+    .eq("list_type", list_type)
+
+  if (error) throw error
+}
+
+export async function isPlaceSaved(
+  supabase: SupabaseClient,
+  {
+    user_id,
+    place_id,
+    app_id,
+    list_type,
+  }: {
+    user_id: string
+    place_id: string
+    app_id: AppId
+    list_type: PlaceSaveListType
+  }
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("place_saves")
+    .select("id")
+    .eq("user_id", user_id)
+    .eq("place_id", place_id)
+    .eq("app_id", app_id)
+    .eq("list_type", list_type)
+    .maybeSingle()
+
+  if (error) throw error
+  return !!data
+}
+
+export async function getPlaceSaves(
+  supabase: SupabaseClient,
+  {
+    user_id,
+    app_id,
+    list_type,
+  }: {
+    user_id: string
+    app_id: AppId
+    list_type?: PlaceSaveListType
+  }
+): Promise<PlaceSave[]> {
+  let query = supabase
+    .from("place_saves")
+    .select("id, user_id, place_id, app_id, list_type, created_at, place:places!place_saves_place_id_fkey(id, name, city, state, address, avg_score, review_count)")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .order("created_at", { ascending: false })
+
+  if (list_type) query = query.eq("list_type", list_type)
+
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as PlaceSave[]
+}
+
 // ─── Social ──────────────────────────────────────────────────────────────────
 
 export async function followUser(
@@ -587,6 +707,127 @@ export async function getProfile(
     .single()
   if (error) return null
   return data
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export async function getNotifications(
+  supabase: SupabaseClient,
+  { user_id, limit = 50 }: { user_id: string; limit?: number }
+): Promise<Notification[]> {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select(`
+      id, user_id, type, actor_id, review_id, comment_id, badge_id, read, created_at,
+      actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url),
+      review:reviews!notifications_review_id_fkey(id, item_name, place_id, place:places!reviews_place_id_fkey(id, name))
+    `)
+    .eq("user_id", user_id)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+
+  return (data ?? []).map((n: any) => ({
+    id: n.id,
+    user_id: n.user_id,
+    type: n.type,
+    actor_id: n.actor_id,
+    review_id: n.review_id,
+    comment_id: n.comment_id,
+    badge_id: n.badge_id,
+    read: n.read,
+    created_at: n.created_at,
+    actor: n.actor ?? null,
+    review: n.review
+      ? { id: n.review.id, item_name: n.review.item_name }
+      : null,
+    place: n.review?.place
+      ? { id: n.review.place.id, name: n.review.place.name ?? "a place" }
+      : null,
+  }))
+}
+
+export async function markNotificationsRead(
+  supabase: SupabaseClient,
+  { user_id, ids }: { user_id: string; ids?: string[] }
+): Promise<void> {
+  let query = supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("user_id", user_id)
+    .eq("read", false)
+
+  if (ids && ids.length > 0) query = query.in("id", ids)
+
+  const { error } = await query
+  if (error) throw error
+}
+
+export async function getUnreadNotificationCount(
+  supabase: SupabaseClient,
+  { user_id }: { user_id: string }
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user_id)
+    .eq("read", false)
+
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function getTopPlaces(
+  supabase: SupabaseClient,
+  { app_id, limit = 20 }: { app_id: AppId; limit?: number }
+): Promise<Pick<Place, "id" | "name" | "city" | "state" | "avg_score" | "review_count">[]> {
+  const { data, error } = await supabase
+    .from("places")
+    .select("id, name, city, state, avg_score, review_count")
+    .eq("app_id", app_id)
+    .not("avg_score", "is", null)
+    .order("avg_score", { ascending: false })
+    .order("review_count", { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getTopReviewers(
+  supabase: SupabaseClient,
+  { app_id, limit = 20 }: { app_id: AppId; limit?: number }
+): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("app_memberships")
+    .select("user_id, xp, badges, user:profiles!app_memberships_user_id_fkey(id, username, display_name, avatar_url)")
+    .eq("app_id", app_id)
+    .order("xp", { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getUserBadges(
+  supabase: SupabaseClient,
+  { user_id, app_id }: { user_id: string; app_id: AppId }
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("app_memberships")
+    .select("badges")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .maybeSingle()
+
+  if (error) throw error
+
+  const badges = data?.badges
+  if (!Array.isArray(badges)) return []
+  return badges
+    .map((b: any) => (typeof b === "string" ? b : b?.id))
+    .filter(Boolean)
 }
 
 export async function getHighestRatedCoffee(

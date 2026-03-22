@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { getCurrentUser, joinApp } from "@niche/auth/client"
 import type { User } from "@niche/shared-types"
 
@@ -87,10 +88,17 @@ export default function JoinPage() {
           borderRadius: 8, padding: "16px", marginBottom: 20,
         }}>
           {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" style={{
-              width: 44, height: 44, borderRadius: 4,
-              border: "1.5px solid var(--c-accent)",
-            }} />
+            <Image
+              src={user.avatar_url}
+              alt=""
+              width={44}
+              height={44}
+              sizes="44px"
+              style={{
+                borderRadius: 4,
+                border: "1.5px solid var(--c-accent)",
+              }}
+            />
           ) : (
             <div style={{
               width: 44, height: 44, borderRadius: 4,

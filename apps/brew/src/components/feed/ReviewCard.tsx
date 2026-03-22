@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns"
 import type { Review } from "@niche/shared-types"
 import { useState } from "react"
+import Image from "next/image"
 import { createBrowserClient } from "@supabase/ssr"
 import { voteReview, removeReviewVote } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
@@ -64,11 +65,13 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
     >
       {/* Photo */}
       {mainPhoto && (
-        <div style={{ height: 200, overflow: "hidden", marginBottom: 0 }}>
-          <img
+        <div style={{ height: 200, overflow: "hidden", marginBottom: 0, position: "relative" }}>
+          <Image
             src={mainPhoto}
             alt={review.item_name ?? ""}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            fill
+            sizes="(max-width: 768px) 100vw, 430px"
+            style={{ objectFit: "cover" }}
           />
         </div>
       )}
@@ -178,7 +181,14 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
                   overflow: "hidden",
                 }}>
                   {reviewer.avatar_url ? (
-                    <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image
+                      src={reviewer.avatar_url}
+                      alt=""
+                      width={24}
+                      height={24}
+                      sizes="24px"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                   ) : (
                     <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
                       {reviewer.username?.[0]?.toUpperCase()}

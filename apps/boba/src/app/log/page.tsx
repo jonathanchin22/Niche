@@ -189,16 +189,18 @@ export default function LogPage() {
   const handlePhotoFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setPhotoUploading(true)
-    const newUrls: string[] = []
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue
-      try {
-        const compressed = await compressImage(file)
-        newUrls.push(compressed)
-      } catch {
-        continue
-      }
-    }
+    const compressed = await Promise.all(
+      Array.from(files)
+        .filter((file) => file.type.startsWith("image/"))
+        .map(async (file) => {
+          try {
+            return await compressImage(file)
+          } catch {
+            return null
+          }
+        })
+    )
+    const newUrls = compressed.filter((url): url is string => Boolean(url))
     setPhotoUrls(prev => [...prev, ...newUrls].slice(0, 6))
     setPhotoUploading(false)
   }

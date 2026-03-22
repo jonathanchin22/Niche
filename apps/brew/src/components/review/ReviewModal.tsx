@@ -129,13 +129,9 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
         const supabase = getSupabase()
 
         // Upload photos
-        const imageUrls: string[] = []
-        for (const file of photoFiles) {
-          if (file) {
-            const url = await uploadPhoto(file)
-            if (url) imageUrls.push(url)
-          }
-        }
+        const imageUrls = (
+          await Promise.all(photoFiles.filter((file): file is File => Boolean(file)).map(uploadPhoto))
+        ).filter((url): url is string => Boolean(url))
 
         // Upsert the place
         const place = await upsertPlace(supabase, {

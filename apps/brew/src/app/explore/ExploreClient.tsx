@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, useRef } from "react"
 import { createBrowserClient } from "@supabase/ssr"
+import Image from "next/image"
 import { searchPlaces } from "@niche/database"
 import { MonoLabel, Stars, AeroSketch } from "@/components/ui/Primitives"
 import type { Place } from "@niche/shared-types"
@@ -153,10 +154,16 @@ export default function ExploreClient({ userId }: { userId: string }) {
               <div style={{
                 height: 100, background: "var(--c-tint)", borderRadius: 4,
                 marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                overflow: "hidden",
+                overflow: "hidden", position: "relative",
               }}>
                 {place.cover_image_url ? (
-                  <img src={place.cover_image_url} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image
+                    src={place.cover_image_url}
+                    alt={place.name}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 390px"
+                    style={{ objectFit: "cover" }}
+                  />
                 ) : (
                   <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "var(--c-subtle)" }}>
                     {place.name}

@@ -2,8 +2,11 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { createClient } from "@niche/auth/client"
+import { getUnreadNotificationCount } from "@niche/database"
 
-type Tab = "home" | "explore" | "log" | "friends" | "friends-list" | "profile"
+type Tab = "home" | "explore" | "map" | "log" | "friends" | "friends-list" | "profile"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -12,10 +15,65 @@ interface AppShellProps {
 
 export function AppShell({ children, activeTab }: AppShellProps) {
   const pathname = usePathname()
+  const supabase = useMemo(() => createClient(), [])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    let channel: any = null
+
+    const refreshUnreadCount = async (userId: string) => {
+      try {
+        const count = await getUnreadNotificationCount(supabase as any, { user_id: userId })
+        if (mounted) setUnreadCount(count)
+      } catch {
+        // Keep UI resilient if notifications table is temporarily unavailable.
+      }
+    }
+
+    const init = async () => {
+      if (!supabase?.auth?.getUser) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        if (mounted) setUnreadCount(0)
+        return
+      }
+
+      await refreshUnreadCount(user.id)
+
+      if (typeof (supabase as any).channel !== "function") return
+
+      channel = (supabase as any)
+        .channel(`boba-notifications-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshUnreadCount(user.id)
+          }
+        )
+        .subscribe()
+    }
+
+    void init()
+
+    return () => {
+      mounted = false
+      if (channel && typeof (supabase as any).removeChannel === "function") {
+        void (supabase as any).removeChannel(channel)
+      }
+    }
+  }, [supabase])
 
   const isActive = (tabId: string) => {
     if (tabId === "home" && pathname === "/") return true
     if (tabId === "explore" && pathname.startsWith("/explore")) return true
+    if (tabId === "map" && pathname.startsWith("/map")) return true
     if (tabId === "friends" && pathname.startsWith("/friends")) return true
     if (tabId === "profile" && pathname.startsWith("/profile")) return true
     return activeTab === tabId
@@ -43,6 +101,68 @@ export function AppShell({ children, activeTab }: AppShellProps) {
         fontFamily: "'DM Sans', system-ui, sans-serif",
         paddingBottom: 80,
       }}>
+        <Link href="/search" aria-label="Search" style={{
+          position: "fixed",
+          top: 12,
+          left: "max(12px, calc((100vw - 430px) / 2 + 12px))",
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          border: "1px solid #e8e8e4",
+          background: pathname.startsWith("/search") ? "#e8f4ee" : "#fff",
+          color: pathname.startsWith("/search") ? "#2d6a4f" : "#777",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textDecoration: "none",
+          zIndex: 101,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+        }}>
+          <span style={{ fontSize: 13, lineHeight: 1 }}>⌕</span>
+        </Link>
+
+        <Link href="/notifications" aria-label="Notifications" style={{
+          position: "fixed",
+          top: 12,
+          right: "max(12px, calc((100vw - 430px) / 2 + 12px))",
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          border: "1px solid #e8e8e4",
+          background: pathname.startsWith("/notifications") ? "#e8f4ee" : "#fff",
+          color: pathname.startsWith("/notifications") ? "#2d6a4f" : "#777",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textDecoration: "none",
+          zIndex: 101,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+        }}>
+          <span style={{ fontSize: 14, lineHeight: 1 }}>◉</span>
+          {unreadCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: -6,
+              right: -4,
+              minWidth: 18,
+              height: 18,
+              borderRadius: 999,
+              background: "#2d6a4f",
+              color: "#fff",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 10,
+              fontWeight: 700,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 5px",
+              border: "2px solid #fafaf8",
+            }}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </Link>
+
         {children}
 
         {/* Bottom Nav */}
@@ -58,6 +178,7 @@ export function AppShell({ children, activeTab }: AppShellProps) {
           {[
             { id: "home", href: "/", icon: "⌂", label: "home" },
             { id: "explore", href: "/explore", icon: "◎", label: "explore" },
+            { id: "map", href: "/map", icon: "⌖", label: "map" },
             { id: "log", href: "/log", icon: "+", label: "" },
             { id: "friends", href: "/friends", icon: "♡", label: "friends" },
             { id: "profile", href: "/profile", icon: "◯", label: "me" },

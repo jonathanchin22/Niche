@@ -40,9 +40,10 @@ function StarRow({ score }: { score: number }) {
 export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const likeCount = review.likes?.[0]?.count ?? 0
-  const [optimisticLiked, setOptimisticLiked] = useState(false)
+  const likeCount = review.likes_count ?? review.likes?.[0]?.count ?? 0
+  const [optimisticLiked, setOptimisticLiked] = useState(Boolean(review.user_has_liked))
   const [optimisticCount, setOptimisticCount] = useState(Number(likeCount))
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   const { mutate: toggleLike } = useMutation({
     mutationFn: async () => {
@@ -53,12 +54,18 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       }
     },
     onMutate: () => {
-      setOptimisticLiked(prev => !prev)
-      setOptimisticCount(prev => optimisticLiked ? prev - 1 : prev + 1)
+      setOptimisticLiked((prev) => {
+        const next = !prev
+        setOptimisticCount((count) => count + (next ? 1 : -1))
+        return next
+      })
     },
     onError: () => {
-      setOptimisticLiked(prev => !prev)
-      setOptimisticCount(prev => optimisticLiked ? prev + 1 : prev - 1)
+      setOptimisticLiked((prev) => {
+        const reverted = !prev
+        setOptimisticCount((count) => count + (reverted ? 1 : -1))
+        return reverted
+      })
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["feed"] }),
   })
@@ -66,6 +73,25 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const profile = review.profile
   const place = review.place
   const name = profile?.display_name ?? profile?.username ?? "someone"
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/place/${review.place_id}?review=${review.id}`
+    const title = place?.name ? `${place.name} on boba!` : "check this review on boba!"
+    const text = review.item_name ? `${review.item_name} · ${review.score}/10` : `rated ${review.score}/10`
+
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title, text, url })
+      } else if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+      }
+      setShareMessage("shared")
+      setTimeout(() => setShareMessage(null), 1500)
+    } catch {
+      setShareMessage("share cancelled")
+      setTimeout(() => setShareMessage(null), 1500)
+    }
+  }
 
   return (
     <div style={{
@@ -162,6 +188,31 @@ export function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           <span style={{ fontSize: 15 }}>{optimisticLiked ? "♥" : "♡"}</span>
           {optimisticCount > 0 && <span>{optimisticCount}</span>}
         </button>
+
+        <button
+          onClick={() => void handleShare()}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 5,
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+            color: "#8e948d",
+            padding: 0,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>↗</span>
+          <span>share</span>
+        </button>
+
+        {shareMessage && (
+          <span style={{
+            marginLeft: "auto",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 11,
+            color: "#9aa19a",
+          }}>
+            {shareMessage}
+          </span>
+        )}
       </div>
     </div>
   )
