@@ -15,7 +15,7 @@ interface SelectedPlace {
   address: string
   city?: string
   state?: string
-  google_place_id: string
+  google_place_id: string | null
   latitude: number
   longitude: number
 }
@@ -263,7 +263,7 @@ export default function LogPage() {
               </div>
             )}
             {placeQuery.length > 1 && placeResults.length === 0 && !isSearching && (
-              <button onClick={() => setSelectedPlace({ name: placeQuery, address: "", google_place_id: `manual_${Date.now()}`, latitude: 0, longitude: 0 })}
+              <button onClick={() => setSelectedPlace({ name: placeQuery, address: "", google_place_id: null, latitude: 0, longitude: 0 })}
                 style={{ marginTop: 12, background: "none", border: "1px dashed #e8e8e4", borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer", width: "100%" }}>
                 <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: "#2d6a4f", margin: 0 }}>+ add "{placeQuery}"</p>
               </button>
