@@ -83,6 +83,42 @@ function getSupabase() {
   )
 }
 
+async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width)
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement("canvas")
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error("Could not get canvas context"))
+        return
+      }
+      ctx.drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(objectUrl)
+      canvas.toBlob(
+        blob => {
+          if (blob) resolve(blob)
+          else reject(new Error("Could not compress image"))
+        },
+        "image/jpeg",
+        0.82
+      )
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error("Failed to load image"))
+    }
+    img.src = objectUrl
+  })
+}
+
 export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [step, setStep] = useState(1)
   const [drinkName, setDrinkName] = useState("")
@@ -111,12 +147,19 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
   const uploadPhoto = async (file: File): Promise<string | null> => {
     const supabase = getSupabase()
-    const ext = file.name.split(".").pop()
-    const path = `brew/${userId}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from("review-images").upload(path, file)
-    if (error) return null
-    const { data } = supabase.storage.from("review-images").getPublicUrl(path)
-    return data.publicUrl
+    const path = `brew/${userId}/${Date.now()}.jpg`
+    try {
+      const blob = await compressImage(file)
+      const { error } = await supabase.storage
+        .from("review-images")
+        .upload(path, blob, { contentType: "image/jpeg" })
+      if (error) return null
+      const { data } = supabase.storage.from("review-images").getPublicUrl(path)
+      return data.publicUrl
+    } catch (err) {
+      console.error("Photo upload failed:", err)
+      return null
+    }
   }
 
   const handleSubmit = () => {

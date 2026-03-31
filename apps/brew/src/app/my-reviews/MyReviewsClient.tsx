@@ -101,7 +101,24 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => (
-                <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedReview(r)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={r.item_name ?? "review photo"}
+                  style={{
+                    borderRadius: 4, overflow: "hidden",
+                    background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
+                    cursor: "pointer",
+                  }}
+                >
+                  <img
+                    src={r.image_urls[0]} alt={r.item_name ?? ""}
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
               ))}
             </div>
           )}
