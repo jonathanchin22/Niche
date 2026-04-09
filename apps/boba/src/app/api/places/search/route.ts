@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       `https://api.foursquare.com/v3/places/search?${params}`,
       {
         headers: {
+          // Foursquare Places API v3 uses the raw API key in Authorization (no Bearer prefix)
           Authorization: apiKey,
           Accept: "application/json",
         },

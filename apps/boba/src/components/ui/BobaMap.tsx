@@ -172,7 +172,8 @@ export default function BobaMap({
             box-shadow: 0 2px 6px rgba(0,0,0,0.12);
             max-width: 120px;
           `
-          el.textContent = score ? `${pin.name.split(" ")[0]} ${score}` : (pin.name.split(" ")[0] ?? "")
+          const shortName = pin.name.split(" ")[0] ?? ""
+          el.textContent = score ? `${shortName} ${score}` : shortName
           el.title = pin.name
 
           el.addEventListener("click", () => {
