@@ -1,10 +1,10 @@
 "use client"
 
-import { useCallback, useId, useRef, useState } from "react"
+import { useCallback, useId, useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
-import { upsertPlace, createReview } from "@niche/database"
+import { upsertPlace, createReview, searchPlaces as searchPlacesDB } from "@niche/database"
 
 type Step = "drink" | "rate" | "share" | "done"
 
@@ -14,8 +14,11 @@ interface SelectedPlace {
   city?: string
   state?: string
   google_place_id: string | null
+  foursquare_id?: string | null
   latitude: number
   longitude: number
+  /** "db" = already in our database, "foursquare" = from Foursquare API */
+  source?: "db" | "foursquare"
 }
 
 const DESCRIPTORS = [
@@ -52,21 +55,66 @@ async function compressImage(file: File, maxWidth = 800): Promise<string> {
   })
 }
 
-async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
+async function searchPlacesAPI(
+  query: string,
+  supabase: any,
+  userLocation?: { lat: number; lng: number } | null
+): Promise<SelectedPlace[]> {
   if (!query || query.length < 2) return []
-  const encoded = encodeURIComponent(`${query} bubble tea boba`)
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.map((p: any) => ({
-    name: p.name || p.display_name.split(",")[0],
-    address: p.display_name,
-    city: p.address?.city || p.address?.town || p.address?.village || "",
-    state: p.address?.state || "",
-    google_place_id: `nominatim_${p.osm_id}`,
-    latitude: parseFloat(p.lat),
-    longitude: parseFloat(p.lon),
-  }))
+
+  // Run DB search and Foursquare search in parallel
+  const fsqParams = new URLSearchParams({ query })
+  if (userLocation) {
+    fsqParams.set("lat", String(userLocation.lat))
+    fsqParams.set("lng", String(userLocation.lng))
+  }
+
+  const [dbResults, fsqRes] = await Promise.allSettled([
+    searchPlacesDB(supabase, { app_id: "boba", query }),
+    fetch(`/api/places/search?${fsqParams}`),
+  ])
+
+  const places: SelectedPlace[] = []
+  const seenNames = new Set<string>()
+
+  // DB results first (highest priority — already in our system)
+  if (dbResults.status === "fulfilled") {
+    for (const p of dbResults.value as any[]) {
+      const key = p.name.toLowerCase()
+      if (!seenNames.has(key)) {
+        seenNames.add(key)
+        places.push({
+          name: p.name,
+          address: p.address ?? "",
+          city: p.city ?? "",
+          state: p.state ?? "",
+          google_place_id: p.google_place_id ?? null,
+          foursquare_id: p.foursquare_id ?? null,
+          latitude: p.lat ?? p.latitude ?? 0,
+          longitude: p.lng ?? p.longitude ?? 0,
+          source: "db",
+        })
+      }
+    }
+  }
+
+  // Foursquare results (add any not already in DB)
+  if (fsqRes.status === "fulfilled" && fsqRes.value.ok) {
+    try {
+      const fsqData = await fsqRes.value.json()
+      for (const p of fsqData.results ?? []) {
+        const key = p.name.toLowerCase()
+        if (!seenNames.has(key)) {
+          seenNames.add(key)
+          places.push({ ...p, source: "foursquare" as const })
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  return places.slice(0, 8)
 }
 
 function StarDisplay({ score }: { score: number }) {
@@ -144,8 +192,18 @@ export default function LogPage() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
   const [photoUploading, setPhotoUploading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
   const photoInputRef = useRef<HTMLInputElement>(null)
+
+  // Get user location to improve place search results
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    )
+  }, [])
 
   const handlePlaceSearch = useCallback((q: string) => {
     setPlaceQuery(q)
@@ -153,11 +211,12 @@ export default function LogPage() {
     if (q.length < 2) { setPlaceResults([]); return }
     setIsSearching(true)
     searchTimeout.current = setTimeout(async () => {
-      const results = await searchPlacesAPI(q)
+      const results = await searchPlacesAPI(q, supabase, userLocation)
       setPlaceResults(results)
       setIsSearching(false)
     }, 400)
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation])
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
@@ -172,6 +231,7 @@ export default function LogPage() {
         app_id: "boba", name: selectedPlace.name, address: selectedPlace.address,
         city: selectedPlace.city ?? "", state: selectedPlace.state ?? "",
         country: "US", google_place_id: selectedPlace.google_place_id,
+        foursquare_id: selectedPlace.foursquare_id ?? null,
         lat: selectedPlace.latitude, lng: selectedPlace.longitude,
       } as any)
       await createReview(supabase as any, {
@@ -286,13 +346,21 @@ export default function LogPage() {
             {isSearching && <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#bbb", margin: "8px 0" }}>searching...</p>}
             {placeResults.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-                {placeResults.map((p, i) => (
-                  <button key={i} onClick={() => { setSelectedPlace(p); setPlaceQuery(p.name) }}
-                    style={{ background: selectedPlace?.google_place_id === p.google_place_id ? "#e8f4ee" : "white", border: `1px solid ${selectedPlace?.google_place_id === p.google_place_id ? "#2d6a4f" : "#e8e8e4"}`, borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer" }}>
-                    <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: "0 0 2px", color: "#1a1a1a" }}>{p.name}</p>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.address}</p>
-                  </button>
-                ))}
+                {placeResults.map((p, i) => {
+                  const isSelected = selectedPlace?.name === p.name && selectedPlace?.source === p.source
+                  return (
+                    <button key={i} onClick={() => { setSelectedPlace(p); setPlaceQuery(p.name) }}
+                      style={{ background: isSelected ? "#e8f4ee" : "white", border: `1px solid ${isSelected ? "#2d6a4f" : "#e8e8e4"}`, borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                        <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: 0, color: "#1a1a1a" }}>{p.name}</p>
+                        {p.source === "db" && (
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, color: "#2d6a4f", background: "#e8f4ee", padding: "1px 6px", borderRadius: 4, marginLeft: 8, flexShrink: 0 }}>in app</span>
+                        )}
+                      </div>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.address}</p>
+                    </button>
+                  )
+                })}
               </div>
             )}
             {placeQuery.length > 1 && placeResults.length === 0 && !isSearching && (

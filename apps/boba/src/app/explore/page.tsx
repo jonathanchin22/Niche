@@ -1,8 +1,13 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { AppShell } from "@/components/ui/AppShell"
 import Link from "next/link"
+import { createClient } from "@niche/auth/client"
+import { getMapPins } from "@niche/database"
+
+const BobaMap = dynamic(() => import("@/components/ui/BobaMap"), { ssr: false })
 
 const FILTERS = ["all", "nearby", "top rated", "new"]
 
@@ -39,33 +44,51 @@ function EmptySketch() {
   )
 }
 
-function ExploreSketch() {
-  return (
-    <svg width="180" height="130" viewBox="0 0 180 130" fill="none">
-      <rect x="10" y="60" width="25" height="60" stroke="#2d6a4f" strokeWidth="1.5" fill="none"/>
-      <rect x="40" y="40" width="30" height="80" stroke="#2d6a4f" strokeWidth="1.5" fill="none"/>
-      <rect x="140" y="50" width="30" height="70" stroke="#2d6a4f" strokeWidth="1.5" fill="none"/>
-      <rect x="15" y="70" width="6" height="6" stroke="#2d6a4f" strokeWidth="1" fill="none"/>
-      <rect x="47" y="55" width="6" height="6" stroke="#2d6a4f" strokeWidth="1" fill="none"/>
-      <rect x="60" y="55" width="6" height="6" stroke="#2d6a4f" strokeWidth="1" fill="none"/>
-      <rect x="147" y="65" width="6" height="6" stroke="#2d6a4f" strokeWidth="1" fill="none"/>
-      <circle cx="100" cy="70" r="8" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
-      <line x1="100" y1="78" x2="100" y2="105" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M88 88 L100 82 L112 88" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-      <path d="M100 105 L93 120" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M100 105 L107 120" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M112 88 L122 92" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M119 85 L124 97 L116 97 Z" stroke="#1a1a1a" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
 export default function ExplorePage() {
   const [activeFilter, setActiveFilter] = useState("all")
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+
+  // Location + map state
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationDenied, setLocationDenied] = useState(false)
+  const [locationRequested, setLocationRequested] = useState(false)
+  const [mapPins, setMapPins] = useState<any[]>([])
+
+  // Request location automatically on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    setLocationRequested(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      },
+      () => {
+        setLocationDenied(true)
+      }
+    )
+  }, [])
+
+  // Fetch DB pins when user location becomes known
+  useEffect(() => {
+    if (!userLocation) return
+    const supabase = createClient()
+    const delta = 0.08 // ~8 km radius
+    getMapPins(supabase, {
+      app_id: "boba",
+      user_id: "",
+      bounds: {
+        north: userLocation.lat + delta,
+        south: userLocation.lat - delta,
+        east: userLocation.lng + delta,
+        west: userLocation.lng - delta,
+      },
+    })
+      .then((data: any[]) => setMapPins(data))
+      .catch(() => {})
+  }, [userLocation])
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q)
@@ -78,6 +101,8 @@ export default function ExplorePage() {
       setIsSearching(false)
     }, 400)
   }, [])
+
+  const showMap = !query && (userLocation !== null || locationRequested)
 
   return (
     <AppShell activeTab="explore">
@@ -137,19 +162,34 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {/* Map placeholder / illustration */}
-        {!query && (
-          <div style={{
-            margin: "0 28px 24px",
-            height: 160,
-            background: "#e8f4ee",
-            borderRadius: 12,
-            border: "1px solid #e8e8e4",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}>
-            <ExploreSketch />
+        {/* Map — shown when no search query is active */}
+        {showMap && (
+          <div style={{ margin: "0 28px 24px" }}>
+            <BobaMap
+              userLocation={userLocation}
+              pins={mapPins}
+              height={220}
+            />
+            {!userLocation && !locationDenied && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#aaa", textAlign: "center", marginTop: 8 }}>
+                locating you...
+              </p>
+            )}
+            {locationDenied && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#aaa", textAlign: "center", marginTop: 8 }}>
+                enable location to see nearby shops
+              </p>
+            )}
+            {userLocation && mapPins.length === 0 && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#aaa", textAlign: "center", marginTop: 8 }}>
+                no logged shops nearby yet — be the first!
+              </p>
+            )}
+            {userLocation && mapPins.length > 0 && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", textAlign: "center", marginTop: 8 }}>
+                {mapPins.length} boba {mapPins.length === 1 ? "shop" : "shops"} nearby
+              </p>
+            )}
           </div>
         )}
 
@@ -202,27 +242,29 @@ export default function ExplorePage() {
                 </p>
               )}
 
-              {/* Empty state */}
-              <div style={{
-                padding: "40px 20px",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-                borderTop: "1px dashed #e8e8e4", marginTop: 8,
-              }}>
-                <EmptySketch />
-                <span style={{ fontFamily: "'Courier New', monospace", fontSize: 10, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
-                  know a spot that's missing?
-                </span>
-                <Link href="/log">
-                  <button style={{
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 13,
-                    background: "none", border: "1px solid #1a1a1a",
-                    borderRadius: 6, padding: "8px 20px", cursor: "pointer",
-                    color: "#1a1a1a",
-                  }}>
-                    log a drink there
-                  </button>
-                </Link>
-              </div>
+              {/* Empty state — only shown when map isn't visible */}
+              {!showMap && (
+                <div style={{
+                  padding: "40px 20px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+                  borderTop: "1px dashed #e8e8e4", marginTop: 8,
+                }}>
+                  <EmptySketch />
+                  <span style={{ fontFamily: "'Courier New', monospace", fontSize: 10, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
+                    know a spot that's missing?
+                  </span>
+                  <Link href="/log">
+                    <button style={{
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                      background: "none", border: "1px solid #1a1a1a",
+                      borderRadius: 6, padding: "8px 20px", cursor: "pointer",
+                      color: "#1a1a1a",
+                    }}>
+                      log a drink there
+                    </button>
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>
