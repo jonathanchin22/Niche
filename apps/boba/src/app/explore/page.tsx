@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
+import { createBrowserClient } from "@supabase/ssr"
 import { AppShell } from "@/components/ui/AppShell"
 import Link from "next/link"
-import { searchExternalPlaces } from "@niche/database"
+import { getNearbyPlaces, searchExternalPlaces } from "@niche/database"
 
 const FILTERS = ["all", "nearby", "top rated", "new"]
 
@@ -19,6 +20,18 @@ async function searchPlaces(query: string) {
     avg_score: null as number | null,
     review_count: 0,
   }))
+}
+
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+function formatDistance(distance: number) {
+  if (distance < 1) return `${(distance * 5280).toFixed(0)} ft away`
+  return `${distance.toFixed(1)} mi away`
 }
 
 function EmptySketch() {
@@ -63,6 +76,9 @@ export default function ExplorePage() {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [nearbyResults, setNearbyResults] = useState<any[]>([])
+  const [isLocating, setIsLocating] = useState(false)
+  const [nearbyError, setNearbyError] = useState("")
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const handleSearch = useCallback((q: string) => {
@@ -76,6 +92,44 @@ export default function ExplorePage() {
       setIsSearching(false)
     }, 400)
   }, [])
+
+  const handleNearMe = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setNearbyError("location is not available in this browser")
+      return
+    }
+
+    setNearbyError("")
+    setIsLocating(true)
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const places = await getNearbyPlaces(getSupabase(), {
+            app_id: "boba",
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            limit: 6,
+          })
+          setNearbyResults(places)
+          setActiveFilter("nearby")
+          if (places.length === 0) setNearbyError("no logged boba spots nearby yet")
+        } catch {
+          setNearbyError("could not load nearby spots")
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      () => {
+        setNearbyError("location permission was denied")
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    )
+  }, [])
+
+  const showingNearby = !query && activeFilter === "nearby"
+  const visibleResults = showingNearby ? nearbyResults : results
 
   return (
     <AppShell activeTab="explore">
@@ -151,9 +205,65 @@ export default function ExplorePage() {
           </div>
         )}
 
+        {!query && (
+          <div style={{ margin: "0 28px 24px", padding: "18px", background: "white", border: "1px solid #e8e8e4", borderRadius: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <div>
+                <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, margin: "0 0 4px", color: "#1a1a1a" }}>
+                  near me
+                </p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
+                  find logged boba spots around your current location
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleNearMe}
+                disabled={isLocating}
+                style={{
+                  background: "#2d6a4f", color: "#fff", border: "none", borderRadius: 999,
+                  padding: "10px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+                  cursor: "pointer", opacity: isLocating ? 0.7 : 1,
+                }}
+              >
+                {isLocating ? "locating..." : nearbyResults.length > 0 ? "refresh" : "use my location"}
+              </button>
+            </div>
+
+            {nearbyError && (
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: nearbyResults.length > 0 ? "0 0 12px" : 0 }}>
+                {nearbyError}
+              </p>
+            )}
+
+            {nearbyResults.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {nearbyResults.slice(0, 3).map((place) => (
+                  <Link key={place.id} href={`/place/${place.id}`} style={{ textDecoration: "none" }}>
+                    <div style={{ border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px 16px", background: "#fafaf8" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                        <div>
+                          <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 16, margin: "0 0 2px", color: "#1a1a1a" }}>{place.name}</p>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
+                            {place.city}{place.state ? `, ${place.state}` : ""}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#2d6a4f", margin: "0 0 2px" }}>{formatDistance(place.distance_miles)}</p>
+                          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#bbb", margin: 0 }}>{place.review_count} reviews</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Results */}
         <div style={{ padding: "0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {results.length > 0 ? results.map((p) => (
+          {visibleResults.length > 0 ? visibleResults.map((p) => (
             <Link key={p.id} href={`/place/${p.id}`} style={{ textDecoration: "none" }}>
               <div style={{
                 background: "white", border: "1px solid #e8e8e4",
@@ -165,11 +275,11 @@ export default function ExplorePage() {
                       {p.name}
                     </p>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: "0 0 8px" }}>
-                      {p.neighborhood}
+                      {p.neighborhood ?? p.city ?? ""}
                     </p>
-                    {p.tags.length > 0 && (
+                    {(p.tags ?? []).length > 0 && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {p.tags.map((t: string) => (
+                        {(p.tags ?? []).map((t: string) => (
                           <span key={t} style={{
                             fontFamily: "'DM Sans', sans-serif", fontSize: 11,
                             background: "#e8f4ee", color: "#2d6a4f",
@@ -179,13 +289,13 @@ export default function ExplorePage() {
                       </div>
                     )}
                   </div>
-                  {p.avg_score && (
+                  {p.avg_score != null && (
                     <div style={{ textAlign: "right" }}>
                       <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, margin: "0 0 2px", color: "#1a1a1a" }}>
                         {p.avg_score}
                       </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#bbb" }}>
-                        {p.review_count} reviews
+                        {typeof p.distance_miles === "number" ? formatDistance(p.distance_miles) : `${p.review_count} reviews`}
                       </p>
                     </div>
                   )}
@@ -199,9 +309,14 @@ export default function ExplorePage() {
                   no results for "{query}"
                 </p>
               )}
+              {showingNearby && !isLocating && nearbyResults.length === 0 && nearbyError && (
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb", textAlign: "center", padding: "20px 0" }}>
+                  {nearbyError}
+                </p>
+              )}
 
               {/* Empty state */}
-              <div style={{
+              {!showingNearby && <div style={{
                 padding: "40px 20px",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
                 borderTop: "1px dashed #e8e8e4", marginTop: 8,
@@ -220,7 +335,7 @@ export default function ExplorePage() {
                     log a drink there
                   </button>
                 </Link>
-              </div>
+              </div>}
             </>
           )}
         </div>

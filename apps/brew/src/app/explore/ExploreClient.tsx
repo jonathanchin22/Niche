@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, useRef } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import { searchPlaces } from "@niche/database"
+import { getNearbyPlaces, searchPlaces } from "@niche/database"
 import { MonoLabel, Stars, AeroSketch } from "@/components/ui/Primitives"
 import type { Place } from "@niche/shared-types"
 import Link from "next/link"
@@ -30,10 +30,13 @@ export default function ExploreClient({ userId }: { userId: string }) {
   const router = useRouter()
   const [catIdx, setCatIdx] = useState(0)
   const [places, setPlaces] = useState<Place[]>([])
+  const [nearbyPlaces, setNearbyPlaces] = useState<Array<Place & { distance_miles: number }>>([])
   const [isPending, startTransition] = useTransition()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Place[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
+  const [nearMeError, setNearMeError] = useState("")
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const cat = CATS[catIdx] || CATS[0]
@@ -63,8 +66,47 @@ export default function ExploreClient({ userId }: { userId: string }) {
     }, 400)
   }, [])
 
-  // Filter out 'brewed at home' (homebrew) places
-  const filterHomebrew = (arr: Place[]) => arr.filter(
+  const handleNearMe = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setNearMeError("location is not available in this browser")
+      return
+    }
+
+    setNearMeError("")
+    setIsLocating(true)
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const results = await getNearbyPlaces(getSupabase(), {
+            app_id: APP_ID,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            limit: 4,
+          })
+          setNearbyPlaces(filterHomebrew(results))
+          if (results.length === 0) setNearMeError("no logged cafes nearby yet")
+        } catch {
+          setNearMeError("could not load nearby cafes")
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      () => {
+        setNearMeError("location permission was denied")
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    )
+  }, [])
+
+  const formatDistance = (distance: number) => {
+    if (distance < 1) return `${(distance * 5280).toFixed(0)} ft away`
+    return `${distance.toFixed(1)} mi away`
+  }
+
+  // Filter out 'brewed at home' (homebrew) places while preserving the item type
+  const filterHomebrew = <T extends Place>(arr: T[]) => arr.filter(
     p =>
       p.name !== "Brewed at home" &&
       p.city !== "home" &&
@@ -138,6 +180,69 @@ export default function ExploreClient({ userId }: { userId: string }) {
             {searchQuery.length > 1 ? `searching "${searchQuery}"` : cat.label}
           </p>
         </div>
+
+        {!searchQuery && (
+          <div style={{ padding: "0 20px 20px" }}>
+            <div style={{ border: "1px solid var(--c-rule)", borderRadius: 8, padding: 16, background: "var(--c-bg)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: nearbyPlaces.length > 0 || nearMeError ? 12 : 0 }}>
+                <div>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: 22, color: "var(--c-ink)", margin: "0 0 4px", fontWeight: 400, fontStyle: "italic" }}>
+                    near me
+                  </p>
+                  <MonoLabel>find logged cafes close to you</MonoLabel>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNearMe}
+                  disabled={isLocating}
+                  style={{
+                    background: "var(--c-accent)", color: "white", border: "none", borderRadius: 999,
+                    padding: "10px 14px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: 10,
+                    letterSpacing: "0.08em", textTransform: "uppercase", opacity: isLocating ? 0.7 : 1,
+                  }}
+                >
+                  {isLocating ? "locating..." : nearbyPlaces.length > 0 ? "refresh" : "use my location"}
+                </button>
+              </div>
+
+              {nearMeError && (
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "var(--c-subtle)", margin: nearbyPlaces.length > 0 ? "0 0 12px" : 0 }}>
+                  {nearMeError}
+                </p>
+              )}
+
+              {nearbyPlaces.length > 0 && (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {nearbyPlaces.map(place => (
+                    <Link
+                      key={`nearby-${place.id}`}
+                      href={`/place/${place.id}`}
+                      prefetch
+                      onMouseEnter={() => router.prefetch(`/place/${place.id}`)}
+                      onFocus={() => router.prefetch(`/place/${place.id}`)}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <div style={{ border: "1px solid var(--c-rule)", borderRadius: 6, padding: "12px 14px", background: "var(--c-tint)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                          <div>
+                            <p style={{ fontFamily: "var(--font-display)", fontSize: 17, color: "var(--c-ink)", margin: "0 0 2px", fontWeight: 400 }}>
+                              {place.name}
+                            </p>
+                            <MonoLabel>{place.city}{place.state ? `, ${place.state}` : ""}</MonoLabel>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <MonoLabel style={{ color: "var(--c-accent)" }}>{formatDistance(place.distance_miles)}</MonoLabel>
+                            <MonoLabel>{place.review_count} logged</MonoLabel>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {displayPending && (
           <div style={{ padding: "24px 20px" }}>

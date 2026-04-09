@@ -818,6 +818,80 @@ export async function searchExternalPlaces(
   return _searchNominatim(query, appHint)
 }
 
+export interface NearbyPlace extends Place {
+  distance_miles: number
+}
+
+function toRadians(value: number): number {
+  return value * (Math.PI / 180)
+}
+
+function getDistanceMiles(
+  sourceLat: number,
+  sourceLng: number,
+  targetLat: number,
+  targetLng: number
+): number {
+  const earthRadiusMiles = 3958.8
+  const latDelta = toRadians(targetLat - sourceLat)
+  const lngDelta = toRadians(targetLng - sourceLng)
+  const a =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(toRadians(sourceLat)) *
+      Math.cos(toRadians(targetLat)) *
+      Math.sin(lngDelta / 2) ** 2
+
+  return 2 * earthRadiusMiles * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+export async function getNearbyPlaces(
+  supabase: SupabaseClient,
+  {
+    app_id,
+    latitude,
+    longitude,
+    limit = 6,
+    radiusMiles = 12,
+  }: {
+    app_id: AppId
+    latitude: number
+    longitude: number
+    limit?: number
+    radiusMiles?: number
+  }
+): Promise<NearbyPlace[]> {
+  const latDelta = radiusMiles / 69
+  const lngDelta = radiusMiles / Math.max(15, Math.cos(toRadians(latitude)) * 69)
+
+  const { data, error } = await supabase
+    .from("places")
+    .select("*")
+    .eq("app_id", app_id)
+    .gt("review_count", 0)
+    .gte("lat", latitude - latDelta)
+    .lte("lat", latitude + latDelta)
+    .gte("lng", longitude - lngDelta)
+    .lte("lng", longitude + lngDelta)
+    .limit(Math.max(limit * 6, 24))
+
+  if (error) throw error
+
+  return ((data ?? []) as Place[])
+    .filter((place: Place) => Number.isFinite(place.lat) && Number.isFinite(place.lng))
+    .filter((place: Place) => !(place.lat === 0 && place.lng === 0))
+    .map((place: Place) => ({
+      ...place,
+      distance_miles: getDistanceMiles(latitude, longitude, place.lat, place.lng),
+    }))
+    .sort((left: NearbyPlace, right: NearbyPlace) => {
+      if (left.distance_miles !== right.distance_miles) {
+        return left.distance_miles - right.distance_miles
+      }
+      return right.review_count - left.review_count
+    })
+    .slice(0, limit)
+}
+
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 export async function searchPlaces(
