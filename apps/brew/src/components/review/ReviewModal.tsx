@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
+import { useState, useRef, useTransition, useCallback } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import { createReview, upsertPlace } from "@niche/database"
+import { createReview, upsertPlace, searchPlaces } from "@niche/database"
 import { Pill, MonoLabel } from "@/components/ui/Primitives"
 
 const APP_ID = "brew" as const
@@ -119,12 +119,78 @@ async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
   })
 }
 
+interface SelectedPlace {
+  name: string
+  address: string
+  city: string
+  state: string
+  google_place_id: string | null
+  latitude: number
+  longitude: number
+}
+
+async function searchCafesAPI(query: string, supabase: any): Promise<SelectedPlace[]> {
+  if (!query || query.length < 2) return []
+
+  // 1. Query Supabase for already-saved cafe places
+  let supabasePlaces: SelectedPlace[] = []
+  try {
+    const saved = await searchPlaces(supabase, { app_id: "brew", query })
+    supabasePlaces = (saved ?? []).map((p: any) => ({
+      name: p.name,
+      address: p.address ?? "",
+      city: p.city ?? "",
+      state: p.state ?? "",
+      google_place_id: p.google_place_id ?? null,
+      latitude: p.lat ?? 0,
+      longitude: p.lng ?? 0,
+    }))
+  } catch {
+    // non-fatal
+  }
+
+  // 2. Query Nominatim for additional results
+  let nominatimPlaces: SelectedPlace[] = []
+  try {
+    const encoded = encodeURIComponent(`${query} cafe coffee`)
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`,
+      { headers: { "User-Agent": "Niche-App/1.0" } }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      nominatimPlaces = data.map((p: any) => ({
+        name: p.name || p.display_name.split(",")[0],
+        address: p.display_name,
+        city: p.address?.city || p.address?.town || p.address?.village || "",
+        state: p.address?.state || "",
+        google_place_id: `nominatim_${p.osm_id}`,
+        latitude: parseFloat(p.lat),
+        longitude: parseFloat(p.lon),
+      }))
+    }
+  } catch {
+    // non-fatal
+  }
+
+  // 3. Merge — Supabase results first, then new Nominatim results
+  const seen = new Set(supabasePlaces.map(p => p.google_place_id).filter(Boolean))
+  const newFromNominatim = nominatimPlaces.filter(
+    p => !p.google_place_id || !seen.has(p.google_place_id)
+  )
+  return [...supabasePlaces, ...newFromNominatim].slice(0, 8)
+}
+
 export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [step, setStep] = useState(1)
   const [drinkName, setDrinkName] = useState("")
   const [category, setCategory] = useState("")
   const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
+  const [cafeSearchResults, setCafeSearchResults] = useState<SelectedPlace[]>([])
+  const [selectedCafePlace, setSelectedCafePlace] = useState<SelectedPlace | null>(null)
+  const [isCafeSearching, setIsCafeSearching] = useState(false)
+  const cafeSearchTimeout = useRef<ReturnType<typeof setTimeout>>()
   const [originRoast, setOriginRoast] = useState("")
   const [score, setScore] = useState(0)             // 0–10 score used directly by slider
   const [tags, setTags] = useState<string[]>([])
@@ -134,6 +200,25 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const refs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+
+  const handleCafeSearch = useCallback((q: string) => {
+    setCafeName(q)
+    setSelectedCafePlace(null)
+    clearTimeout(cafeSearchTimeout.current)
+    if (isHomeBrew || q.length < 2) { setCafeSearchResults([]); return }
+    setIsCafeSearching(true)
+    cafeSearchTimeout.current = setTimeout(async () => {
+      const results = await searchCafesAPI(q, getSupabase())
+      setCafeSearchResults(results)
+      setIsCafeSearching(false)
+    }, 400)
+  }, [isHomeBrew])
+
+  const handleSelectCafe = (place: SelectedPlace) => {
+    setCafeName(place.name)
+    setSelectedCafePlace(place)
+    setCafeSearchResults([])
+  }
 
   const toggleTag = (t: string) =>
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
@@ -184,13 +269,13 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
         const place = await upsertPlace(supabase, {
           app_id: APP_ID,
           name: isHomeBrew ? "Brewed at home" : cafeName.trim(),
-          address: "", // kept intentionally blank for home logs
-          city: isHomeBrew ? "home" : "",
-          state: isHomeBrew ? "home" : "",
-          country: "",
-          lat: 0,
-          lng: 0,
-          google_place_id: isHomeBrew ? "brew_home" : null,
+          address: isHomeBrew ? "" : (selectedCafePlace?.address ?? ""),
+          city: isHomeBrew ? "home" : (selectedCafePlace?.city ?? ""),
+          state: isHomeBrew ? "home" : (selectedCafePlace?.state ?? ""),
+          country: isHomeBrew ? "" : "US",
+          lat: isHomeBrew ? 0 : (selectedCafePlace?.latitude ?? 0),
+          lng: isHomeBrew ? 0 : (selectedCafePlace?.longitude ?? 0),
+          google_place_id: isHomeBrew ? "brew_home" : (selectedCafePlace?.google_place_id ?? null),
           foursquare_id: null,
           cover_image_url: null,
         })
@@ -303,6 +388,8 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   setIsHomeBrew(prev => {
                     const next = !prev
                     setCafeName(next ? "Brewed at home" : "")
+                    setSelectedCafePlace(null)
+                    setCafeSearchResults([])
                     return next
                   })
                 }}
@@ -336,7 +423,6 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
             {[
               { label: "drink name", ph: "e.g. oat flat white", val: drinkName, set: setDrinkName },
-              { label: "cafe", ph: "e.g. Sightglass SoMa", val: cafeName, set: setCafeName },
               { label: "origin / roast", ph: "e.g. Ethiopia Yirgacheffe, light", val: originRoast, set: setOriginRoast },
             ].map(({ label, ph, val, set }) => (
               <div key={label} style={{ marginBottom: 28 }}>
@@ -345,17 +431,64 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   value={val}
                   onChange={e => set(e.target.value)}
                   placeholder={ph}
-                  disabled={isHomeBrew && label === "cafe"}
                   style={{
                     width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
                     border: "none", borderBottom: "1px solid var(--c-rule)",
                     padding: "8px 0", background: "transparent", color: "var(--c-ink)",
                     outline: "none", fontStyle: "italic",
-                    opacity: isHomeBrew && label === "cafe" ? 0.5 : 1,
                   }}
                 />
               </div>
             ))}
+
+            {/* Cafe search with Supabase + Nominatim results */}
+            <div style={{ marginBottom: 28 }}>
+              <MonoLabel style={{ marginBottom: 10 }}>cafe</MonoLabel>
+              <input
+                value={cafeName}
+                onChange={e => handleCafeSearch(e.target.value)}
+                placeholder="e.g. Sightglass SoMa"
+                disabled={isHomeBrew}
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                  outline: "none", fontStyle: "italic",
+                  opacity: isHomeBrew ? 0.5 : 1,
+                }}
+              />
+              {isCafeSearching && (
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", margin: "6px 0 0", letterSpacing: "0.05em" }}>searching…</p>
+              )}
+              {!isHomeBrew && cafeSearchResults.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, border: "1px solid var(--c-rule)", borderRadius: 4, overflow: "hidden" }}>
+                  {cafeSearchResults.map((p, i) => (
+                    <button
+                      key={p.google_place_id ?? i}
+                      type="button"
+                      onClick={() => handleSelectCafe(p)}
+                      style={{
+                        background: selectedCafePlace?.google_place_id === p.google_place_id ? "var(--c-accent-bg, #f0f7f4)" : "var(--c-bg)",
+                        border: "none", borderBottom: "1px solid var(--c-rule)",
+                        padding: "10px 14px", textAlign: "left", cursor: "pointer",
+                      }}
+                    >
+                      <p style={{ fontFamily: "var(--font-display)", fontSize: 15, margin: "0 0 2px", color: "var(--c-ink)", fontStyle: "italic" }}>{p.name}</p>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>{p.address}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!isHomeBrew && cafeName.length > 1 && cafeSearchResults.length === 0 && !isCafeSearching && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectCafe({ name: cafeName, address: "", city: "", state: "", google_place_id: null, latitude: 0, longitude: 0 })}
+                  style={{ marginTop: 8, background: "none", border: "1px dashed var(--c-rule)", borderRadius: 4, padding: "10px 14px", textAlign: "left", cursor: "pointer", width: "100%" }}
+                >
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "var(--c-accent)", margin: 0, fontStyle: "italic" }}>+ add "{cafeName}"</p>
+                </button>
+              )}
+            </div>
 
             <button
               type="button"
