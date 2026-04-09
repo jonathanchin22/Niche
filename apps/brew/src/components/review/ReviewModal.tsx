@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
+import { useState, useRef, useTransition, useCallback } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import { createReview, upsertPlace } from "@niche/database"
+import { createReview, upsertPlace, searchPlaces } from "@niche/database"
 import { Pill, MonoLabel } from "@/components/ui/Primitives"
 
 const APP_ID = "brew" as const
@@ -83,6 +83,72 @@ function getSupabase() {
   )
 }
 
+interface PlaceSuggestion {
+  name: string
+  address: string
+  city: string
+  state: string
+  country: string
+  lat: number
+  lng: number
+  google_place_id: string | null
+}
+
+async function searchCafesNominatim(query: string): Promise<PlaceSuggestion[]> {
+  try {
+    const encoded = encodeURIComponent(`${query} cafe coffee`)
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    )
+    if (!res.ok) return []
+    const data: any[] = await res.json()
+    return data.map(p => ({
+      name: p.name || p.display_name.split(",")[0],
+      address: [p.address?.house_number, p.address?.road].filter(Boolean).join(" "),
+      city: p.address?.city ?? p.address?.town ?? p.address?.village ?? "",
+      state: p.address?.state ?? "",
+      country: (p.address?.country_code ?? "US").toUpperCase(),
+      lat: parseFloat(p.lat),
+      lng: parseFloat(p.lon),
+      google_place_id: `nominatim_${p.osm_id}`,
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function searchCafes(query: string): Promise<PlaceSuggestion[]> {
+  const supabase = getSupabase()
+
+  // Search Supabase first
+  const dbResults = await searchPlaces(supabase, { app_id: "brew", query })
+  const suggestions: PlaceSuggestion[] = dbResults.map(p => ({
+    name: p.name,
+    address: p.address ?? "",
+    city: p.city ?? "",
+    state: p.state ?? "",
+    country: p.country ?? "",
+    lat: p.lat ?? 0,
+    lng: p.lng ?? 0,
+    google_place_id: p.google_place_id,
+  }))
+
+  // If Supabase returned fewer than 3 results, also query Nominatim
+  if (suggestions.length < 3) {
+    const nominatimResults = await searchCafesNominatim(query)
+    const existingIds = new Set(suggestions.map(s => s.google_place_id).filter(Boolean))
+    for (const r of nominatimResults) {
+      if (!existingIds.has(r.google_place_id)) {
+        suggestions.push(r)
+        existingIds.add(r.google_place_id)
+      }
+    }
+  }
+
+  return suggestions.slice(0, 8)
+}
+
 async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -125,6 +191,10 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [category, setCategory] = useState("")
   const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null)
+  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([])
+  const [isSearchingPlace, setIsSearchingPlace] = useState(false)
+  const [showPlaceDropdown, setShowPlaceDropdown] = useState(false)
   const [originRoast, setOriginRoast] = useState("")
   const [score, setScore] = useState(0)             // 0–10 score used directly by slider
   const [tags, setTags] = useState<string[]>([])
@@ -134,9 +204,31 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const refs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+  const placeSearchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const toggleTag = (t: string) =>
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+
+  const handleCafeInput = useCallback((value: string) => {
+    setCafeName(value)
+    setSelectedPlace(null)
+    clearTimeout(placeSearchTimeout.current)
+    if (value.length < 2) { setPlaceResults([]); setShowPlaceDropdown(false); return }
+    setIsSearchingPlace(true)
+    setShowPlaceDropdown(true)
+    placeSearchTimeout.current = setTimeout(async () => {
+      const results = await searchCafes(value)
+      setPlaceResults(results)
+      setIsSearchingPlace(false)
+    }, 400)
+  }, [])
+
+  const handlePlaceSelect = useCallback((place: PlaceSuggestion) => {
+    setCafeName(place.name)
+    setSelectedPlace(place)
+    setPlaceResults([])
+    setShowPlaceDropdown(false)
+  }, [])
 
   const handlePhoto = (i: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -184,13 +276,13 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
         const place = await upsertPlace(supabase, {
           app_id: APP_ID,
           name: isHomeBrew ? "Brewed at home" : cafeName.trim(),
-          address: "", // kept intentionally blank for home logs
-          city: isHomeBrew ? "home" : "",
-          state: isHomeBrew ? "home" : "",
-          country: "",
-          lat: 0,
-          lng: 0,
-          google_place_id: isHomeBrew ? "brew_home" : null,
+          address: isHomeBrew ? "" : (selectedPlace?.address ?? ""),
+          city: isHomeBrew ? "home" : (selectedPlace?.city ?? ""),
+          state: isHomeBrew ? "home" : (selectedPlace?.state ?? ""),
+          country: isHomeBrew ? "" : (selectedPlace?.country ?? ""),
+          lat: isHomeBrew ? 0 : (selectedPlace?.lat ?? 0),
+          lng: isHomeBrew ? 0 : (selectedPlace?.lng ?? 0),
+          google_place_id: isHomeBrew ? "brew_home" : (selectedPlace?.google_place_id ?? null),
           foursquare_id: null,
           cover_image_url: null,
         })
@@ -303,6 +395,9 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   setIsHomeBrew(prev => {
                     const next = !prev
                     setCafeName(next ? "Brewed at home" : "")
+                    setSelectedPlace(null)
+                    setPlaceResults([])
+                    setShowPlaceDropdown(false)
                     return next
                   })
                 }}
@@ -334,28 +429,127 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
               </MonoLabel>
             </div>
 
-            {[
-              { label: "drink name", ph: "e.g. oat flat white", val: drinkName, set: setDrinkName },
-              { label: "cafe", ph: "e.g. Sightglass SoMa", val: cafeName, set: setCafeName },
-              { label: "origin / roast", ph: "e.g. Ethiopia Yirgacheffe, light", val: originRoast, set: setOriginRoast },
-            ].map(({ label, ph, val, set }) => (
-              <div key={label} style={{ marginBottom: 28 }}>
-                <MonoLabel style={{ marginBottom: 10 }}>{label}</MonoLabel>
-                <input
-                  value={val}
-                  onChange={e => set(e.target.value)}
-                  placeholder={ph}
-                  disabled={isHomeBrew && label === "cafe"}
-                  style={{
-                    width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
-                    border: "none", borderBottom: "1px solid var(--c-rule)",
-                    padding: "8px 0", background: "transparent", color: "var(--c-ink)",
-                    outline: "none", fontStyle: "italic",
-                    opacity: isHomeBrew && label === "cafe" ? 0.5 : 1,
-                  }}
-                />
-              </div>
-            ))}
+            {/* Drink name */}
+            <div style={{ marginBottom: 28 }}>
+              <MonoLabel style={{ marginBottom: 10 }}>drink name</MonoLabel>
+              <input
+                value={drinkName}
+                onChange={e => setDrinkName(e.target.value)}
+                placeholder="e.g. oat flat white"
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                  outline: "none", fontStyle: "italic",
+                }}
+              />
+            </div>
+
+            {/* Cafe search with autocomplete */}
+            <div style={{ marginBottom: 28, position: "relative" }}>
+              <MonoLabel style={{ marginBottom: 10 }}>cafe</MonoLabel>
+              <input
+                value={cafeName}
+                onChange={e => handleCafeInput(e.target.value)}
+                onBlur={() => setTimeout(() => setShowPlaceDropdown(false), 200)}
+                onFocus={() => cafeName.length >= 2 && placeResults.length > 0 && setShowPlaceDropdown(true)}
+                placeholder="e.g. Sightglass SoMa"
+                disabled={isHomeBrew}
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                  outline: "none", fontStyle: "italic",
+                  opacity: isHomeBrew ? 0.5 : 1,
+                }}
+              />
+              {isSearchingPlace && !isHomeBrew && (
+                <MonoLabel style={{ position: "absolute", right: 0, top: 28, fontSize: 9 }}>searching...</MonoLabel>
+              )}
+              {selectedPlace && !isHomeBrew && (
+                <MonoLabel style={{ marginTop: 4, fontSize: 9, color: "var(--c-accent)" }}>
+                  ✓ {[selectedPlace.city, selectedPlace.state].filter(Boolean).join(", ")}
+                </MonoLabel>
+              )}
+              {showPlaceDropdown && placeResults.length > 0 && !isHomeBrew && (
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+                  background: "var(--c-bg)", border: "1px solid var(--c-rule)",
+                  borderTop: "none", maxHeight: 220, overflowY: "auto",
+                }}>
+                  {placeResults.map((p, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={() => handlePlaceSelect(p)}
+                      style={{
+                        display: "block", width: "100%", textAlign: "left",
+                        padding: "10px 12px", background: "none", border: "none",
+                        borderBottom: "1px solid var(--c-rule)", cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "var(--c-ink)", fontStyle: "italic", display: "block" }}>
+                        {p.name}
+                      </span>
+                      {(p.city || p.address) && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--c-subtle)", letterSpacing: "0.06em" }}>
+                          {[p.address, p.city, p.state].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {cafeName.length >= 2 && (
+                    <button
+                      type="button"
+                      onMouseDown={() => handlePlaceSelect({ name: cafeName, address: "", city: "", state: "", country: "", lat: 0, lng: 0, google_place_id: null })}
+                      style={{
+                        display: "block", width: "100%", textAlign: "left",
+                        padding: "10px 12px", background: "none", border: "none", cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--c-subtle)", letterSpacing: "0.06em" }}>
+                        + use "{cafeName}" as entered
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+              {showPlaceDropdown && !isSearchingPlace && placeResults.length === 0 && cafeName.length >= 2 && !isHomeBrew && (
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+                  background: "var(--c-bg)", border: "1px solid var(--c-rule)", borderTop: "none",
+                }}>
+                  <button
+                    type="button"
+                    onMouseDown={() => handlePlaceSelect({ name: cafeName, address: "", city: "", state: "", country: "", lat: 0, lng: 0, google_place_id: null })}
+                    style={{
+                      display: "block", width: "100%", textAlign: "left",
+                      padding: "10px 12px", background: "none", border: "none", cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--c-subtle)", letterSpacing: "0.06em" }}>
+                      + add "{cafeName}" as a new place
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Origin / roast */}
+            <div style={{ marginBottom: 28 }}>
+              <MonoLabel style={{ marginBottom: 10 }}>origin / roast</MonoLabel>
+              <input
+                value={originRoast}
+                onChange={e => setOriginRoast(e.target.value)}
+                placeholder="e.g. Ethiopia Yirgacheffe, light"
+                style={{
+                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                  border: "none", borderBottom: "1px solid var(--c-rule)",
+                  padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                  outline: "none", fontStyle: "italic",
+                }}
+              />
+            </div>
 
             <button
               type="button"

@@ -4,7 +4,7 @@ import { useCallback, useId, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
-import { upsertPlace, createReview } from "@niche/database"
+import { upsertPlace, createReview, searchPlaces } from "@niche/database"
 
 type Step = "drink" | "rate" | "share" | "done"
 
@@ -54,19 +54,59 @@ async function compressImage(file: File, maxWidth = 800): Promise<string> {
 
 async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
   if (!query || query.length < 2) return []
-  const encoded = encodeURIComponent(`${query} bubble tea boba`)
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.map((p: any) => ({
-    name: p.name || p.display_name.split(",")[0],
-    address: p.display_name,
-    city: p.address?.city || p.address?.town || p.address?.village || "",
-    state: p.address?.state || "",
-    google_place_id: `nominatim_${p.osm_id}`,
-    latitude: parseFloat(p.lat),
-    longitude: parseFloat(p.lon),
-  }))
+
+  // Search Supabase first for already-logged boba places
+  try {
+    const supabase = createClient()
+    const dbPlaces = await searchPlaces(supabase as any, { app_id: "boba", query })
+    const dbResults: SelectedPlace[] = dbPlaces.map((p: any) => ({
+      name: p.name,
+      address: p.address ?? "",
+      city: p.city ?? "",
+      state: p.state ?? "",
+      google_place_id: p.google_place_id,
+      latitude: p.lat ?? 0,
+      longitude: p.lng ?? 0,
+    }))
+
+    // If Supabase has enough results, return them directly
+    if (dbResults.length >= 3) return dbResults
+
+    // Otherwise also query Nominatim and merge
+    const existingIds = new Set(dbResults.map(r => r.google_place_id).filter(Boolean))
+    const encoded = encodeURIComponent(`${query} bubble tea boba`)
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`, {
+      headers: { "Accept-Language": "en" },
+    })
+    if (!res.ok) return dbResults
+    const data = await res.json()
+    const nominatimResults: SelectedPlace[] = data.map((p: any) => ({
+      name: p.name || p.display_name.split(",")[0],
+      address: p.display_name,
+      city: p.address?.city || p.address?.town || p.address?.village || "",
+      state: p.address?.state || "",
+      google_place_id: `nominatim_${p.osm_id}`,
+      latitude: parseFloat(p.lat),
+      longitude: parseFloat(p.lon),
+    })).filter((r: SelectedPlace) => !existingIds.has(r.google_place_id))
+
+    return [...dbResults, ...nominatimResults].slice(0, 8)
+  } catch {
+    // Fallback to Nominatim-only if anything fails
+    const encoded = encodeURIComponent(`${query} bubble tea boba`)
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.map((p: any) => ({
+      name: p.name || p.display_name.split(",")[0],
+      address: p.display_name,
+      city: p.address?.city || p.address?.town || p.address?.village || "",
+      state: p.address?.state || "",
+      google_place_id: `nominatim_${p.osm_id}`,
+      latitude: parseFloat(p.lat),
+      longitude: parseFloat(p.lon),
+    }))
+  }
 }
 
 function StarDisplay({ score }: { score: number }) {
