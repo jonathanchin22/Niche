@@ -125,7 +125,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [category, setCategory] = useState("")
   const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
-  const [cafeLocation, setCafeLocation] = useState<{ lat: number; lng: number; address: string; google_place_id: string } | null>(null)
+  const [cafeLocation, setCafeLocation] = useState<{ lat: number; lng: number; address: string; place_id: string } | null>(null)
   const [cafeSearchResults, setCafeSearchResults] = useState<Array<{ name: string; address: string; lat: number; lng: number; place_id: string }>>([])
   const [isCafeSearching, setIsCafeSearching] = useState(false)
   const cafeSearchTimeout = useRef<ReturnType<typeof setTimeout>>()
@@ -174,7 +174,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
   const selectCafeResult = (result: { name: string; address: string; lat: number; lng: number; place_id: string }) => {
     setCafeName(result.name)
-    setCafeLocation({ lat: result.lat, lng: result.lng, address: result.address, google_place_id: result.place_id })
+    setCafeLocation({ lat: result.lat, lng: result.lng, address: result.address, place_id: result.place_id })
     setCafeSearchResults([])
   }
 
@@ -230,7 +230,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
           country: "",
           lat: isHomeBrew ? 0 : (cafeLocation?.lat ?? 0),
           lng: isHomeBrew ? 0 : (cafeLocation?.lng ?? 0),
-          google_place_id: isHomeBrew ? "brew_home" : (cafeLocation?.google_place_id ?? null),
+          google_place_id: isHomeBrew ? "brew_home" : (cafeLocation?.place_id ?? null),
           foursquare_id: null,
           cover_image_url: null,
         })
