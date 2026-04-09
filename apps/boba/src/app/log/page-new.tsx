@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
-import { upsertPlace, createReview } from "@niche/database"
+import { upsertPlace, createReview, searchExternalPlaces } from "@niche/database"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ interface SelectedPlace {
   address: string
   city?: string
   state?: string
-  google_place_id: string | null
+  foursquare_id: string | null
   latitude: number
   longitude: number
 }
@@ -98,19 +98,15 @@ const VISIT_CONTEXTS = [
 // ─── Place search ─────────────────────────────────────────────────────────────
 
 async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
-  if (!query || query.length < 2) return []
-  const encoded = encodeURIComponent(`${query} bubble tea boba`)
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.map((p: any) => ({
-    name: p.name || p.display_name.split(",")[0],
-    address: p.display_name,
-    city: p.address?.city || p.address?.town || p.address?.village || "",
-    state: p.address?.state || "",
-    google_place_id: `nominatim_${p.osm_id}`,
-    latitude: parseFloat(p.lat),
-    longitude: parseFloat(p.lon),
+  const results = await searchExternalPlaces(query, "boba")
+  return results.map(r => ({
+    name: r.name,
+    address: r.address,
+    city: r.city,
+    state: r.state,
+    foursquare_id: r.foursquare_id,
+    latitude: r.lat,
+    longitude: r.lng,
   }))
 }
 
@@ -173,7 +169,8 @@ export default function LogPage() {
       const place = await upsertPlace(supabase as any, {
         app_id: "boba", name: selectedPlace.name, address: selectedPlace.address,
         city: selectedPlace.city ?? "", state: selectedPlace.state ?? "",
-        country: "US", google_place_id: selectedPlace.google_place_id,
+        country: "US", google_place_id: null,
+        foursquare_id: selectedPlace.foursquare_id,
         lat: selectedPlace.latitude, lng: selectedPlace.longitude,
       } as any)
 
@@ -255,7 +252,7 @@ export default function LogPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                 {placeResults.map((p, i) => (
                   <button key={i} onClick={() => { setSelectedPlace(p); setPlaceQuery(p.name) }}
-                    style={{ background: selectedPlace?.google_place_id === p.google_place_id ? "#e8f4ee" : "white", border: `1px solid ${selectedPlace?.google_place_id === p.google_place_id ? "#2d6a4f" : "#e8e8e4"}`, borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer" }}>
+                    style={{ background: selectedPlace?.foursquare_id === p.foursquare_id && p.foursquare_id ? "#e8f4ee" : selectedPlace?.name === p.name && !p.foursquare_id ? "#e8f4ee" : "white", border: `1px solid ${selectedPlace?.name === p.name ? "#2d6a4f" : "#e8e8e4"}`, borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer" }}>
                     <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, margin: "0 0 2px", color: "#1a1a1a" }}>{p.name}</p>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.address}</p>
                   </button>
@@ -263,7 +260,7 @@ export default function LogPage() {
               </div>
             )}
             {placeQuery.length > 1 && placeResults.length === 0 && !isSearching && (
-              <button onClick={() => setSelectedPlace({ name: placeQuery, address: "", google_place_id: null, latitude: 0, longitude: 0 })}
+              <button onClick={() => setSelectedPlace({ name: placeQuery, address: "", foursquare_id: null, latitude: 0, longitude: 0 })}
                 style={{ marginTop: 12, background: "none", border: "1px dashed #e8e8e4", borderRadius: 8, padding: "12px 16px", textAlign: "left", cursor: "pointer", width: "100%" }}>
                 <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: "#2d6a4f", margin: 0 }}>+ add "{placeQuery}"</p>
               </button>

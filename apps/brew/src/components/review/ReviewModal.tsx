@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
+import { useState, useRef, useCallback, useTransition } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import { createReview, upsertPlace } from "@niche/database"
+import { createReview, upsertPlace, searchExternalPlaces } from "@niche/database"
 import { Pill, MonoLabel } from "@/components/ui/Primitives"
 
 const APP_ID = "brew" as const
@@ -97,6 +97,32 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([null, null, null])
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  // Place search
+  const [placeQuery, setPlaceQuery] = useState("")
+  const [placeResults, setPlaceResults] = useState<Array<{
+    name: string; address: string; city: string; state: string
+    lat: number; lng: number; foursquare_id: string | null
+  }>>([])
+  const [isSearchingPlace, setIsSearchingPlace] = useState(false)
+  const [selectedPlaceData, setSelectedPlaceData] = useState<{
+    address: string; city: string; state: string
+    lat: number; lng: number; foursquare_id: string | null
+  } | null>(null)
+  const placeSearchTimeout = useRef<ReturnType<typeof setTimeout>>()
+
+  const handlePlaceSearch = useCallback((q: string) => {
+    setCafeName(q)
+    setPlaceQuery(q)
+    setSelectedPlaceData(null)
+    clearTimeout(placeSearchTimeout.current)
+    if (q.length < 2) { setPlaceResults([]); return }
+    setIsSearchingPlace(true)
+    placeSearchTimeout.current = setTimeout(async () => {
+      const results = await searchExternalPlaces(q, "brew")
+      setPlaceResults(results)
+      setIsSearchingPlace(false)
+    }, 400)
+  }, [])
   const refs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
 
   const toggleTag = (t: string) =>
@@ -141,14 +167,14 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
         const place = await upsertPlace(supabase, {
           app_id: APP_ID,
           name: isHomeBrew ? "Brewed at home" : cafeName.trim(),
-          address: "", // kept intentionally blank for home logs
-          city: isHomeBrew ? "home" : "",
-          state: isHomeBrew ? "home" : "",
-          country: "",
-          lat: 0,
-          lng: 0,
+          address: isHomeBrew ? "" : (selectedPlaceData?.address ?? ""),
+          city: isHomeBrew ? "home" : (selectedPlaceData?.city ?? ""),
+          state: isHomeBrew ? "home" : (selectedPlaceData?.state ?? ""),
+          country: isHomeBrew ? "" : "US",
+          lat: isHomeBrew ? 0 : (selectedPlaceData?.lat ?? 0),
+          lng: isHomeBrew ? 0 : (selectedPlaceData?.lng ?? 0),
           google_place_id: isHomeBrew ? "brew_home" : null,
-          foursquare_id: null,
+          foursquare_id: isHomeBrew ? null : (selectedPlaceData?.foursquare_id ?? null),
           cover_image_url: null,
         })
 
@@ -293,7 +319,6 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
             {[
               { label: "drink name", ph: "e.g. oat flat white", val: drinkName, set: setDrinkName },
-              { label: "cafe", ph: "e.g. Sightglass SoMa", val: cafeName, set: setCafeName },
               { label: "origin / roast", ph: "e.g. Ethiopia Yirgacheffe, light", val: originRoast, set: setOriginRoast },
             ].map(({ label, ph, val, set }) => (
               <div key={label} style={{ marginBottom: 28 }}>
@@ -302,17 +327,69 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   value={val}
                   onChange={e => set(e.target.value)}
                   placeholder={ph}
-                  disabled={isHomeBrew && label === "cafe"}
                   style={{
                     width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
                     border: "none", borderBottom: "1px solid var(--c-rule)",
                     padding: "8px 0", background: "transparent", color: "var(--c-ink)",
                     outline: "none", fontStyle: "italic",
-                    opacity: isHomeBrew && label === "cafe" ? 0.5 : 1,
                   }}
                 />
               </div>
             ))}
+
+            {/* Cafe search with autocomplete */}
+            {!isHomeBrew && (
+              <div style={{ marginBottom: 28, position: "relative" }}>
+                <MonoLabel style={{ marginBottom: 10 }}>cafe</MonoLabel>
+                <input
+                  value={cafeName}
+                  onChange={e => handlePlaceSearch(e.target.value)}
+                  placeholder="e.g. Sightglass SoMa"
+                  style={{
+                    width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                    border: "none", borderBottom: `1px solid ${selectedPlaceData ? "var(--c-accent)" : "var(--c-rule)"}`,
+                    padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                    outline: "none", fontStyle: "italic",
+                  }}
+                />
+                {isSearchingPlace && (
+                  <span style={{ position: "absolute", right: 0, bottom: 10, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)" }}>searching...</span>
+                )}
+                {selectedPlaceData && (
+                  <span style={{ position: "absolute", right: 0, bottom: 10, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-accent)" }}>✓ found</span>
+                )}
+                {placeResults.length > 0 && !selectedPlaceData && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+                    background: "var(--c-bg)", border: "1px solid var(--c-rule)",
+                    borderRadius: 8, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                  }}>
+                    {placeResults.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setCafeName(r.name)
+                          setPlaceQuery(r.name)
+                          setSelectedPlaceData({ address: r.address, city: r.city, state: r.state, lat: r.lat, lng: r.lng, foursquare_id: r.foursquare_id })
+                          setPlaceResults([])
+                        }}
+                        style={{
+                          display: "block", width: "100%", padding: "12px 16px",
+                          background: "none", border: "none", borderBottom: i < placeResults.length - 1 ? "1px solid var(--c-rule)" : "none",
+                          textAlign: "left", cursor: "pointer",
+                        }}
+                      >
+                        <p style={{ fontFamily: "var(--font-display)", fontSize: 15, margin: "0 0 2px", color: "var(--c-ink)", fontStyle: "italic" }}>{r.name}</p>
+                        <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.04em" }}>
+                          {[r.address, r.city, r.state].filter(Boolean).join(" · ")}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"

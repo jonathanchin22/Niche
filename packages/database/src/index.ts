@@ -719,6 +719,105 @@ export async function getPlaceReviews(
   return (data ?? []).map((r: any) => ({ review: normalizeReviewRecord(r) }))
 }
 
+// ─── External Place Search (Foursquare + Nominatim fallback) ─────────────────
+
+export interface ExternalPlace {
+  name: string
+  address: string
+  city: string
+  state: string
+  lat: number
+  lng: number
+  /** Foursquare fsq_id, or null when result came from Nominatim fallback */
+  foursquare_id: string | null
+}
+
+async function _searchFoursquare(
+  query: string,
+  categories: string
+): Promise<ExternalPlace[]> {
+  const apiKey =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_FOURSQUARE_API_KEY
+      : undefined
+  if (!apiKey) return []
+
+  const params = new URLSearchParams({ query, types: "place", categories, limit: "6" })
+  let res: Response
+  try {
+    res = await fetch(`https://api.foursquare.com/v3/autocomplete?${params}`, {
+      headers: { Authorization: apiKey, Accept: "application/json" },
+    })
+  } catch {
+    return []
+  }
+  if (!res.ok) return []
+
+  const data = await res.json()
+  return ((data.results ?? []) as any[])
+    .filter((r) => r.type === "place")
+    .map((r) => {
+      const loc = r.place?.location ?? {}
+      const geo = r.place?.geocodes?.main ?? {}
+      return {
+        name: r.place?.name ?? "",
+        address: [loc.address, loc.locality].filter(Boolean).join(", "),
+        city: loc.locality ?? loc.dma ?? "",
+        state: loc.region ?? "",
+        lat: geo.latitude ?? 0,
+        lng: geo.longitude ?? 0,
+        foursquare_id: r.place?.fsq_id ?? null,
+      } as ExternalPlace
+    })
+    .filter((p) => p.name.length > 0)
+}
+
+async function _searchNominatim(
+  query: string,
+  appHint: "boba" | "brew"
+): Promise<ExternalPlace[]> {
+  const suffix = appHint === "boba" ? " bubble tea boba" : " coffee café"
+  const encoded = encodeURIComponent(`${query}${suffix}`)
+  let res: Response
+  try {
+    res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`
+    )
+  } catch {
+    return []
+  }
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data as any[]).map((p) => ({
+    name: p.name || p.display_name.split(",")[0],
+    address: p.display_name,
+    city: p.address?.city || p.address?.town || p.address?.village || "",
+    state: p.address?.state || "",
+    lat: parseFloat(p.lat),
+    lng: parseFloat(p.lon),
+    foursquare_id: null,
+  }))
+}
+
+/**
+ * Search for real-world places using Foursquare Places API (free tier).
+ * Falls back to Nominatim if Foursquare returns no results or the API key is absent.
+ *
+ * appHint controls the category filter:
+ *   - "boba" → Bubble Tea Shops (13313)
+ *   - "brew" → Coffee Shops + Cafés (13032, 13035)
+ */
+export async function searchExternalPlaces(
+  query: string,
+  appHint: "boba" | "brew"
+): Promise<ExternalPlace[]> {
+  if (!query || query.length < 2) return []
+  const categories = appHint === "boba" ? "13313" : "13032,13035"
+  const foursquareResults = await _searchFoursquare(query, categories)
+  if (foursquareResults.length > 0) return foursquareResults
+  return _searchNominatim(query, appHint)
+}
+
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 export async function searchPlaces(

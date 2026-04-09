@@ -3,20 +3,18 @@
 import { useState, useCallback, useRef } from "react"
 import { AppShell } from "@/components/ui/AppShell"
 import Link from "next/link"
+import { searchExternalPlaces } from "@niche/database"
 
 const FILTERS = ["all", "nearby", "top rated", "new"]
 
 async function searchPlaces(query: string) {
   if (!query || query.length < 2) return []
-  const encoded = encodeURIComponent(`${query} bubble tea boba`)
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=6&addressdetails=1`)
-  if (!res.ok) return []
-  const data = await res.json()
-  return data.map((p: any) => ({
-    id: `nominatim_${p.osm_id}`,
-    name: p.name || p.display_name.split(",")[0],
-    neighborhood: p.address?.suburb || p.address?.city || p.address?.town || "",
-    address: p.display_name,
+  const results = await searchExternalPlaces(query, "boba")
+  return results.map(r => ({
+    id: r.foursquare_id ?? `manual_${r.name.toLowerCase().replace(/\s+/g, "_")}`,
+    name: r.name,
+    neighborhood: r.city,
+    address: r.address,
     tags: [] as string[],
     avg_score: null as number | null,
     review_count: 0,
