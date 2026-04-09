@@ -599,13 +599,74 @@ export async function getMapPins(
 
 // ─── Places ──────────────────────────────────────────────────────────────────
 
+/**
+ * Find or create a place record, preventing duplicate entries.
+ *
+ * Matching strategy:
+ *   - When google_place_id is provided: match on (app_id, google_place_id).
+ *   - When google_place_id is null: match on (app_id, lower(name)) so that
+ *     manually-entered cafe names are deduplicated case-insensitively.
+ *
+ * Uses the find_or_create_place() DB function introduced in migration 006.
+ * Falls back to the legacy upsert path if the RPC is unavailable.
+ */
 export async function upsertPlace(
   supabase: SupabaseClient,
   place: Omit<Place, "id" | "created_at" | "avg_score" | "review_count" | "updated_at">
 ): Promise<Place> {
+  // Try the normalizing RPC first (available after migration 006)
+  const { data: placeId, error: rpcError } = await supabase.rpc("find_or_create_place", {
+    p_app_id:          place.app_id,
+    p_name:            place.name,
+    p_address:         place.address ?? "",
+    p_city:            place.city ?? "",
+    p_state:           place.state ?? "",
+    p_country:         place.country ?? "US",
+    p_lat:             place.lat ?? 0,
+    p_lng:             place.lng ?? 0,
+    p_google_place_id: place.google_place_id ?? null,
+    p_foursquare_id:   place.foursquare_id ?? null,
+    p_cover_image_url: place.cover_image_url ?? null,
+  })
+
+  if (!rpcError && placeId) {
+    const { data, error } = await supabase
+      .from("places")
+      .select("*")
+      .eq("id", placeId)
+      .single()
+    if (!error && data) return data
+  }
+
+  // Legacy fallback — only reached when the find_or_create_place RPC is
+  // unavailable (i.e., migration 006 has not yet been applied).
+  // TODO: Remove this fallback once all environments have run migration 006.
+  if (place.google_place_id) {
+    const { data, error } = await supabase
+      .from("places")
+      .upsert(place, { onConflict: "app_id,google_place_id" })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  // No google_place_id — try name-based lookup before inserting.
+  // This mirrors the RPC logic for pre-migration environments.
+  const { data: existing } = await supabase
+    .from("places")
+    .select("*")
+    .eq("app_id", place.app_id)
+    .ilike("name", place.name)
+    .is("google_place_id", null)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) return existing
+
   const { data, error } = await supabase
     .from("places")
-    .upsert(place, { onConflict: "app_id,google_place_id" })
+    .insert(place)
     .select()
     .single()
   if (error) throw error
