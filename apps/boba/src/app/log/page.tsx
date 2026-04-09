@@ -58,7 +58,7 @@ async function searchPlacesAPI(query: string): Promise<SelectedPlace[]> {
   // Search Supabase first for already-logged boba places
   try {
     const supabase = createClient()
-    const dbPlaces = await searchPlaces(supabase as any, { app_id: "boba", query })
+    const dbPlaces = await searchPlaces(supabase, { app_id: "boba", query })
     const dbResults: SelectedPlace[] = dbPlaces.map((p: any) => ({
       name: p.name,
       address: p.address ?? "",

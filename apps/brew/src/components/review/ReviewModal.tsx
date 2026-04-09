@@ -94,6 +94,12 @@ interface PlaceSuggestion {
   google_place_id: string | null
 }
 
+const DROPDOWN_BLUR_DELAY = 200
+
+function emptyPlace(name: string): PlaceSuggestion {
+  return { name, address: "", city: "", state: "", country: "", lat: 0, lng: 0, google_place_id: null }
+}
+
 async function searchCafesNominatim(query: string): Promise<PlaceSuggestion[]> {
   try {
     const encoded = encodeURIComponent(`${query} cafe coffee`)
@@ -451,7 +457,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
               <input
                 value={cafeName}
                 onChange={e => handleCafeInput(e.target.value)}
-                onBlur={() => setTimeout(() => setShowPlaceDropdown(false), 200)}
+                onBlur={() => setTimeout(() => setShowPlaceDropdown(false), DROPDOWN_BLUR_DELAY)}
                 onFocus={() => cafeName.length >= 2 && placeResults.length > 0 && setShowPlaceDropdown(true)}
                 placeholder="e.g. Sightglass SoMa"
                 disabled={isHomeBrew}
@@ -501,7 +507,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   {cafeName.length >= 2 && (
                     <button
                       type="button"
-                      onMouseDown={() => handlePlaceSelect({ name: cafeName, address: "", city: "", state: "", country: "", lat: 0, lng: 0, google_place_id: null })}
+                      onMouseDown={() => handlePlaceSelect(emptyPlace(cafeName))}
                       style={{
                         display: "block", width: "100%", textAlign: "left",
                         padding: "10px 12px", background: "none", border: "none", cursor: "pointer",
@@ -521,7 +527,7 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                 }}>
                   <button
                     type="button"
-                    onMouseDown={() => handlePlaceSelect({ name: cafeName, address: "", city: "", state: "", country: "", lat: 0, lng: 0, google_place_id: null })}
+                    onMouseDown={() => handlePlaceSelect(emptyPlace(cafeName))}
                     style={{
                       display: "block", width: "100%", textAlign: "left",
                       padding: "10px 12px", background: "none", border: "none", cursor: "pointer",
