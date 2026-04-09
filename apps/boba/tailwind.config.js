@@ -15,7 +15,7 @@ module.exports = {
         warning: "#c9a84c",
       },
       fontFamily: {
-        hand: ["'Caveat'", "cursive"],
+        hand: ["'Nanum Pen Script'", "cursive"],
         serif: ["'DM Serif Display'", "Georgia", "serif"],
         sans: ["'DM Sans'", "system-ui", "sans-serif"],
       },

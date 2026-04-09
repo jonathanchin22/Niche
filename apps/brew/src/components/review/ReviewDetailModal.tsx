@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { getReviewVotes, voteReview, removeReviewVote, getReviewComments, addReviewComment } from "@niche/database"
 import type { Review, ReviewComment } from "@niche/shared-types"
-import { MonoLabel } from "@/components/ui/Primitives"
+import { MonoLabel, Stars } from "@/components/ui/Primitives"
 
 interface ReviewDetailModalProps {
   review: Review
@@ -20,6 +20,8 @@ function getSupabase() {
 }
 
 export default function ReviewDetailModal({ review, currentUserId, onClose }: ReviewDetailModalProps) {
+  const reviewer = (review as any).profile ?? (review as any).user
+  const reviewerUsername = reviewer?.username
   const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
   const [downvotes, setDownvotes] = useState(review.downvotes_count ?? 0)
   const [userVote, setUserVote] = useState(review.user_vote ?? 0)
@@ -75,12 +77,57 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
     setIsCommenting(false)
   }
 
+  const photos = review.image_urls ?? []
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 300, overflowY: "auto", maxWidth: 430, margin: "0 auto" }}>
-      <div style={{ background: "#fff", borderRadius: 12, margin: 32, padding: 24, boxShadow: "0 2px 16px rgba(0,0,0,0.12)" }}>
-        <button onClick={onClose} style={{ float: "right", background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
+      <div style={{ background: "#fff", borderRadius: 12, margin: 32, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.12)" }}>
+        {/* Photos */}
+        {photos.length > 0 && (
+          <div style={{ position: "relative" }}>
+            {photos.length === 1 ? (
+              <img
+                src={photos[0]}
+                alt={review.item_name ?? ""}
+                style={{ width: "100%", display: "block", maxHeight: 320, objectFit: "cover" }}
+              />
+            ) : (
+              <div role="region" aria-label="Photo carousel" style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory" }}>
+                {photos.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`${review.item_name ?? "brew"} — photo ${i + 1} of ${photos.length}`}
+                    style={{ flexShrink: 0, width: "100%", height: 280, objectFit: "cover", scrollSnapAlign: "start" }}
+                  />
+                ))}
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                position: "absolute", top: 10, right: 10,
+                background: "rgba(0,0,0,0.45)", color: "#fff",
+                border: "none", borderRadius: "50%",
+                width: 32, height: 32, fontSize: 16,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >✕</button>
+          </div>
+        )}
+        <div style={{ padding: 24 }}>
+        {photos.length === 0 && (
+          <button onClick={onClose} style={{ float: "right", background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
+        )}
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 8px" }}>{review.item_name ?? review.category ?? "brew"}</h2>
         <MonoLabel>{review.place?.name}</MonoLabel>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0" }}>
+          <Stars value={(review.score / 10) * 5} />
+          <MonoLabel style={{ fontSize: 12 }}>{review.score?.toFixed(1)} / 10</MonoLabel>
+        </div>
+        {reviewerUsername && (
+          <MonoLabel style={{ fontSize: 12, marginBottom: 6 }}>@{reviewerUsername}</MonoLabel>
+        )}
         <div style={{ margin: "16px 0" }}>
           <span style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#333" }}>{review.note}</span>
         </div>
@@ -114,6 +161,7 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
             />
             <button type="button" onClick={handleAddComment} disabled={isCommenting || !commentText.trim()} style={{ background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: 6, padding: "8px 16px", fontFamily: "var(--font-mono)", fontSize: 13, cursor: "pointer", opacity: isCommenting || !commentText.trim() ? 0.6 : 1 }}>Post</button>
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -6,8 +6,9 @@ import { getFriendFeed } from "@niche/database"
 import { ReviewCard } from "./ReviewCard"
 import { AppShell } from "@/components/ui/AppShell"
 import type { PaginatedResponse, FeedItem } from "@niche/shared-types"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { ReviewModal } from "@/components/review/ReviewModal"
 
 interface FeedClientProps {
   initialData: PaginatedResponse<FeedItem>
@@ -17,6 +18,7 @@ interface FeedClientProps {
 export function FeedClient({ initialData, userId }: FeedClientProps) {
   const supabase = createClient()
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const [selectedReview, setSelectedReview] = useState<any | null>(null)
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["feed", "boba", userId],
@@ -50,7 +52,7 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
       <div style={{ padding: "52px 20px 20px" }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
-          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
             good to see you
           </p>
           <h1 style={{
@@ -62,23 +64,65 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
           </h1>
         </div>
 
+        {/* Quick access */}
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#888", margin: "0 0 10px" }}>
+            quick access
+          </p>
+          <div style={{ display: "flex", gap: 10, paddingBottom: 8, overflowX: "auto" }}>
+            {[
+              { href: "/explore", icon: "◎", label: "cafes" },
+              { href: "/log", icon: "✦", label: "new drink" },
+              { href: "/friends", icon: "♡", label: "their picks" },
+              { href: "/profile", icon: "◯", label: "your stats" },
+            ].map(({ href, icon, label }) => (
+              <Link key={href} href={href} style={{ textDecoration: "none" }}>
+                <div style={{
+                  flexShrink: 0, background: "white", border: "1px solid #e8e8e4",
+                  borderRadius: 12, padding: "16px 18px", minWidth: 92,
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 18, color: "#2d6a4f", marginBottom: 8 }}>{icon}</div>
+                  <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 13, color: "#1a1a1a", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 10, color: "#888" }}>
+                    go
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {items.length === 0 ? (
           <EmptyFeed />
         ) : (
           <>
             {items.map((item, i) =>
               item.review ? (
-                <ReviewCard key={item.review.id ?? i} review={item.review} currentUserId={userId} />
+                <ReviewCard
+                  key={item.review.id ?? i}
+                  review={item.review}
+                  currentUserId={userId}
+                  onClick={() => setSelectedReview(item.review)}
+                />
               ) : null
             )}
             <div ref={loadMoreRef} style={{ padding: "16px 0", display: "flex", justifyContent: "center" }}>
               {isFetchingNextPage && (
-                <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb" }}>
+                <span style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>
                   loading more...
                 </span>
               )}
             </div>
           </>
+        )}
+
+        {selectedReview && (
+          <ReviewModal
+            review={selectedReview}
+            currentUserId={userId}
+            onClose={() => setSelectedReview(null)}
+          />
         )}
       </div>
     </AppShell>
@@ -103,7 +147,7 @@ function EmptyFeed() {
           <circle cx="52" cy="125" r="5" stroke="#1a1a1a" strokeWidth="1.5" fill="none"/>
           <path d="M40 75 Q60 68 80 75" stroke="#1a1a1a" strokeWidth="1" strokeLinecap="round" fill="none"/>
         </svg>
-        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase", border: "1px dashed #ddd", padding: "2px 10px", borderRadius: 2 }}>
           your feed is empty
         </p>
       </div>

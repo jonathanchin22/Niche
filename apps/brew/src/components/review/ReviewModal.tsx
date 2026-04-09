@@ -307,16 +307,26 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   })
                 }}
                 style={{
-                  padding: "8px 10px", borderRadius: 8, border: "1px solid var(--c-rule)",
+                  padding: "8px 10px", minWidth: 152, height: 32,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 8, border: "1px solid var(--c-rule)",
                   background: isHomeBrew ? "var(--c-accent)" : "none",
                   color: isHomeBrew ? "white" : "var(--c-subtle)", cursor: "pointer",
                   fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em",
+                  outline: "none", WebkitAppearance: "none", MozAppearance: "none", appearance: "none",
+                  boxSizing: "border-box",
+                  transition: "background 0.15s ease, color 0.15s ease",
                 }}
               >
                 brewed at home
               </button>
               <MonoLabel style={{ fontSize: 10, color: "var(--c-subtle)" }}>
-                <span style={{ display: "inline-block", minHeight: 16 }}>
+                <span
+                  style={{
+                    display: "inline-block", minHeight: 16, minWidth: 240,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}
+                >
                   {isHomeBrew
                     ? "Your logged drink will be saved as brewed at home."
                     : "Add the cafe you visited."}

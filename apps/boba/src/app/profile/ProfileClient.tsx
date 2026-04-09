@@ -11,6 +11,8 @@ interface ProfileClientProps {
   userId: string
   profile: any
   reviews: any[]
+  showSignOut?: boolean
+  showBackButton?: boolean
 }
 
 function StarRow({ score }: { score: number }) {
@@ -19,12 +21,18 @@ function StarRow({ score }: { score: number }) {
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Math.max(0, Math.min(1, pct * 5 - i))
-        const gid = `sr-pc-${i}-${Math.round(score * 10)}`
         return (
-          <svg key={i} width="13" height="13" viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={`${fill * 100}%`} stopColor="#c9a84c" /><stop offset={`${fill * 100}%`} stopColor="#e8e8e4" /></linearGradient></defs>
-            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: 13,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>
@@ -52,7 +60,7 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export function ProfileClient({ userId, profile, reviews: initialReviews }: ProfileClientProps) {
+export function ProfileClient({ userId, profile, reviews: initialReviews, showSignOut = true, showBackButton = false }: ProfileClientProps) {
   const supabase = createClient()
   const router = useRouter()
   const name = profile?.display_name ?? profile?.username ?? "you"
@@ -75,8 +83,34 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
 
   return (
     <AppShell activeTab="profile">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script:wght@400&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
       <div style={{ padding: "52px 28px 20px", fontFamily: "'DM Sans', sans-serif" }}>
+
+        {showBackButton && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "1px solid #e8e8e4",
+              borderRadius: 999,
+              padding: "6px 12px",
+              marginBottom: 14,
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 11,
+              color: "#888",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+            aria-label="Go back"
+          >
+            ← back
+          </button>
+        )}
 
         {/* Profile header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24 }}>
@@ -92,14 +126,16 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
               {name}
             </h2>
             {handle && (
-              <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888", margin: 0 }}>@{handle}</p>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#888", margin: 0 }}>@{handle}</p>
             )}
           </div>
-          <button onClick={handleSignOut} style={{
-            fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-            background: "none", border: "1px solid #e8e8e4",
-            borderRadius: 6, padding: "6px 14px", cursor: "pointer", color: "#888",
-          }}>sign out</button>
+          {showSignOut && (
+            <button onClick={handleSignOut} style={{
+              fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+              background: "none", border: "1px solid #e8e8e4",
+              borderRadius: 6, padding: "6px 14px", cursor: "pointer", color: "#888",
+            }}>sign out</button>
+          )}
         </div>
 
         {/* Stats */}
@@ -143,17 +179,17 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
         {tab === "reviews" && (
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <p style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: "#1a1a1a", margin: 0 }}>recent reviews</p>
-              <Link href="/my-reviews" style={{ textDecoration: "none" }}>
+              <p style={{ fontFamily: "var(--font-hand)", fontSize: 18, color: "#1a1a1a", margin: 0 }}>recent reviews</p>
+              <Link href={showSignOut ? "/my-reviews" : `/profile/${profile?.username ?? ""}`} style={{ textDecoration: "none" }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#2d6a4f", border: "1px solid #2d6a4f", borderRadius: 20, padding: "4px 12px" }}>
-                  all reviews →
+                  {showSignOut ? "all reviews →" : "profile"}
                 </span>
               </Link>
             </div>
 
             {reviews.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <p style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb" }}>no reviews yet — go log a drink!</p>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>no reviews yet — go log a drink!</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -172,7 +208,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                           {r.item_name ?? "drink"}
                         </p>
                         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888", margin: 0 }}>
-                          {r.place?.name ?? "unknown shop"} · {timeAgo(r.created_at)}
+                          {r.place?.name ?? "unknown shop"} · {timeAgo(r.created_at)} · {r.comments_count ?? 0} comment{(r.comments_count ?? 0) === 1 ? "" : "s"}
                         </p>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
@@ -196,7 +232,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                       </div>
                     )}
                     {(r.note ?? r.body) && (
-                      <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#555", margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
+                      <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#555", margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden" }}>
                         {r.note ?? r.body}
                       </p>
                     )}
@@ -212,7 +248,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
           <>
             {allPhotos.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <p style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: "#bbb" }}>no photos yet — add some when logging!</p>
+                <p style={{ fontFamily: "var(--font-hand)", fontSize: 16, color: "#bbb" }}>no photos yet — add some when logging!</p>
                 <Link href="/log">
                   <button style={{ marginTop: 12, fontFamily: "'DM Sans', sans-serif", fontSize: 13, background: "#2d6a4f", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", cursor: "pointer" }}>
                     log a drink
@@ -229,6 +265,10 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
                   <div
                     key={`${r.id}-${i}`}
                     onClick={() => setSelectedReview(r)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={r.item_name ?? "review photo"}
                     style={{ position: "relative", aspectRatio: "1/1", cursor: "pointer" }}
                   >
                     <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -254,7 +294,7 @@ export function ProfileClient({ userId, profile, reviews: initialReviews }: Prof
       {/* Review modal */}
       {selectedReview && (
         <ReviewModal
-          review={{ ...selectedReview, profile: { id: userId, username: handle, display_name: name } }}
+          review={{ ...selectedReview, profile: { id: profile?.id, username: handle, display_name: name } }}
           currentUserId={userId}
           onClose={() => setSelectedReview(null)}
           onUpdated={updated => {

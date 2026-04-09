@@ -1,9 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getMyFeed } from "@niche/database"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import { MonoLabel } from "@/components/ui/Primitives"
 import type { Review } from "@niche/shared-types"
 
@@ -21,6 +23,7 @@ interface MyFeedSectionProps {
 }
 
 export default function MyFeedSection({ userId }: MyFeedSectionProps) {
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
     queryKey: ["home-my-feed-brew", userId],
     queryFn: ({ pageParam }) =>
@@ -40,7 +43,8 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
   }
 
   return (
-    <div style={{ padding: "20px 28px 0" }}>
+    <>
+      <div style={{ padding: "20px 28px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <p style={{ fontFamily: "var(--font-display)", fontSize: 20, color: "var(--c-ink)", margin: 0, fontWeight: 400, fontStyle: "italic" }}>
           my feed
@@ -56,7 +60,13 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
       ) : (
         <div>
           {feedReviews.slice(0, 3).map(review => (
-            <ReviewCard key={review.id} review={review} showAuthor />
+            <ReviewCard
+              key={review.id}
+              review={review}
+              currentUserId={userId}
+              showAuthor
+              onClick={() => setSelectedReview(review)}
+            />
           ))}
           {feedReviews.length > 3 && (
             <div style={{ textAlign: "center", marginTop: 16 }}>
@@ -68,5 +78,14 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
         </div>
       )}
     </div>
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
+      )}
+  </>
   )
 }

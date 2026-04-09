@@ -6,6 +6,7 @@ import { searchPlaces } from "@niche/database"
 import { MonoLabel, Stars, AeroSketch } from "@/components/ui/Primitives"
 import type { Place } from "@niche/shared-types"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const APP_ID = "brew" as const
 
@@ -26,6 +27,7 @@ function getSupabase() {
 }
 
 export default function ExploreClient({ userId }: { userId: string }) {
+  const router = useRouter()
   const [catIdx, setCatIdx] = useState(0)
   const [places, setPlaces] = useState<Place[]>([])
   const [isPending, startTransition] = useTransition()
@@ -70,6 +72,13 @@ export default function ExploreClient({ userId }: { userId: string }) {
   )
   const displayPlaces = searchQuery.length > 1 ? filterHomebrew(searchResults) : filterHomebrew(places)
   const displayPending = searchQuery.length > 1 ? isSearching : isPending
+
+  useEffect(() => {
+    if (displayPending) return
+    displayPlaces.slice(0, 8).forEach(place => {
+      router.prefetch(`/place/${place.id}`)
+    })
+  }, [displayPending, displayPlaces, router])
 
   return (
     <div style={{ display: "flex", height: "calc(100svh - 88px)", paddingTop: 52, overflow: "hidden" }}>
@@ -146,7 +155,14 @@ export default function ExploreClient({ userId }: { userId: string }) {
         )}
 
         {!displayPending && displayPlaces.map(place => (
-          <Link key={place.id} href={`/place/${place.id}`} style={{ textDecoration: "none" }}>
+          <Link
+            key={place.id}
+            href={`/place/${place.id}`}
+            prefetch
+            onMouseEnter={() => router.prefetch(`/place/${place.id}`)}
+            onFocus={() => router.prefetch(`/place/${place.id}`)}
+            style={{ textDecoration: "none" }}
+          >
             <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--c-rule)", cursor: "pointer" }}>
 
               {/* Cover photo placeholder */}
@@ -174,10 +190,10 @@ export default function ExploreClient({ userId }: { userId: string }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   {place.avg_score != null && (
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-gold)", letterSpacing: "-0.02em" }}>
-                      {((place.avg_score / 10) * 5).toFixed(1)}
+                      {place.avg_score.toFixed(1)}
                     </span>
                   )}
-                  <Stars value={place.avg_score != null ? Math.round((place.avg_score / 10) * 5) : 0} />
+                  <Stars value={place.avg_score != null ? (place.avg_score / 10) * 5 : 0} />
                 </div>
               </div>
 

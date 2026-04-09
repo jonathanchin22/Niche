@@ -221,7 +221,7 @@ export default function LogPage() {
           <circle cx="75" cy="108" r="5" stroke="#2d6a4f" strokeWidth="1.5" fill="none"/>
         </svg>
         <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: 0 }}>logged.</h2>
-        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "#888", margin: 0 }}>taking you back...</p>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 17, color: "#888", margin: 0 }}>taking you back...</p>
       </div>
     )
   }
@@ -244,13 +244,13 @@ export default function LogPage() {
 
         {step === "place" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step one</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step one</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 32px" }}>where did you go?</h2>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>shop</label>
               <input value={placeQuery} onChange={e => handlePlaceSearch(e.target.value)} placeholder="e.g. Teaspoon Mission" style={{ width: "100%", fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, border: "none", borderBottom: "1.5px solid #e8e8e4", padding: "10px 0", background: "transparent", color: "#1a1a1a", outline: "none" }} />
             </div>
-            {isSearching && <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#bbb", margin: "8px 0" }}>searching...</p>}
+            {isSearching && <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#bbb", margin: "8px 0" }}>searching...</p>}
             {placeResults.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                 {placeResults.map((p, i) => (
@@ -277,7 +277,7 @@ export default function LogPage() {
 
         {step === "what" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step two</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step two</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 32px" }}>what did you drink?</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 32 }}>
               {DRINK_TYPES.map(dt => (
@@ -300,7 +300,7 @@ export default function LogPage() {
 
         {step === "how" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 32px" }}>how was it made?</h2>
 
             <div style={{ marginBottom: 24 }}>
@@ -377,7 +377,7 @@ export default function LogPage() {
 
         {step === "rate" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step four</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step four</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 8px" }}>how was it?</h2>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", margin: "0 0 28px" }}>slide to rate 0.0 – 5.0</p>
             <div style={{ marginBottom: 32 }}>
@@ -467,7 +467,7 @@ export default function LogPage() {
 
         {step === "context" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step five</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step five</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 32px" }}>context & vibes</h2>
 
             <div style={{ marginBottom: 24 }}>
@@ -517,7 +517,7 @@ export default function LogPage() {
             <div style={{ marginBottom: 28 }}>
               <label style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>notes</label>
               <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="anything else worth noting..."
-                style={{ width: "100%", fontFamily: "'Caveat', cursive", fontSize: 17, border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px", background: "transparent", color: "#1a1a1a", outline: "none", resize: "none", height: 80 }} />
+                style={{ width: "100%", fontFamily: "var(--font-hand)", fontSize: 17, border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px", background: "transparent", color: "#1a1a1a", outline: "none", resize: "none", height: 80 }} />
             </div>
 
             <div style={{ display: "flex", gap: 12 }}>

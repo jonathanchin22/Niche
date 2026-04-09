@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type { Place, Review } from "@niche/shared-types"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import ReviewModal from "@/components/review/ReviewModal"
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 export default function PlaceClient({ place, reviews, userId }: Props) {
   const router = useRouter()
   const [logging, setLogging] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   const avgStars = place.avg_score != null ? Math.round((place.avg_score / 10) * 5) : 0
 
@@ -121,17 +123,30 @@ export default function PlaceClient({ place, reviews, userId }: Props) {
           </p>
         ) : (
           reviews.map(r => (
-            <ReviewCard key={r.id} review={r} showAuthor />
+            <ReviewCard
+              key={r.id}
+              review={r}
+              currentUserId={userId}
+              showAuthor
+              onClick={() => setSelectedReview(r)}
+            />
           ))
         )}
       </div>
 
-      {/* Log modal */}
       {logging && (
         <ReviewModal
           userId={userId}
           onSuccess={() => { setLogging(false); router.refresh() }}
           onClose={() => setLogging(false)}
+        />
+      )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
         />
       )}
     </div>

@@ -22,9 +22,11 @@ export default async function ProfilePage() {
       <ProfileClient
         profile={profile}
         userId={user.id}
+        profileUserId={user.id}
         followingCount={following.length}
         followerCount={followers.length}
         highestRatedCoffee={highestRatedCoffee}
+        showOwnActions
       />
     </AppShell>
   )

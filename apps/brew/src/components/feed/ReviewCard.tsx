@@ -6,6 +6,7 @@ import { useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { voteReview, removeReviewVote } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
+import Link from "next/link"
 
 interface Props {
   review: Review
@@ -31,7 +32,7 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
   const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
   const [isVoting, setIsVoting] = useState(false)
 
-  const commentCount = review.comments_count ?? 0
+  const commentCount = review.comments_count ?? ((review as any).comments?.length ?? 0)
 
   const handleVote = async (vote: 1 | -1) => {
     if (isVoting || !currentUserId) return
@@ -90,7 +91,10 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
               <MonoLabel>{review.place.name}</MonoLabel>
             )}
           </div>
-          <Stars value={Math.round((review.score / 10) * 5)} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Stars value={(review.score / 10) * 5} size={20} />
+            <MonoLabel style={{ fontSize: 10 }}>{review.score?.toFixed(1)}</MonoLabel>
+          </div>
         </div>
 
         {/* Tasting note tags */}
@@ -159,8 +163,9 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
             >▼ {downvotes}</button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, color: "#888" }}>💬</span>
-            <span style={{ fontSize: 13, color: "#888" }}>{commentCount}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--c-subtle)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              {commentCount} comment{commentCount === 1 ? "" : "s"}
+            </span>
           </div>
         </div>
 
@@ -169,27 +174,55 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
           {showAuthor && (() => {
             const reviewer = (review as any).profile ?? (review as any).user
             if (!reviewer) return <div />
+            const username = reviewer.username
             return (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 24, height: 24, borderRadius: 2,
-                  background: "var(--c-accent-bg)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  overflow: "hidden",
-                }}>
-                  {reviewer.avatar_url ? (
-                    <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
-                      {reviewer.username?.[0]?.toUpperCase()}
-                    </span>
-                  )}
+              username ? (
+                <Link
+                  href={`/profile/${username}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+                >
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 2,
+                    background: "var(--c-accent-bg)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                    {reviewer.avatar_url ? (
+                      <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
+                        {reviewer.username?.[0]?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
+                    <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
+                  </div>
+                </Link>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 2,
+                    background: "var(--c-accent-bg)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                    {reviewer.avatar_url ? (
+                      <img src={reviewer.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 12, color: "var(--c-accent)" }}>
+                        {reviewer.username?.[0]?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
+                    <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
+                  </div>
                 </div>
-                <div>
-                  <MonoLabel style={{ fontSize: 10, display: "block" }}>reviewed by</MonoLabel>
-                  <MonoLabel style={{ fontSize: 12 }}>@{reviewer.username}</MonoLabel>
-                </div>
-              </div>
+              )
             )
           })()}
           <MonoLabel>{timeAgo} ago</MonoLabel>

@@ -6,19 +6,23 @@ import { createClient } from "@niche/auth/client"
 import { searchUsers, followUser, unfollowUser, getFollowing, getFriendFeed } from "@niche/database"
 import { CupSteamSketch, MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { FeedItem } from "@niche/shared-types"
+import { useRouter } from "next/navigation"
 
 interface FriendsClientProps {
   userId: string
 }
 
-export function FriendsClient({ userId }: FriendsClientProps) {
+export default function FriendsClient({ userId }: FriendsClientProps) {
   const supabase = createClient()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [tab, setTab] = useState<"friends" | "feed" | "photos">("feed")
+  const [selectedReview, setSelectedReview] = useState<any | null>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const { data: following = [] } = useQuery({
@@ -70,6 +74,30 @@ export function FriendsClient({ userId }: FriendsClientProps) {
 
   return (
     <div style={{ padding: "0 28px 20px" }}>
+      <button
+        type="button"
+        onClick={() => router.back()}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "1px solid var(--c-rule)",
+          borderRadius: 999,
+          padding: "6px 12px",
+          marginBottom: 14,
+          cursor: "pointer",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          color: "var(--c-subtle)",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}
+        aria-label="Go back"
+      >
+        ← back
+      </button>
+
       {/* Search - always at top */}
       <div style={{
         display: "flex", alignItems: "center",
@@ -124,11 +152,18 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                 const isFollowing = followingIds.has(pid)
 
                 return (
-                  <div key={pid} style={{
-                    background: "var(--c-bg)", border: "1px solid var(--c-rule)",
-                    borderRadius: 8, padding: "16px 18px",
-                    display: "flex", alignItems: "center", gap: 12,
-                  }}>
+                  <div
+                    key={pid}
+                    onClick={() => {
+                      if (handle) router.push(`/profile/${handle}`)
+                    }}
+                    style={{
+                      background: "var(--c-bg)", border: "1px solid var(--c-rule)",
+                      borderRadius: 8, padding: "16px 18px",
+                      display: "flex", alignItems: "center", gap: 12,
+                      cursor: handle ? "pointer" : "default",
+                    }}
+                  >
                     <div style={{
                       width: 40, height: 40, borderRadius: 4,
                       border: "1.5px solid var(--c-rule)", background: "var(--c-accent-bg)",
@@ -148,7 +183,10 @@ export function FriendsClient({ userId }: FriendsClientProps) {
                     </div>
                     {pid !== userId && (
                       <button
-                        onClick={() => toggleFollow(pid)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleFollow(pid)
+                        }}
                         style={{
                           fontFamily: "var(--font-mono)", fontSize: 10,
                           padding: "6px 16px", borderRadius: 20,
@@ -204,7 +242,13 @@ export function FriendsClient({ userId }: FriendsClientProps) {
           {!feedLoading && (
             <div>
               {reviews.map(r => r && (
-                <ReviewCard key={r.id} review={r} showAuthor />
+                <ReviewCard
+                  key={r.id}
+                  review={r}
+                  currentUserId={userId}
+                  showAuthor
+                  onClick={() => setSelectedReview(r)}
+                />
               ))}
               {hasNextPage && (
                 <button
@@ -247,17 +291,23 @@ export function FriendsClient({ userId }: FriendsClientProps) {
             <div style={{ padding: "16px 0" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 {withPhotos.map(r => r && (
-                  <div key={r.id} style={{ height: 150, borderRadius: 4, overflow: "hidden", background: "var(--c-tint)", position: "relative" }}>
-                    <img src={r.image_urls[0]} alt={r.item_name ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    <div style={{
-                      position: "absolute", bottom: 0, left: 0, right: 0,
-                      background: "linear-gradient(transparent, rgba(28,20,16,0.65))",
-                      padding: "8px",
-                    }}>
-                      <p style={{ fontFamily: "var(--font-display)", fontSize: 11, color: "#fff", margin: 0 }}>
-                        {r.item_name}
-                      </p>
-                    </div>
+                  <div
+                    key={r.id}
+                    onClick={() => setSelectedReview(r)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={r.item_name ?? "review photo"}
+                    style={{
+                      borderRadius: 4, overflow: "hidden",
+                      background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <img
+                      src={r.image_urls[0]} alt={r.item_name ?? ""}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                   </div>
                 ))}
               </div>
@@ -265,8 +315,15 @@ export function FriendsClient({ userId }: FriendsClientProps) {
           )}
         </>
       )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
+      )}
     </div>
   )
 }
 
-export default FriendsClient

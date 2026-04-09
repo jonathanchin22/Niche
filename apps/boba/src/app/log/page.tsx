@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useCallback, useId, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
@@ -76,21 +76,18 @@ function StarDisplay({ score }: { score: number }) {
     <div style={{ display: "flex", gap: 3 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
-        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
-        const gradId = `sg-${i}-${Math.round(scoreNum * 10)}`
         return (
-          <svg key={i} width="26" height="26" viewBox="0 0 24 24">
-            <defs>
-              <linearGradient id={gradId}>
-                <stop offset={offset} stopColor="#c9a84c" />
-                <stop offset={offset} stopColor="#e8e8e4" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z"
-              fill={`url(#${gradId})`}
-            />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: 26,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>
@@ -217,7 +214,7 @@ export default function LogPage() {
           <circle cx="75" cy="108" r="5" stroke="#2d6a4f" strokeWidth="1.5" fill="none"/>
         </svg>
         <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: 0 }}>logged.</h2>
-        <p style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "#888", margin: 0 }}>taking you back...</p>
+        <p style={{ fontFamily: "var(--font-hand)", fontSize: 17, color: "#888", margin: 0 }}>taking you back...</p>
       </div>
     )
   }
@@ -276,7 +273,7 @@ export default function LogPage() {
 
         {step === "drink" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step one</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step one</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 32px" }}>what did you drink?</h2>
             <div style={{ marginBottom: 24 }}>
               <label style={labelStyle}>drink name</label>
@@ -286,7 +283,7 @@ export default function LogPage() {
               <label style={labelStyle}>shop</label>
               <input value={placeQuery} onChange={e => handlePlaceSearch(e.target.value)} placeholder="e.g. Teaspoon Mission" style={inputStyle} />
             </div>
-            {isSearching && <p style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: "#bbb", margin: "8px 0" }}>searching...</p>}
+            {isSearching && <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "#bbb", margin: "8px 0" }}>searching...</p>}
             {placeResults.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                 {placeResults.map((p, i) => (
@@ -313,7 +310,7 @@ export default function LogPage() {
 
         {step === "rate" && (
           <div>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step two</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step two</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 8px" }}>how was it?</h2>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", margin: "0 0 28px" }}>slide to rate 0.0 – 10.0</p>
             <div style={{ marginBottom: 32 }}>
@@ -329,7 +326,7 @@ export default function LogPage() {
               ))}
             </div>
             <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="anything else worth noting..."
-              style={{ width: "100%", fontFamily: "'Caveat', cursive", fontSize: 17, border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px", background: "transparent", color: "#1a1a1a", outline: "none", resize: "none", height: 100 }} />
+              style={{ width: "100%", fontFamily: "var(--font-hand)", fontSize: 17, border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px", background: "transparent", color: "#1a1a1a", outline: "none", resize: "none", height: 100 }} />
             <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
               <button onClick={() => setStep("drink")} style={{ flex: 1, background: "none", border: "1px solid #e8e8e4", borderRadius: 10, padding: "14px", fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#888", cursor: "pointer" }}>← back</button>
               <button onClick={() => setStep("share")} disabled={rating === 0}
@@ -342,7 +339,7 @@ export default function LogPage() {
 
         {step === "share" && (
           <div style={{ textAlign: "center" }}>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>step three</p>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 28, color: "#1a1a1a", fontWeight: 400, margin: "0 0 16px" }}>share it?</h2>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginBottom: 28 }}>
               <StarDisplay score={rating} />

@@ -28,13 +28,18 @@ function StarRow({ score, size = 12 }: { score: number; size?: number }) {
     <div style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map(i => {
         const fill = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct * 5 - i)) : 0
-        const offset = `${Math.max(0, Math.min(100, fill * 100))}%`
-        const gid = `mr-${i}-${Math.round(scoreNum * 10)}-${size}`
         return (
-          <svg key={i} width={size} height={size} viewBox="0 0 24 24">
-            <defs><linearGradient id={gid}><stop offset={offset} stopColor="#c9a84c" /><stop offset={offset} stopColor="#e8e8e4" /></linearGradient></defs>
-            <path d="M12 2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9z" fill={`url(#${gid})`} />
-          </svg>
+          <span
+            key={i}
+            style={{
+              fontSize: size,
+              color: "#c9a84c",
+              opacity: fill,
+              lineHeight: 1,
+            }}
+          >
+            ★
+          </span>
         )
       })}
     </div>
@@ -356,7 +361,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
           <Link href="/profile" style={{ textDecoration: "none" }}>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#888", margin: "0 0 12px" }}>← profile</p>
           </Link>
-          <p style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
+          <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "#888", margin: "0 0 4px" }}>
             your taste, ranked
           </p>
           <h1 style={{
@@ -436,7 +441,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
         {sortKey === "score" && sorted.length > 1 && (
           <div style={{ padding: "0 28px 12px" }}>
             <p style={{
-              fontFamily: "'Caveat', cursive", fontSize: 13, color: "#bbb",
+              fontFamily: "var(--font-hand)", fontSize: 13, color: "#bbb",
               margin: 0, display: "flex", alignItems: "center", gap: 6,
             }}>
               <DragHandle />
@@ -448,7 +453,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
         {/* Review list */}
         {sorted.length === 0 ? (
           <div style={{ padding: "40px 28px", textAlign: "center" }}>
-            <p style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: "#bbb" }}>
+            <p style={{ fontFamily: "var(--font-hand)", fontSize: 17, color: "#bbb" }}>
               {search ? `nothing matches "${search}"` : "no reviews yet — go log a drink!"}
             </p>
             {!search && (
@@ -539,7 +544,7 @@ export function MyReviewsClient({ userId, initialReviews }: { userId: string; in
                     </div>
                     {review.note && (
                       <p style={{
-                        fontFamily: "'Caveat', cursive", fontSize: 14, color: "#888",
+                        fontFamily: "var(--font-hand)", fontSize: 14, color: "#888",
                         margin: "6px 0 0",
                         overflow: "hidden", textOverflow: "ellipsis",
                         display: "-webkit-box", WebkitLineClamp: 2,

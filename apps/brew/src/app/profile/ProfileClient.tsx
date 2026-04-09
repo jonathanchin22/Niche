@@ -7,6 +7,7 @@ import { createBrowserClient } from "@supabase/ssr"
 import { getUserReviews } from "@niche/database"
 import { MonoLabel } from "@/components/ui/Primitives"
 import ReviewCard from "@/components/feed/ReviewCard"
+import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { Review } from "@niche/shared-types"
 
 const APP_ID = "brew" as const
@@ -21,21 +22,35 @@ function getSupabase() {
 interface Props {
   profile: any
   userId: string
+  profileUserId?: string
   followingCount: number
   followerCount: number
   highestRatedCoffee: string | null
+  showOwnActions?: boolean
+  showBackButton?: boolean
 }
 
-export default function ProfileClient({ profile, userId, followingCount, followerCount, highestRatedCoffee }: Props) {
+export default function ProfileClient({
+  profile,
+  userId,
+  profileUserId,
+  followingCount,
+  followerCount,
+  highestRatedCoffee,
+  showOwnActions = true,
+  showBackButton = false,
+}: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<"reviews" | "photos">("reviews")
   const [menuOpen, setMenuOpen] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const viewedUserId = profileUserId ?? userId
 
   const { data, isLoading } = useInfiniteQuery({
-    queryKey: ["profile-brew-reviews", userId],
+    queryKey: ["profile-brew-reviews", viewedUserId],
     queryFn: ({ pageParam }) =>
-      getUserReviews(getSupabase(), { user_id: userId, app_id: APP_ID, cursor: pageParam as string | undefined }),
+      getUserReviews(getSupabase(), { user_id: viewedUserId, app_id: APP_ID, cursor: pageParam as string | undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: last => last.has_more ? last.cursor ?? undefined : undefined,
   })
@@ -67,6 +82,32 @@ export default function ProfileClient({ profile, userId, followingCount, followe
     <div style={{ paddingBottom: 20 }}>
       {/* Header */}
       <div style={{ padding: "52px 28px 0" }}>
+        {showBackButton && (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "1px solid var(--c-rule)",
+              borderRadius: 999,
+              padding: "6px 12px",
+              marginBottom: 14,
+              cursor: "pointer",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "var(--c-subtle)",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+            aria-label="Go back"
+          >
+            ← back
+          </button>
+        )}
+
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start", marginBottom: 24 }}>
           {/* Avatar */}
           <div style={{
@@ -93,93 +134,95 @@ export default function ProfileClient({ profile, userId, followingCount, followe
               }}>
                 {displayName}
               </h2>
-              <div ref={menuRef} style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  aria-label="Open profile options"
-                  onClick={() => setMenuOpen(open => !open)}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    border: "1px solid var(--c-rule)",
-                    borderRadius: 8,
-                    background: "none",
-                    cursor: "pointer",
-                    color: "var(--c-subtle)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 5h.01M12 12h.01M12 19h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-                  </svg>
-                </button>
+              {showOwnActions && (
+                <div ref={menuRef} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    aria-label="Open profile options"
+                    onClick={() => setMenuOpen(open => !open)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      border: "1px solid var(--c-rule)",
+                      borderRadius: 8,
+                      background: "none",
+                      cursor: "pointer",
+                      color: "var(--c-subtle)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 5h.01M12 12h.01M12 19h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                    </svg>
+                  </button>
 
-                {menuOpen && (
-                  <div style={{
-                    position: "absolute",
-                    top: 38,
-                    right: 0,
-                    minWidth: 190,
-                    background: "var(--c-bg)",
-                    border: "1px solid var(--c-rule)",
-                    borderRadius: 10,
-                    boxShadow: "0 10px 28px rgba(0,0,0,0.12)",
-                    padding: 6,
-                    zIndex: 10,
-                  }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        router.push("/profile/edit")
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        background: "none",
-                        padding: "10px 10px",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        color: "var(--c-ink)",
+                  {menuOpen && (
+                    <div style={{
+                      position: "absolute",
+                      top: 38,
+                      right: 0,
+                      minWidth: 190,
+                      background: "var(--c-bg)",
+                      border: "1px solid var(--c-rule)",
+                      borderRadius: 10,
+                      boxShadow: "0 10px 28px rgba(0,0,0,0.12)",
+                      padding: 6,
+                      zIndex: 10,
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          router.push("/profile/edit")
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          border: "none",
+                          background: "none",
+                          padding: "10px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          color: "var(--c-ink)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 11,
+                        }}
+                      >
+                        Edit profile
+                      </button>
+                      <div style={{
+                        padding: "8px 10px",
+                        color: "var(--c-subtle)",
                         fontFamily: "var(--font-mono)",
-                        fontSize: 11,
-                      }}
-                    >
-                      Edit profile
-                    </button>
-                    <div style={{
-                      padding: "8px 10px",
-                      color: "var(--c-subtle)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                      borderTop: "1px solid var(--c-rule)",
-                    }}>
-                      Settings (coming soon)
+                        fontSize: 10,
+                        borderTop: "1px solid var(--c-rule)",
+                      }}>
+                        Settings (coming soon)
+                      </div>
+                      <div style={{
+                        padding: "8px 10px",
+                        color: "var(--c-subtle)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                      }}>
+                        App connections (coming soon)
+                      </div>
+                      <div style={{
+                        padding: "8px 10px",
+                        color: "var(--c-subtle)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                      }}>
+                        Account management (coming soon)
+                      </div>
                     </div>
-                    <div style={{
-                      padding: "8px 10px",
-                      color: "var(--c-subtle)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                    }}>
-                      App connections (coming soon)
-                    </div>
-                    <div style={{
-                      padding: "8px 10px",
-                      color: "var(--c-subtle)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                    }}>
-                      Account management (coming soon)
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <p style={{ fontFamily: "var(--font-hand)", fontSize: 14, color: "var(--c-subtle)", margin: 0 }}>
@@ -255,7 +298,12 @@ export default function ProfileClient({ profile, userId, followingCount, followe
               </p>
             </div>
           ) : reviews.map(r => (
-            <ReviewCard key={r.id} review={r} />
+            <ReviewCard
+              key={r.id}
+              review={r}
+              currentUserId={userId}
+              onClick={() => setSelectedReview(r)}
+            />
           ))}
         </div>
       )}
@@ -270,10 +318,19 @@ export default function ProfileClient({ profile, userId, followingCount, followe
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => (
-                <div key={r.id} style={{
-                  borderRadius: 4, overflow: "hidden",
-                  background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
-                }}>
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedReview(r)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReview(r) } }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={r.item_name ?? "review photo"}
+                  style={{
+                    borderRadius: 4, overflow: "hidden",
+                    background: "var(--c-tint)", position: "relative", paddingBottom: "100%",
+                    cursor: "pointer",
+                  }}
+                >
                   <img
                     src={r.image_urls[0]} alt={r.item_name ?? ""}
                     style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
@@ -283,6 +340,14 @@ export default function ProfileClient({ profile, userId, followingCount, followe
             </div>
           )}
         </div>
+      )}
+
+      {selectedReview && (
+        <ReviewDetailModal
+          review={selectedReview}
+          currentUserId={userId}
+          onClose={() => setSelectedReview(null)}
+        />
       )}
 
     </div>
