@@ -125,6 +125,10 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
   const [category, setCategory] = useState("")
   const [isHomeBrew, setIsHomeBrew] = useState(false)
   const [cafeName, setCafeName] = useState("")
+  const [cafeLocation, setCafeLocation] = useState<{ lat: number; lng: number; address: string; place_id: string } | null>(null)
+  const [cafeSearchResults, setCafeSearchResults] = useState<Array<{ name: string; address: string; lat: number; lng: number; place_id: string }>>([])
+  const [isCafeSearching, setIsCafeSearching] = useState(false)
+  const cafeSearchTimeout = useRef<ReturnType<typeof setTimeout>>()
   const [originRoast, setOriginRoast] = useState("")
   const [score, setScore] = useState(0)             // 0–10 score used directly by slider
   const [tags, setTags] = useState<string[]>([])
@@ -137,6 +141,42 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
 
   const toggleTag = (t: string) =>
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+
+  const handleCafeNameChange = (value: string) => {
+    setCafeName(value)
+    setCafeLocation(null)
+    clearTimeout(cafeSearchTimeout.current)
+    if (value.length < 2) { setCafeSearchResults([]); return }
+    setIsCafeSearching(true)
+    cafeSearchTimeout.current = setTimeout(async () => {
+      try {
+        const encoded = encodeURIComponent(`${value} cafe coffee`)
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&limit=5&addressdetails=1`,
+          { headers: { "Accept-Language": "en" } }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setCafeSearchResults(data.map((p: any) => ({
+            name: p.name || p.display_name.split(",")[0],
+            address: p.display_name,
+            lat: parseFloat(p.lat),
+            lng: parseFloat(p.lon),
+            place_id: `nominatim_${p.osm_id}`,
+          })))
+        }
+      } catch {
+        // Silently fail — user can still type a name manually
+      }
+      setIsCafeSearching(false)
+    }, 400)
+  }
+
+  const selectCafeResult = (result: { name: string; address: string; lat: number; lng: number; place_id: string }) => {
+    setCafeName(result.name)
+    setCafeLocation({ lat: result.lat, lng: result.lng, address: result.address, place_id: result.place_id })
+    setCafeSearchResults([])
+  }
 
   const handlePhoto = (i: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -180,17 +220,17 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
           }
         }
 
-        // Upsert the place
+        // Upsert the place — use geocoded coordinates when available
         const place = await upsertPlace(supabase, {
           app_id: APP_ID,
           name: isHomeBrew ? "Brewed at home" : cafeName.trim(),
-          address: "", // kept intentionally blank for home logs
+          address: isHomeBrew ? "" : (cafeLocation?.address ?? ""),
           city: isHomeBrew ? "home" : "",
           state: isHomeBrew ? "home" : "",
           country: "",
-          lat: 0,
-          lng: 0,
-          google_place_id: isHomeBrew ? "brew_home" : null,
+          lat: isHomeBrew ? 0 : (cafeLocation?.lat ?? 0),
+          lng: isHomeBrew ? 0 : (cafeLocation?.lng ?? 0),
+          google_place_id: isHomeBrew ? "brew_home" : (cafeLocation?.place_id ?? null),
           foursquare_id: null,
           cover_image_url: null,
         })
@@ -334,9 +374,9 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
               </MonoLabel>
             </div>
 
+            {/* Drink name and origin fields */}
             {[
               { label: "drink name", ph: "e.g. oat flat white", val: drinkName, set: setDrinkName },
-              { label: "cafe", ph: "e.g. Sightglass SoMa", val: cafeName, set: setCafeName },
               { label: "origin / roast", ph: "e.g. Ethiopia Yirgacheffe, light", val: originRoast, set: setOriginRoast },
             ].map(({ label, ph, val, set }) => (
               <div key={label} style={{ marginBottom: 28 }}>
@@ -345,17 +385,70 @@ export default function ReviewModal({ userId, onSuccess, onClose }: Props) {
                   value={val}
                   onChange={e => set(e.target.value)}
                   placeholder={ph}
-                  disabled={isHomeBrew && label === "cafe"}
                   style={{
                     width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
                     border: "none", borderBottom: "1px solid var(--c-rule)",
                     padding: "8px 0", background: "transparent", color: "var(--c-ink)",
                     outline: "none", fontStyle: "italic",
-                    opacity: isHomeBrew && label === "cafe" ? 0.5 : 1,
                   }}
                 />
               </div>
             ))}
+
+            {/* Cafe field with Nominatim autocomplete */}
+            {!isHomeBrew && (
+              <div style={{ marginBottom: 28, position: "relative" }}>
+                <MonoLabel style={{ marginBottom: 10 }}>
+                  cafe
+                  {cafeLocation && (
+                    <span style={{ color: "var(--c-accent)", marginLeft: 6 }}>✓ located</span>
+                  )}
+                  {isCafeSearching && (
+                    <span style={{ color: "var(--c-subtle)", marginLeft: 6 }}>searching...</span>
+                  )}
+                </MonoLabel>
+                <input
+                  value={cafeName}
+                  onChange={e => handleCafeNameChange(e.target.value)}
+                  placeholder="e.g. Sightglass SoMa"
+                  style={{
+                    width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
+                    border: "none", borderBottom: "1px solid var(--c-rule)",
+                    padding: "8px 0", background: "transparent", color: "var(--c-ink)",
+                    outline: "none", fontStyle: "italic",
+                  }}
+                />
+                {cafeSearchResults.length > 0 && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+                    background: "var(--c-bg)", border: "1px solid var(--c-rule)",
+                    borderTop: "none", borderRadius: "0 0 4px 4px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    maxHeight: 200, overflowY: "auto",
+                  }}>
+                    {cafeSearchResults.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => selectCafeResult(r)}
+                        style={{
+                          display: "block", width: "100%", background: "none",
+                          border: "none", borderBottom: "1px solid var(--c-rule)",
+                          padding: "10px 12px", textAlign: "left", cursor: "pointer",
+                        }}
+                      >
+                        <p style={{ fontFamily: "var(--font-display)", fontSize: 14, margin: "0 0 2px", color: "var(--c-ink)", fontStyle: "italic" }}>
+                          {r.name}
+                        </p>
+                        <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, margin: 0, color: "var(--c-subtle)", letterSpacing: "0.05em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {r.address}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
