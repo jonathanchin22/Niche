@@ -3,7 +3,7 @@ import { getProfile, getFollowing, getFollowers, getHighestRatedCoffee } from "@
 import AppShell from "@/components/ui/AppShell"
 import ProfileClient from "./ProfileClient"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()

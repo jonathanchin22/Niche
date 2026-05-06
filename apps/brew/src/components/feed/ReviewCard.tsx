@@ -2,7 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns"
 import type { Review } from "@niche/shared-types"
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { voteReview, removeReviewVote } from "@niche/database"
 import { Stars, MonoLabel } from "@/components/ui/Primitives"
@@ -12,7 +12,7 @@ interface Props {
   review: Review
   currentUserId?: string
   showAuthor?: boolean
-  onClick?: () => void
+  onSelect?: (review: Review) => void
 }
 
 function getSupabase() {
@@ -22,9 +22,10 @@ function getSupabase() {
   )
 }
 
-export default function ReviewCard({ review, currentUserId, showAuthor = false, onClick }: Props) {
+function ReviewCardImpl({ review, currentUserId, showAuthor = false, onSelect }: Props) {
   const timeAgo = formatDistanceToNow(new Date(review.created_at))
   const mainPhoto = review.image_urls?.[0]
+  const handleClick = useCallback(() => onSelect?.(review), [onSelect, review])
 
   // Voting state
   const [upvotes, setUpvotes] = useState(review.upvotes_count ?? 0)
@@ -60,8 +61,8 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
 
   return (
     <div
-      onClick={onClick}
-      style={{ cursor: onClick ? "pointer" : "default", borderBottom: "1px solid var(--c-rule)" }}
+      onClick={onSelect ? handleClick : undefined}
+      style={{ cursor: onSelect ? "pointer" : "default", borderBottom: "1px solid var(--c-rule)" }}
     >
       {/* Photo */}
       {mainPhoto && (
@@ -231,3 +232,6 @@ export default function ReviewCard({ review, currentUserId, showAuthor = false, 
     </div>
   )
 }
+
+const ReviewCard = memo(ReviewCardImpl)
+export default ReviewCard

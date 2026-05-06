@@ -1,1 +1,342 @@
-export { ReviewCard } from "./ReviewCard-new"
+"use client"
+
+import { memo, useCallback, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { createClient } from "@niche/auth/client"
+import { voteReview, removeReviewVote } from "@niche/database"
+import Link from "next/link"
+import Image from "next/image"
+import type { Review } from "@niche/shared-types"
+
+interface ReviewCardProps {
+  review: Review
+  currentUserId: string
+  onSelect?: (review: Review) => void
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return "just now"
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function scoreToStars(score: number) {
+  const stars = score / 2
+  const full = Math.floor(stars)
+  const half = stars % 1 >= 0.5
+  return { full, half, empty: 5 - full - (half ? 1 : 0) }
+}
+
+function StarRow({ score }: { score: number }) {
+  const { full, half, empty } = scoreToStars(score)
+  return (
+    <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+      {Array.from({ length: full }).map((_, i) => (
+        <span key={`f${i}`} style={{ fontSize: 12, color: "#c9a84c" }}>★</span>
+      ))}
+      {half && <span style={{ fontSize: 12, color: "#c9a84c" }}>✦</span>}
+      {Array.from({ length: empty }).map((_, i) => (
+        <span key={`e${i}`} style={{ fontSize: 12, color: "#e8e8e4" }}>★</span>
+      ))}
+      <span
+        style={{
+          fontFamily: "'DM Serif Display', Georgia, serif",
+          fontSize: 13,
+          color: "#888",
+          marginLeft: 4,
+          fontWeight: 400,
+        }}
+      >
+        {(score / 2).toFixed(1)}
+      </span>
+    </div>
+  )
+}
+
+const TasteChip = memo(function TasteChip({ label, dim }: { label: string; dim?: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 10,
+        background: dim ? "#f4f4f0" : "#e8f4ee",
+        color: dim ? "#aaa" : "#2d6a4f",
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: dim ? 400 : 500,
+      }}
+    >
+      {label}
+    </span>
+  )
+})
+
+function RevisitBadge({ intent }: { intent: boolean | null | undefined }) {
+  if (intent === undefined || intent === null) return null
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        fontSize: 10,
+        padding: "2px 7px",
+        borderRadius: 10,
+        background: intent ? "#e8f4ee" : "#f4f4f0",
+        color: intent ? "#2d6a4f" : "#aaa",
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: 500,
+      }}
+    >
+      {intent ? "↻" : "✗"} {intent ? "would revisit" : "one and done"}
+    </span>
+  )
+}
+
+function QualitySignals({ signals }: { signals: any }) {
+  if (!signals) return null
+  const items: string[] = []
+  if (signals.pearls) items.push(`pearls: ${signals.pearls}/5`)
+  if (signals.tea_base) items.push(`tea: ${signals.tea_base}/5`)
+  if (signals.sweetness_accuracy) items.push(`sweetness: ${signals.sweetness_accuracy}/5`)
+  if (items.length === 0) return null
+  return (
+    <div style={{ fontSize: 11, color: "#888", fontFamily: "'DM Sans', sans-serif" }}>
+      {items.join(" • ")}
+    </div>
+  )
+}
+
+function ReviewCardImpl({ review, currentUserId, onSelect }: ReviewCardProps) {
+  const handleClick = useCallback(() => onSelect?.(review), [onSelect, review])
+  const queryClient = useQueryClient()
+  const actor = review.user ?? (review as any).profile
+  const actorUsername = actor?.username
+  const actorDisplayName = actor?.display_name ?? actor?.username ?? "user"
+  const actorAvatar = actor?.avatar_url
+  const initialUpvotes = review.upvotes_count ?? review.likes_count ?? 0
+  const initialDownvotes = review.downvotes_count ?? 0
+  const commentCount = review.comments_count ?? 0
+  const [upvotes, setUpvotes] = useState(Number(initialUpvotes))
+  const [downvotes, setDownvotes] = useState(Number(initialDownvotes))
+  const [userVote, setUserVote] = useState<1 | -1 | 0>(review.user_vote ?? 0)
+  const [isVoting, setIsVoting] = useState(false)
+
+  const handleVote = useCallback(async (vote: 1 | -1) => {
+    if (isVoting) return
+    setIsVoting(true)
+    const prev = { upvotes, downvotes, userVote }
+    const supabase = createClient()
+
+    try {
+      if (userVote === vote) {
+        if (vote === 1) setUpvotes(u => Math.max(0, u - 1))
+        if (vote === -1) setDownvotes(d => Math.max(0, d - 1))
+        setUserVote(0)
+        await removeReviewVote(supabase, { review_id: review.id, user_id: currentUserId })
+      } else {
+        if (vote === 1) {
+          setUpvotes(u => u + 1)
+          if (userVote === -1) setDownvotes(d => Math.max(0, d - 1))
+        } else {
+          setDownvotes(d => d + 1)
+          if (userVote === 1) setUpvotes(u => Math.max(0, u - 1))
+        }
+        setUserVote(vote)
+        await voteReview(supabase, { review_id: review.id, user_id: currentUserId, vote })
+      }
+      queryClient.invalidateQueries({ queryKey: ["feed"] })
+      queryClient.invalidateQueries({ queryKey: ["feed", "boba", currentUserId] })
+    } catch (err) {
+      setUpvotes(prev.upvotes)
+      setDownvotes(prev.downvotes)
+      setUserVote(prev.userVote)
+      console.error("vote failed:", err)
+    } finally {
+      setIsVoting(false)
+    }
+  }, [isVoting, upvotes, downvotes, userVote, review.id, currentUserId, queryClient])
+
+  const tasteChips: string[] = []
+  if (review.taste_attributes) {
+    const ta = review.taste_attributes
+    if (ta.drink_type) tasteChips.push(ta.drink_type)
+    if (ta.sugar_level !== null && ta.sugar_level !== undefined) tasteChips.push(`${ta.sugar_level}% sugar`)
+    if (ta.ice_level) tasteChips.push(ta.ice_level)
+    if (ta.pearl_texture) tasteChips.push(ta.pearl_texture)
+    if (ta.tea_base) tasteChips.push(ta.tea_base)
+  }
+  if (review.toppings && review.toppings.length > 0) {
+    tasteChips.push(...review.toppings.filter(t => t !== "no topping"))
+  }
+  if (review.customizations && review.customizations.length > 0) {
+    tasteChips.push(...review.customizations)
+  }
+
+  return (
+    <div
+      onClick={onSelect ? handleClick : undefined}
+      style={{
+      background: "white",
+      borderRadius: 12,
+      padding: 16,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      marginBottom: 12,
+      cursor: onSelect ? "pointer" : "default",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        {actorUsername ? (
+          <Link href={`/profile/${actorUsername}`} onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", cursor: "pointer" }}>
+            {actorAvatar && (
+              <Image
+                src={actorAvatar}
+                alt={actorDisplayName}
+                width={32}
+                height={32}
+                style={{ borderRadius: "50%" }}
+              />
+            )}
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#1a1a1a", fontWeight: 400 }}>
+                {actorDisplayName}
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+                @{actorUsername} • {timeAgo(review.created_at)}
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {actorAvatar && (
+              <Image
+                src={actorAvatar}
+                alt={actorDisplayName}
+                width={32}
+                height={32}
+                style={{ borderRadius: "50%" }}
+              />
+            )}
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 14, color: "#1a1a1a", fontWeight: 400 }}>
+                {actorDisplayName}
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+                {timeAgo(review.created_at)}
+              </div>
+            </div>
+          </div>
+        )}
+        <Link href={`/place/${review.place?.id}`} onClick={e => e.stopPropagation()} style={{ textDecoration: "none" }}>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#666", textAlign: "right" }}>
+            {review.place?.name}
+          </div>
+        </Link>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <StarRow score={review.score} />
+      </div>
+
+      {tasteChips.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          {tasteChips.map(chip => (
+            <TasteChip key={chip} label={chip} />
+          ))}
+        </div>
+      )}
+
+      {review.note && (
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 14,
+          color: "#333",
+          lineHeight: 1.4,
+          margin: "0 0 12px",
+        }}>
+          {review.note}
+        </p>
+      )}
+
+      <QualitySignals signals={review.quality_signals} />
+      <RevisitBadge intent={review.revisit_intent} />
+
+      {review.image_urls && review.image_urls.length > 0 && (
+        <div style={{ display: "flex", gap: 8, marginTop: 12, overflowX: "auto" }}>
+          {review.image_urls.map(url => (
+            <Image
+              key={url}
+              src={url}
+              alt=""
+              width={120}
+              height={120}
+              style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+            />
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              handleVote(1)
+            }}
+            disabled={isVoting}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13,
+              color: userVote === 1 ? "#2d6a4f" : "#888",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>▲</span>
+            {upvotes}
+          </button>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              handleVote(-1)
+            }}
+            disabled={isVoting}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13,
+              color: userVote === -1 ? "#c0392b" : "#888",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>▼</span>
+            {downvotes}
+          </button>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+            {commentCount} comment{commentCount === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#888" }}>
+          {review.tags?.join(" • ")}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export const ReviewCard = memo(ReviewCardImpl)

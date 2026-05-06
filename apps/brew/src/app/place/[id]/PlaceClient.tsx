@@ -128,7 +128,7 @@ export default function PlaceClient({ place, reviews, userId }: Props) {
               review={r}
               currentUserId={userId}
               showAuthor
-              onClick={() => setSelectedReview(r)}
+              onSelect={setSelectedReview}
             />
           ))
         )}

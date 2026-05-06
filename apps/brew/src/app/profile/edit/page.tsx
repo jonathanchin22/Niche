@@ -3,7 +3,7 @@ import { getProfile, getHighestRatedCoffee } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import EditProfileClient from "./EditProfileClient"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 export default async function EditProfilePage() {
   const supabase = await createServerSupabaseClient()

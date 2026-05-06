@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useMemo, useState } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { createBrowserClient } from "@supabase/ssr"
 import { getFriendFeed } from "@niche/database"
@@ -8,7 +8,7 @@ import ReviewCard from "./ReviewCard"
 import { MonoLabel } from "@/components/ui/Primitives"
 import ReviewDetailModal from "../review/ReviewDetailModal"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 function getSupabase() {
   return createBrowserClient(
@@ -28,8 +28,14 @@ export default function FeedClient({ userId }: { userId: string }) {
     getNextPageParam: (last) => last.has_more ? last.cursor ?? undefined : undefined,
   })
 
-  const reviews = data?.pages.flatMap(p => p.data.map(item => item.review).filter(Boolean)) ?? []
-  const withPhotos = reviews.filter(r => r!.image_urls?.length > 0)
+  const reviews = useMemo(
+    () => data?.pages.flatMap(p => p.data.map(item => item.review).filter(Boolean)) ?? [],
+    [data]
+  )
+  const withPhotos = useMemo(
+    () => reviews.filter(r => r!.image_urls && r!.image_urls.length > 0),
+    [reviews]
+  )
 
   return (
     <div style={{ paddingBottom: 20 }}>
@@ -72,7 +78,7 @@ export default function FeedClient({ userId }: { userId: string }) {
       {!isLoading && tab === "feed" && (
         <div style={{ padding: "0 28px" }}>
           {reviews.map(r => r && (
-            <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onClick={() => setSelectedReview(r)} />
+            <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onSelect={setSelectedReview} />
           ))}
           {hasNextPage && (
             <button
@@ -102,7 +108,7 @@ export default function FeedClient({ userId }: { userId: string }) {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {withPhotos.map(r => r && (
-                <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onClick={() => setSelectedReview(r)} />
+                <ReviewCard key={r.id} review={r} currentUserId={userId} showAuthor onSelect={setSelectedReview} />
               ))}
             </div>
           )}

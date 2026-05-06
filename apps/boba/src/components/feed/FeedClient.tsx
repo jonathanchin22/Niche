@@ -6,7 +6,8 @@ import { getFriendFeed } from "@niche/database"
 import { ReviewCard } from "./ReviewCard"
 import { AppShell } from "@/components/ui/AppShell"
 import type { PaginatedResponse, FeedItem } from "@niche/shared-types"
-import { useEffect, useRef, useState } from "react"
+import { APP_ID } from "@/lib/app-id"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { ReviewModal } from "@/components/review/ReviewModal"
 
@@ -23,9 +24,9 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["feed", "boba", userId],
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      getFriendFeed(supabase as any, {
+      getFriendFeed(supabase, {
         user_id: userId,
-        app_id: "boba",
+        app_id: APP_ID,
         cursor: pageParam,
       }),
     initialPageParam: undefined as string | undefined,
@@ -45,7 +46,7 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-  const items = data?.pages.flatMap((p) => p.data) ?? []
+  const items = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data])
 
   return (
     <AppShell activeTab="home">
@@ -97,13 +98,13 @@ export function FeedClient({ initialData, userId }: FeedClientProps) {
           <EmptyFeed />
         ) : (
           <>
-            {items.map((item, i) =>
+            {items.map((item) =>
               item.review ? (
                 <ReviewCard
-                  key={item.review.id ?? i}
+                  key={item.review.id}
                   review={item.review}
                   currentUserId={userId}
-                  onClick={() => setSelectedReview(item.review)}
+                  onSelect={setSelectedReview}
                 />
               ) : null
             )}

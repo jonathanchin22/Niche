@@ -88,6 +88,12 @@ export async function getReviewComments(
 }
 import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
 
+// Use a permissive alias rather than the typed SupabaseClient generic.
+// Several legacy feed/map queries synthesize objects that don't fully match
+// the strict shared-types definitions (FeedItem.type, MapPin.place, etc.),
+// and tightening this would require fixing those at every return site.
+// TODO: replace with a typed client once `Database` types are generated.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any
 
 interface FeedParams {
@@ -156,10 +162,11 @@ export async function getFriendFeed(
   { user_id, app_id, cursor, limit = 20 }: FeedParams
 ): Promise<PaginatedResponse<FeedItem>> {
   // Step 1: get following IDs
-  const { data: follows } = await supabase
+  const { data: follows, error: followsError } = await supabase
     .from("follows")
     .select("following_id")
     .eq("follower_id", user_id)
+  if (followsError) throw followsError
 
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
 
@@ -236,10 +243,11 @@ export async function getMyFeed(
   { user_id, app_id, cursor, limit = 20 }: FeedParams
 ): Promise<PaginatedResponse<FeedItem>> {
   // Step 1: get following IDs
-  const { data: follows } = await supabase
+  const { data: follows, error: followsError } = await supabase
     .from("follows")
     .select("following_id")
     .eq("follower_id", user_id)
+  if (followsError) throw followsError
 
   const followingIds: string[] = (follows ?? []).map((f: any) => f.following_id)
   followingIds.push(user_id) // Include user's own reviews
@@ -792,12 +800,13 @@ export async function isFollowing(
   supabase: SupabaseClient,
   { follower_id, following_id }: { follower_id: string; following_id: string }
 ): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("follows")
     .select("follower_id")
     .eq("follower_id", follower_id)
     .eq("following_id", following_id)
     .maybeSingle()
+  if (error) throw error
   return !!data
 }
 

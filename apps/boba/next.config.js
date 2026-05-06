@@ -11,6 +11,10 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_ID: "boba",
   },
+  eslint: {
+    // Match brew: keep linting as a dev-time task, don't fail builds.
+    ignoreDuringBuilds: true,
+  },
 }
 
 module.exports = nextConfig

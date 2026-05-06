@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation"
 import AppShell from "@/components/ui/AppShell"
 import ProfileClient from "../ProfileClient"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 interface ProfileByUsernamePageProps {
   params: { username: string }

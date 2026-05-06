@@ -10,7 +10,7 @@ import ReviewCard from "@/components/feed/ReviewCard"
 import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { Review } from "@niche/shared-types"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 function getSupabase() {
   return createBrowserClient(
@@ -302,7 +302,7 @@ export default function ProfileClient({
               key={r.id}
               review={r}
               currentUserId={userId}
-              onClick={() => setSelectedReview(r)}
+              onSelect={setSelectedReview}
             />
           ))}
         </div>

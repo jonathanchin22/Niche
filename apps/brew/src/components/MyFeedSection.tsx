@@ -9,7 +9,7 @@ import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import { MonoLabel } from "@/components/ui/Primitives"
 import type { Review } from "@niche/shared-types"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 function getSupabase() {
   return createBrowserClient(
@@ -65,7 +65,7 @@ export default function MyFeedSection({ userId }: MyFeedSectionProps) {
               review={review}
               currentUserId={userId}
               showAuthor
-              onClick={() => setSelectedReview(review)}
+              onSelect={setSelectedReview}
             />
           ))}
           {feedReviews.length > 3 && (

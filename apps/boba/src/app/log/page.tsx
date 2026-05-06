@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { createClient } from "@niche/auth/client"
 import { upsertPlace, createReview } from "@niche/database"
+import { APP_ID } from "@/lib/app-id"
 
 type Step = "drink" | "rate" | "share" | "done"
 
@@ -168,14 +169,14 @@ export default function LogPage() {
       if (!selectedPlace) throw new Error("No place selected")
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
-      const place = await upsertPlace(supabase as any, {
-        app_id: "boba", name: selectedPlace.name, address: selectedPlace.address,
+      const place = await upsertPlace(supabase, {
+        app_id: APP_ID, name: selectedPlace.name, address: selectedPlace.address,
         city: selectedPlace.city ?? "", state: selectedPlace.state ?? "",
         country: "US", google_place_id: selectedPlace.google_place_id,
         lat: selectedPlace.latitude, lng: selectedPlace.longitude,
       } as any)
-      await createReview(supabase as any, {
-        app_id: "boba", user_id: user.id, place_id: place.id,
+      await createReview(supabase, {
+        app_id: APP_ID, user_id: user.id, place_id: place.id,
         item_name: drinkName, score: Math.round(rating * 10) / 10,
         note: body.trim() || null, tags: selectedTags, image_urls: photoUrls,
       } as any)

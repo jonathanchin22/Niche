@@ -5,7 +5,7 @@ import { createBrowserClient } from "@supabase/ssr"
 import { createReview, upsertPlace } from "@niche/database"
 import { Pill, MonoLabel } from "@/components/ui/Primitives"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 const TASTING_NOTES = [
   "bright", "nutty", "chocolatey", "floral", "acidic",

@@ -9,6 +9,7 @@ import ReviewCard from "@/components/feed/ReviewCard"
 import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import type { FeedItem } from "@niche/shared-types"
 import { useRouter } from "next/navigation"
+import { APP_ID } from "@/lib/app-id"
 
 interface FriendsClientProps {
   userId: string
@@ -49,7 +50,7 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
   const { data: feedData, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: feedLoading } = useInfiniteQuery({
     queryKey: ["brew-friend-feed", userId],
     queryFn: ({ pageParam }) =>
-      getFriendFeed(supabase as any, { user_id: userId, app_id: "brew", cursor: pageParam as string | undefined }),
+      getFriendFeed(supabase, { user_id: userId, app_id: APP_ID, cursor: pageParam as string | undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.has_more ? last.cursor ?? undefined : undefined,
     enabled: tab === "feed" || tab === "photos",
@@ -247,7 +248,7 @@ export default function FriendsClient({ userId }: FriendsClientProps) {
                   review={r}
                   currentUserId={userId}
                   showAuthor
-                  onClick={() => setSelectedReview(r)}
+                  onSelect={setSelectedReview}
                 />
               ))}
               {hasNextPage && (

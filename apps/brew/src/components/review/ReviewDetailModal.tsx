@@ -31,16 +31,21 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
   const [isCommenting, setIsCommenting] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function fetchVotesAndComments() {
       const supabase = getSupabase()
-      const { upvotes, downvotes, user_vote } = await getReviewVotes(supabase, { review_id: review.id, user_id: currentUserId })
-      setUpvotes(upvotes)
-      setDownvotes(downvotes)
-      setUserVote(user_vote)
-      const fetchedComments = await getReviewComments(supabase, { review_id: review.id })
+      const [votes, fetchedComments] = await Promise.all([
+        getReviewVotes(supabase, { review_id: review.id, user_id: currentUserId }),
+        getReviewComments(supabase, { review_id: review.id }),
+      ])
+      if (cancelled) return
+      setUpvotes(votes.upvotes)
+      setDownvotes(votes.downvotes)
+      setUserVote(votes.user_vote)
       setComments(fetchedComments)
     }
     fetchVotesAndComments()
+    return () => { cancelled = true }
   }, [review.id, currentUserId])
 
   const handleVote = async (vote: 1 | -1) => {
@@ -95,10 +100,11 @@ export default function ReviewDetailModal({ review, currentUserId, onClose }: Re
               <div role="region" aria-label="Photo carousel" style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory" }}>
                 {photos.map((url, i) => (
                   <img
-                    key={i}
+                    key={url}
                     src={url}
                     alt={`${review.item_name ?? "brew"} — photo ${i + 1} of ${photos.length}`}
                     style={{ flexShrink: 0, width: "100%", height: 280, objectFit: "cover", scrollSnapAlign: "start" }}
+                    loading={i === 0 ? "eager" : "lazy"}
                   />
                 ))}
               </div>

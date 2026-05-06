@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
 import { joinApp } from "@niche/auth/client"
+import { APP_ID } from "@/lib/app-id"
 
 type Mode = "login" | "signup"
 
@@ -27,8 +28,8 @@ export default function LoginPage() {
       .from("app_memberships")
       .select("user_id")
       .eq("user_id", user.id)
-      .eq("app_id", "boba")
-      .single()
+      .eq("app_id", APP_ID)
+      .maybeSingle()
 
     if (membership) {
       router.push("/")
@@ -46,7 +47,7 @@ export default function LoginPage() {
         await signUp({
           email, password, username,
           display_name: displayName,
-          source_app_id: "boba",
+          source_app_id: APP_ID,
         })
         // Auto-creates profile + boba membership via DB trigger
         router.push("/")

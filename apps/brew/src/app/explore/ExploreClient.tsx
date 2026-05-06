@@ -8,7 +8,7 @@ import type { Place } from "@niche/shared-types"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 const CATS = [
   { label: "staff picks", query: "" },

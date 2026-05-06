@@ -9,7 +9,7 @@ import ReviewDetailModal from "@/components/review/ReviewDetailModal"
 import { MonoLabel } from "@/components/ui/Primitives"
 import type { Review } from "@niche/shared-types"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 function getSupabase() {
   return createBrowserClient(
@@ -70,7 +70,7 @@ export default function MyReviewsClient({ userId }: { userId: string }) {
       {!isLoading && tab === "reviews" && (
         <div style={{ padding: "0 28px" }}>
           {reviews.map(r => (
-            <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
+            <ReviewCard key={r.id} review={r} currentUserId={userId} onSelect={setSelectedReview} />
           ))}
           {hasNextPage && (
             <button

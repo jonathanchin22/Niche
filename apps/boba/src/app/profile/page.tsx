@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@niche/auth"
 import { ProfileClient } from "./ProfileClient"
 import { redirect } from "next/navigation"
 import { getUserReviews } from "@niche/database"
+import { APP_ID } from "@/lib/app-id"
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()
@@ -10,7 +11,7 @@ export default async function ProfilePage() {
 
   const [profileResult, reviewsResult] = await Promise.all([
     (supabase as any).from("profiles").select("*").eq("id", user.id).single(),
-    getUserReviews(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => ({ data: [] })),
+    getUserReviews(supabase, { user_id: user.id, app_id: APP_ID }).catch(() => ({ data: [] })),
   ])
 
   const profile = profileResult?.data ?? null

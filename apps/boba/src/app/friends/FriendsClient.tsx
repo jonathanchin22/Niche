@@ -8,6 +8,7 @@ import { AppShell } from "@/components/ui/AppShell"
 import { ReviewCard } from "@/components/feed/ReviewCard"
 import { useRouter } from "next/navigation"
 import { ReviewModal } from "@/components/review/ReviewModal"
+import { APP_ID } from "@/lib/app-id"
 
 interface FriendsClientProps {
   userId: string
@@ -63,9 +64,9 @@ export function FriendsClient({ userId }: FriendsClientProps) {
   const { data: feedData, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: feedLoading } = useInfiniteQuery({
     queryKey: ["feed", "boba", userId],
     queryFn: ({ pageParam }) =>
-      getFriendFeed(supabase as any, {
+      getFriendFeed(supabase, {
         user_id: userId,
-        app_id: "boba",
+        app_id: APP_ID,
         cursor: pageParam as string | undefined,
       }),
     initialPageParam: undefined as string | undefined,
@@ -296,7 +297,7 @@ export function FriendsClient({ userId }: FriendsClientProps) {
             {!feedLoading && (
               <div>
                 {reviews.map(r => r && (
-                  <ReviewCard key={r.id} review={r} currentUserId={userId} onClick={() => setSelectedReview(r)} />
+                  <ReviewCard key={r.id} review={r} currentUserId={userId} onSelect={setSelectedReview} />
                 ))}
                 {hasNextPage && (
                   <button

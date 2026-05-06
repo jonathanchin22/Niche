@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@niche/auth"
 import { getUserReviews } from "@niche/database"
 import { redirect, notFound } from "next/navigation"
 import { ProfileClient } from "../ProfileClient"
+import { APP_ID } from "@/lib/app-id"
 
 interface ProfileByUsernamePageProps {
   params: { username: string }
@@ -21,9 +22,9 @@ export default async function ProfileByUsernamePage({ params }: ProfileByUsernam
 
   if (!profile) notFound()
 
-  const reviewsResult = await getUserReviews(supabase as any, {
+  const reviewsResult = await getUserReviews(supabase, {
     user_id: profile.id,
-    app_id: "boba",
+    app_id: APP_ID,
   }).catch(() => ({ data: [] }))
 
   const reviews = reviewsResult.data.map((item: any) => item.review)

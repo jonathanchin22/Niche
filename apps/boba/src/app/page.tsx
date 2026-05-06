@@ -1,8 +1,8 @@
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@niche/auth"
 import { getFriendFeed } from "@niche/database"
 import { FeedClient } from "@/components/feed/FeedClient"
+import { APP_ID } from "@/lib/app-id"
 
 export default async function HomePage() {
   const supabase = await createServerSupabaseClient()
@@ -14,15 +14,14 @@ export default async function HomePage() {
     .from("app_memberships")
     .select("*")
     .eq("user_id", user.id)
-    .eq("app_id", "boba")
-    .single()
+    .eq("app_id", APP_ID)
+    .maybeSingle()
 
   if (!membership) redirect("/join")
 
-  // Cast to any to avoid Supabase generic type mismatch between packages
-  const initialFeed = await getFriendFeed(supabase as any, {
+  const initialFeed = await getFriendFeed(supabase, {
     user_id: user.id,
-    app_id: "boba",
+    app_id: APP_ID,
   })
 
   return <FeedClient initialData={initialFeed} userId={user.id} />

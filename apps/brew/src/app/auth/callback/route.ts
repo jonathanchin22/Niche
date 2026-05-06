@@ -12,12 +12,16 @@ export async function GET(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data: membership } = await supabase
+      const { data: membership, error } = await supabase
         .from("app_memberships")
         .select("user_id")
         .eq("user_id", user.id)
         .eq("app_id", "brew")
-        .single()
+        .maybeSingle()
+
+      if (error) {
+        console.error("auth/callback membership lookup failed:", error)
+      }
 
       if (!membership) {
         return NextResponse.redirect(`${origin}/join`)

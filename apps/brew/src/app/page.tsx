@@ -7,7 +7,7 @@ import type { Review } from "@niche/shared-types"
 import Link from "next/link"
 import MyFeedSection from "@/components/MyFeedSection"
 
-const APP_ID = "brew" as const
+import { APP_ID } from "@/lib/app-id"
 
 export default async function HomePage() {
   const supabase = await createServerSupabaseClient()
