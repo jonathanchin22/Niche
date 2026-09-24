@@ -55,8 +55,9 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE polname = 'Users can upload review images'
-      AND polrelid = 'storage.objects'::regclass
+    WHERE policyname = 'Users can upload review images'
+      AND schemaname = 'storage'
+      AND tablename = 'objects'
   ) THEN
     CREATE POLICY "Users can upload review images"
       ON storage.objects FOR INSERT
@@ -71,8 +72,9 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE polname = 'Review images are publicly readable'
-      AND polrelid = 'storage.objects'::regclass
+    WHERE policyname = 'Review images are publicly readable'
+      AND schemaname = 'storage'
+      AND tablename = 'objects'
   ) THEN
     CREATE POLICY "Review images are publicly readable"
       ON storage.objects FOR SELECT

@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@niche/shared-types": "workspace:*",
-    "@supabase/supabase-js": "^2.43.0"
+    "@supabase/supabase-js": "^2.117.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

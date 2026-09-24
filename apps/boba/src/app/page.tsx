@@ -15,7 +15,7 @@ export default async function HomePage() {
     .select("*")
     .eq("user_id", user.id)
     .eq("app_id", "boba")
-    .single()
+    .maybeSingle()
 
   if (!membership) redirect("/join")
 

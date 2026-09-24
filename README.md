@@ -84,6 +84,12 @@ supabase db push
 supabase db reset --db-url postgresql://postgres:postgres@localhost:54322/postgres
 ```
 
+### Applying migrations to an existing (production) project
+
+Production has drifted from the migration history at times (see `current_schema_supabase.sql`).
+Migration `007_reconcile_schema_and_connection_fixes.sql` is idempotent and brings any environment
+back in line — paste it into the Supabase SQL editor if you don't use `supabase db push`.
+
 ### 3. Configure environment variables
 
 ```bash

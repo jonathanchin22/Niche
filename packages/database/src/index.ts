@@ -1,3 +1,56 @@
+import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
+
+type SupabaseClient = any
+
+interface FeedParams {
+  user_id: string
+  app_id: AppId
+  cursor?: string
+  limit?: number
+}
+
+interface MapBoundsParams {
+  app_id: AppId
+  user_id: string
+  bounds: { north: number; south: number; east: number; west: number }
+}
+
+interface SearchParams {
+  app_id: AppId
+  query: string
+  user_id: string
+}
+
+function isReviewVotesSchemaError(error: any) {
+  const message = `${error?.message ?? ""} ${error?.details ?? ""} ${error?.hint ?? ""}`.toLowerCase()
+  return error?.code === "PGRST200" || message.includes("review_votes") || message.includes("could not find a relationship")
+}
+
+function aggregateLegacyLikes(likes: any[]) {
+  const firstLike = Array.isArray(likes) ? likes[0] : likes
+  const count = Number(firstLike?.count ?? 0)
+  return { upvotes_count: count, downvotes_count: 0, likes_count: count, user_vote: 0 as const }
+}
+
+function aggregateCommentsCount(comments_meta: any[]) {
+  const firstMeta = Array.isArray(comments_meta) ? comments_meta[0] : comments_meta
+  return Number(firstMeta?.count ?? 0)
+}
+
+function normalizeReviewRecord(review: any, user_id?: string) {
+  const { votes, likes, comments_meta, user, profile, ...rest } = review
+  const actor = user ?? profile ?? null
+  const voteState = votes ? aggregateVotes(votes, user_id) : aggregateLegacyLikes(likes)
+  const comments_count = aggregateCommentsCount(comments_meta)
+
+  return {
+    ...rest,
+    ...(actor ? { user: actor, profile: actor } : null),
+    ...voteState,
+    comments_count,
+  }
+}
+
 // ─── Review Voting ─────────────────────────────────────────────────────────
 /**
  * Upvote or downvote a review. vote = 1 (upvote), -1 (downvote)
@@ -85,58 +138,6 @@ export async function getReviewComments(
     .order("created_at", { ascending: false })
   if (error) throw error
   return data ?? []
-}
-import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
-
-type SupabaseClient = any
-
-interface FeedParams {
-  user_id: string
-  app_id: AppId
-  cursor?: string
-  limit?: number
-}
-
-interface MapBoundsParams {
-  app_id: AppId
-  user_id: string
-  bounds: { north: number; south: number; east: number; west: number }
-}
-
-interface SearchParams {
-  app_id: AppId
-  query: string
-  user_id: string
-}
-
-function isReviewVotesSchemaError(error: any) {
-  const message = `${error?.message ?? ""} ${error?.details ?? ""} ${error?.hint ?? ""}`.toLowerCase()
-  return error?.code === "PGRST200" || message.includes("review_votes") || message.includes("could not find a relationship")
-}
-
-function aggregateLegacyLikes(likes: any[]) {
-  const firstLike = Array.isArray(likes) ? likes[0] : likes
-  const count = Number(firstLike?.count ?? 0)
-  return { upvotes_count: count, downvotes_count: 0, likes_count: count, user_vote: 0 as const }
-}
-
-function aggregateCommentsCount(comments_meta: any[]) {
-  const firstMeta = Array.isArray(comments_meta) ? comments_meta[0] : comments_meta
-  return Number(firstMeta?.count ?? 0)
-}
-
-function normalizeReviewRecord(review: any, user_id?: string) {
-  const { votes, likes, comments_meta, user, profile, ...rest } = review
-  const actor = user ?? profile ?? null
-  const voteState = votes ? aggregateVotes(votes, user_id) : aggregateLegacyLikes(likes)
-  const comments_count = aggregateCommentsCount(comments_meta)
-
-  return {
-    ...rest,
-    ...(actor ? { user: actor, profile: actor } : null),
-    ...voteState,
-    comments_count,
-  }
 }
 
 // ─── Feed ────────────────────────────────────────────────────────────────────
@@ -572,28 +573,26 @@ export async function getMapPins(
   })
 
   if (!rpcError && rpcData) return rpcData
+  if (rpcError) console.warn("get_map_pins RPC failed, using direct query:", rpcError.message)
 
-  // Fallback: simple place query within bounds
+  // Fallback: simple place query within bounds (no friend context).
+  // Coordinates live in lat/lng — the latitude/longitude columns are legacy and usually null.
   const { data, error } = await supabase
     .from("places")
-    .select("id, name, latitude, longitude, avg_score, review_count")
+    .select("*")
     .eq("app_id", app_id)
-    .gte("latitude", bounds.south)
-    .lte("latitude", bounds.north)
-    .gte("longitude", bounds.west)
-    .lte("longitude", bounds.east)
+    .gte("lat", bounds.south)
+    .lte("lat", bounds.north)
+    .gte("lng", bounds.west)
+    .lte("lng", bounds.east)
     .limit(50)
 
   if (error) throw error
   return (data ?? []).map((p: any) => ({
-    place_id: p.id,
-    name: p.name,
-    latitude: p.latitude,
-    longitude: p.longitude,
-    avg_score: p.avg_score,
-    review_count: p.review_count,
-    user_reviewed: false,
-    friend_reviewed: false,
+    place: p,
+    friend_count: 0,
+    friend_avatars: [],
+    top_score: p.avg_score ?? null,
   }))
 }
 
@@ -637,6 +636,7 @@ export async function upsertPlace(
       .single()
     if (!error && data) return data
   }
+  if (rpcError) console.warn("find_or_create_place RPC failed, using legacy upsert:", rpcError.message)
 
   // Legacy fallback — only reached when the find_or_create_place RPC is
   // unavailable (i.e., migration 006 has not yet been applied).
@@ -740,10 +740,15 @@ export async function searchUsers(
   supabase: SupabaseClient,
   { query, current_user_id }: { query: string; current_user_id: string }
 ): Promise<any[]> {
+  // Commas, parentheses and wildcards are PostgREST filter syntax — strip them
+  // so a search like "smith, j" doesn't produce a malformed .or() filter.
+  const term = query.replace(/[,()%*\\]/g, " ").trim()
+  if (!term) return []
+
   const { data, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url")
-    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+    .or(`username.ilike.%${term}%,display_name.ilike.%${term}%`)
     .neq("id", current_user_id)
     .limit(20)
   if (error) throw error

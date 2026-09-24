@@ -28,7 +28,7 @@ export default function LoginPage() {
       .select("user_id")
       .eq("user_id", user.id)
       .eq("app_id", "boba")
-      .single()
+      .maybeSingle()
 
     if (membership) {
       router.push("/")
