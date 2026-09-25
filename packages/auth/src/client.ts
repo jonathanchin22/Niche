@@ -103,7 +103,7 @@ export async function getCurrentUser(): Promise<User | null> {
     .eq("id", user.id)
     .maybeSingle()
 
-  return data as User | null
+  return data ? ({ ...data, email: user.email } as User) : null
 }
 
 // ─── Join a new app with an existing account ──────────────────────────────────

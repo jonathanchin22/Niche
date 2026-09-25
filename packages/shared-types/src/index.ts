@@ -6,7 +6,8 @@ export type AppId = "brew" | "boba" | "slice" | "ramen" | "pizza"
 // One user account spans all apps. app_memberships tracks which apps they joined.
 export interface User {
   id: string
-  email: string
+  /** Only for the signed-in user (from auth); profiles don't store it. */
+  email?: string
   username: string
   display_name: string
   avatar_url: string | null

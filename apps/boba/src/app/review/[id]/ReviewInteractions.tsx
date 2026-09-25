@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
-import { addReviewComment, cheerReview, getReviewComments, saveReview, uncheerReview, unsaveReview } from "@niche/database"
+import { addReviewComment, cheerReview, deleteReview, getReviewComments, saveReview, uncheerReview, unsaveReview } from "@niche/database"
 import { Avatar, BookmarkIcon, CheersIcon } from "@/components/ui/Primitives"
 import { timeAgo, type CupComment } from "@/lib/boba"
 
@@ -27,6 +28,9 @@ export default function ReviewInteractions(props: Props) {
   const [draft, setDraft] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [sending, startSending] = useTransition()
+  const [deleting, startDeleting] = useTransition()
+  const [copied, setCopied] = useState(false)
+  const router = useRouter()
 
   // Optimistic toggles; roll back if the write fails.
   const toggleCheers = async () => {
@@ -56,7 +60,24 @@ export default function ReviewInteractions(props: Props) {
   const share = async () => {
     const url = window.location.href
     if (navigator.share) await navigator.share({ title: props.shareTitle, url }).catch(() => {})
-    else await navigator.clipboard?.writeText(url)
+    else {
+      await navigator.clipboard?.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const remove = () => {
+    if (!window.confirm("Delete this sip? This can't be undone.")) return
+    startDeleting(async () => {
+      try {
+        await deleteReview(createClient(), { review_id: reviewId, user_id: userId })
+        router.replace("/profile")
+        router.refresh()
+      } catch {
+        setError("Couldn't delete it — try again.")
+      }
+    })
   }
 
   const send = () => {
@@ -94,6 +115,7 @@ export default function ReviewInteractions(props: Props) {
         </button>
       </div>
       {error && <p role="alert" className="t-meta" style={{ padding: "10px 24px 0" }}>{error}</p>}
+      {copied && <p role="status" className="t-meta" style={{ padding: "10px 24px 0" }}>Link copied.</p>}
 
       <section style={{ padding: "32px 24px 140px" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", paddingBottom: 12, borderBottom: "1px solid var(--c-rule)" }}>
@@ -113,6 +135,12 @@ export default function ReviewInteractions(props: Props) {
             </div>
           </div>
         ))}
+        {isOwn && (
+          <button type="button" onClick={remove} disabled={deleting} className="t-label"
+            style={{ display: "block", margin: "28px auto 0", minHeight: 44, padding: "0 12px", background: "none", border: "none", cursor: "pointer" }}>
+            {deleting ? "deleting…" : "delete this sip"}
+          </button>
+        )}
       </section>
 
       <form

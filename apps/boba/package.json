@@ -13,18 +13,12 @@
     "@niche/auth": "workspace:*",
     "@niche/database": "workspace:*",
     "@niche/shared-types": "workspace:*",
-    "@niche/ui": "workspace:*",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.117.0",
-    "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "maplibre-gl": "^4.7.1",
     "next": "^14.2.35",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "react-map-gl": "^7.1.9",
-    "tailwind-merge": "^2.6.0",
-    "zustand": "^4.5.7"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
