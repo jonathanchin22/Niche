@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getServerSession } from "@niche/auth/server"
-import { getPersonalRankPosition, getReviewDetail } from "@niche/database"
+import { firstProgress, getFirstLog, getFirstReviewCount, getPersonalRankPosition, getReviewDetail } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { DrinkDoodle } from "@/components/ui/Doodles"
 import { Avatar, Score } from "@/components/ui/Primitives"
@@ -19,7 +19,14 @@ export default async function ReviewPage({ params }: { params: { id: string } })
   const photo = r.image_urls?.[0]
   const name = r.item_name ?? r.category ?? "a cup"
   const isOwn = r.user_id === user.id
-  const rank = await getPersonalRankPosition(supabase, { review_id: r.id, user_id: r.user_id, app_id: APP_ID }).catch(() => null)
+  const atPlace = !!r.place && !isHomePlace(r.place)
+  const [rank, firstLog] = await Promise.all([
+    getPersonalRankPosition(supabase, { review_id: r.id, user_id: r.user_id, app_id: APP_ID }).catch(() => null),
+    atPlace ? getFirstLog(supabase, r.place!.id).catch(() => null) : Promise.resolve(null),
+  ])
+  // This cup was the first one logged at its café.
+  const wasFirst = !!firstLog && firstLog.created_at === r.created_at && firstLog.username === r.user?.username
+  const firsts = wasFirst && isOwn ? firstProgress(await getFirstReviewCount(supabase, { user_id: user.id, app_id: APP_ID }).catch(() => 0)) : null
   const rankHref = isOwn ? "/profile?tab=ranked" : `/profile/${r.user?.username}?tab=ranked`
 
   return (
@@ -56,6 +63,18 @@ export default async function ReviewPage({ params }: { params: { id: string } })
           <Link href={rankHref} className="t-label" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, color: "var(--c-ink)" }}>
             <span className="t-score" style={{ fontSize: 18, letterSpacing: 0, textTransform: "none" }}>#{rank.position}</span>
             {isOwn ? `of your ${rank.total} cups` : `of ${r.user?.username}’s ${rank.total} cups`} ›
+          </Link>
+        )}
+        {wasFirst && (
+          <Link href={isOwn ? "/explore?tab=first" : `/place/${r.place!.id}`} style={{ alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px", border: "1px dashed var(--c-rule)", borderRadius: 2 }}>
+            <span className="t-label" style={{ color: "var(--c-ink)" }}>✦ first cup ever logged here</span>
+            {firsts && (
+              <span className="t-meta" style={{ fontSize: 13, lineHeight: 1.5 }}>
+                {`You've been first at ${firsts.count} ${firsts.count === 1 ? "café" : "cafés"}`}
+                {firsts.earned.length > 0 ? ` · ${firsts.earned[firsts.earned.length - 1]?.name} badge` : ""}
+                {firsts.next ? ` · ${firsts.toNext} more for ${firsts.next.name} ›` : " · every badge collected"}
+              </span>
+            )}
           </Link>
         )}
         {r.note && <p className="t-hand" style={{ fontSize: 25, lineHeight: 1.2, marginTop: 6 }}>“{r.note}”</p>}

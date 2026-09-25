@@ -90,7 +90,7 @@ Production has drifted from the migration history at times (see `current_schema_
 If you don't use `supabase db push`, paste each file into the Supabase SQL editor **in order**.
 All of them are safe to re-run.
 
-Production is up to date through `012` (applied September 2026). Recent ones:
+Production is up to date through `013` (applied September 2026). Recent ones:
 
 - `006_place_normalization.sql`: merges duplicate cafés/shops (same name, no map id) into the
   oldest row, moving their reviews, then adds a unique index so it can't happen again.
@@ -104,6 +104,8 @@ Production is up to date through `012` (applied September 2026). Recent ones:
   rankings (`reviews.personal_rank`) for "which was better?".
 - `012_place_catalog.sql`: a catalog of real places: area seeding from OpenStreetMap
   (`import_osm_places`, `seeded_areas`), `places_near()`, and place kind/descriptors/relevance.
+- `013_first_reviews.sql`: `first_review_count()`, how many places someone was the
+  first to review (for the "be the first" tab and its badges).
 
 ### Place catalog and classification
 
