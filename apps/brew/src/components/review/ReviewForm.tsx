@@ -1,12 +1,15 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
-import { createReview, upsertPlace } from "@niche/database"
+import { createReview, getRankLadder, upsertPlace } from "@niche/database"
+import type { Review } from "@niche/shared-types"
 import { SteamingCup } from "@/components/ui/Doodles"
 import PlacePicker, { type PickedPlace } from "./PlacePicker"
+import RankStep, { type NewCup } from "./RankStep"
 import { APP_ID, HOME_PLACE_ID, formatScore } from "@/lib/brew"
 
 const TASTING_NOTES = ["silky", "nutty", "bright", "chocolatey", "fruity", "floral", "bold", "smooth", "syrupy", "clean"] as const
@@ -62,6 +65,8 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
   const [note, setNote] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, startSaving] = useTransition()
+  const openedAt = useRef(Date.now())
+  const [ranking, setRanking] = useState<{ cup: NewCup; ladder: Review[] } | null>(null)
 
   const pickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -120,12 +125,40 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
           image_urls: imageUrls,
         })
 
+        track("cup_logged", {
+          has_photo: imageUrls.length > 0,
+          at_home: atHome,
+          picked_place: !!chosen.google_place_id && !atHome,
+          seconds_to_log: Math.round((Date.now() - openedAt.current) / 1000),
+        })
+
+        // Slot it into their own ranking with a few "which was better?" questions.
+        const ladder = await getRankLadder(supabase, { user_id: userId, app_id: APP_ID, exclude_review_id: review.id }).catch(() => [])
+        if (ladder.length > 0) {
+          setRanking({
+            ladder,
+            cup: {
+              id: review.id, name: drink.trim(), place: atHome ? "at home" : chosen.name,
+              score: Math.round(score * 10) / 10, photo: imageUrls[0] ?? photoPreview,
+            },
+          })
+          return
+        }
         router.replace(`/review/${review.id}`)
         router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong — try again.")
       }
     })
+  }
+
+  if (ranking) {
+    return (
+      <RankStep userId={userId} cup={ranking.cup} ladder={ranking.ladder} onDone={() => {
+        router.replace(`/review/${ranking.cup.id}`)
+        router.refresh()
+      }} />
+    )
   }
 
   return (

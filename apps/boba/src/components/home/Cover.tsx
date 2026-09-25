@@ -2,6 +2,7 @@ import Link from "next/link"
 import type { Review } from "@niche/shared-types"
 import { DrinkDoodle, Sparkle } from "@/components/ui/Doodles"
 import { Avatar, Score } from "@/components/ui/Primitives"
+import FollowButton from "@/components/profile/FollowButton"
 import { formatScore, placeLabel, tasteChips, timeAgo, type Cup } from "@/lib/boba"
 
 export function Wordmark({ size = 28 }: { size?: number }) {
@@ -159,7 +160,48 @@ export function Feed({ reviews }: { reviews: Review[] }) {
         </div>
       ))}
       <p className="t-meta" style={{ padding: "36px 24px 0", textAlign: "center" }}>
-        That’s everything. <Link href="/friends" style={{ color: "var(--c-jade)", textDecoration: "underline", textUnderlineOffset: 3 }}>Find more people</Link> to fill the page.
+        That’s everything from people you follow. <Link href="/friends" style={{ color: "var(--c-jade)", textDecoration: "underline", textUnderlineOffset: 3 }}>Find more people</Link> to fill the page.
+      </p>
+    </section>
+  )
+}
+
+/**
+ * Cups from people the viewer doesn't follow yet, so the page is never empty.
+ * Always under its own heading — never passed off as friends' cups.
+ */
+export function Community({ reviews, viewerId, first = false }: { reviews: Review[]; viewerId: string; first?: boolean }) {
+  if (reviews.length === 0) return null
+  const people = new Map<string, NonNullable<Cup["user"]>>()
+  for (const r of reviews as Cup[]) if (r.user && !people.has(r.user_id)) people.set(r.user_id, r.user)
+
+  return (
+    <section style={{ paddingBottom: 12 }}>
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 4,
+        ...(first ? { padding: "30px 24px 16px" } : { margin: "36px 24px 0", padding: "28px 0 16px", borderTop: "1px solid var(--c-rule)" }),
+      }}>
+        <h2 className="t-section">around boba</h2>
+        <span className="t-meta" style={{ fontSize: 13 }}>Recent sips from people you don’t follow yet.</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", padding: "0 24px 22px" }}>
+        {Array.from(people.values()).slice(0, 6).map(u => (
+          <div key={u.id} style={{ flex: "0 0 auto", width: 112, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "14px 8px", border: "1px solid var(--c-rule)", borderRadius: 14, background: "var(--c-paper)" }}>
+            <Link href={`/profile/${u.username}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 0, width: "100%" }}>
+              <Avatar user={u} size={44} />
+              <span style={{ fontSize: 13, fontWeight: 500, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.username}</span>
+            </Link>
+            <FollowButton viewerId={viewerId} targetId={u.id} initialFollowing={false} size="sm" />
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
+        {reviews.map(r => <FeedEntry key={r.id} review={r} />)}
+      </div>
+      <p className="t-meta" style={{ padding: "30px 24px 0", textAlign: "center" }}>
+        Follow people to fill your own feed. <Link href="/friends" style={{ color: "var(--c-jade)", textDecoration: "underline", textUnderlineOffset: 3 }}>Find friends</Link>
       </p>
     </section>
   )

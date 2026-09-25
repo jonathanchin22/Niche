@@ -1,10 +1,12 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
 import { addReviewComment, cheerReview, deleteReview, getReviewComments, saveReview, uncheerReview, unsaveReview } from "@niche/database"
+import SafetyMenu from "@/components/safety/SafetyMenu"
 import { Avatar, BookmarkIcon, CheersIcon } from "@/components/ui/Primitives"
 import { timeAgo, type CupComment } from "@/lib/brew"
 
@@ -12,6 +14,7 @@ interface Props {
   reviewId: string
   userId: string
   isOwn: boolean
+  author: { id: string; username: string } | null
   shareTitle: string
   initialCheers: number
   initialCheered: boolean
@@ -39,6 +42,7 @@ export default function ReviewInteractions(props: Props) {
     try {
       const supabase = createClient()
       if (next) await cheerReview(supabase, { review_id: reviewId, user_id: userId })
+      if (next) track("cheer_sent")
       else await uncheerReview(supabase, { review_id: reviewId, user_id: userId })
     } catch {
       setCheered(!next); setCheers(c => c + (next ? -1 : 1)); setError("Couldn't save that — try again.")
@@ -51,6 +55,7 @@ export default function ReviewInteractions(props: Props) {
     try {
       const supabase = createClient()
       if (next) await saveReview(supabase, { review_id: reviewId, user_id: userId })
+      if (next) track("cup_saved")
       else await unsaveReview(supabase, { review_id: reviewId, user_id: userId })
     } catch {
       setSaved(!next); setError("Couldn't save that — try again.")
@@ -72,6 +77,7 @@ export default function ReviewInteractions(props: Props) {
     startDeleting(async () => {
       try {
         await deleteReview(createClient(), { review_id: reviewId, user_id: userId })
+        track("cup_deleted")
         router.replace("/profile")
         router.refresh()
       } catch {
@@ -87,6 +93,7 @@ export default function ReviewInteractions(props: Props) {
       try {
         const supabase = createClient()
         await addReviewComment(supabase, { review_id: reviewId, user_id: userId, body })
+        track("comment_sent")
         const fresh = await getReviewComments(supabase, { review_id: reviewId })
         setComments([...fresh].reverse() as CupComment[])
         setDraft("")
@@ -135,6 +142,11 @@ export default function ReviewInteractions(props: Props) {
             </div>
           </div>
         ))}
+        {!isOwn && props.author && (
+          <div style={{ marginTop: 20 }}>
+            <SafetyMenu viewerId={userId} target={props.author} reviewId={reviewId} trigger="links" noun="cup" />
+          </div>
+        )}
         {isOwn && (
           <button type="button" onClick={remove} disabled={deleting} className="t-label"
             style={{ display: "block", margin: "28px auto 0", minHeight: 44, padding: "0 12px", background: "none", border: "none", cursor: "pointer" }}>

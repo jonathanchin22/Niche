@@ -10,7 +10,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { ta
   const profile = await getProfile(supabase, user.id)
   if (!profile) return null
 
-  const tab = searchParams.tab === "try" || searchParams.tab === "cafes" ? searchParams.tab : "cups"
+  const tab = searchParams.tab === "try" || searchParams.tab === "cafes" || searchParams.tab === "ranked" ? searchParams.tab : "cups"
   return (
     <AppShell>
       <ProfileView supabase={supabase} viewerId={user.id} profile={profile} tab={tab} />

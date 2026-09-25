@@ -1,20 +1,22 @@
 import Link from "next/link"
-import { getFollowing, getSavedReviews, getUserReviews, getUserStats } from "@niche/database"
+import { byPersonalRank, getFollowing, getSavedReviews, getUserReviews, getUserStats } from "@niche/database"
 import BackButton from "@/components/ui/BackButton"
 import { SleepyBean } from "@/components/ui/Doodles"
 import { Avatar, CupTile, PlusIcon } from "@/components/ui/Primitives"
 import { APP_ID, formatScore, isHomePlace, type Cup, type CupPlace, type Profile } from "@/lib/brew"
 import type { createServerSupabaseClient } from "@niche/auth/server"
 import FollowButton from "./FollowButton"
+import SafetyMenu from "@/components/safety/SafetyMenu"
 
-type Tab = "cups" | "try" | "cafes"
+type Tab = "cups" | "ranked" | "try" | "cafes"
 
-export default async function ProfileView({ supabase, viewerId, profile, tab, isFollowing }: {
+export default async function ProfileView({ supabase, viewerId, profile, tab, isFollowing, isBlocked }: {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
   viewerId: string
   profile: Profile
   tab: Tab
   isFollowing?: boolean
+  isBlocked?: boolean
 }) {
   const isOwn = viewerId === profile.id
   const activeTab: Tab = tab === "try" && !isOwn ? "cups" : tab
@@ -30,6 +32,7 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "cups", label: "cups" },
+    { key: "ranked", label: "ranked" },
     ...(isOwn ? [{ key: "try" as const, label: "want to try" }] : []),
     { key: "cafes", label: "cafés" },
   ]
@@ -40,8 +43,13 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
     <div>
       <div style={{ position: "relative" }}>
         {!isOwn && <div style={{ position: "absolute", top: 48, left: 16 }}><BackButton /></div>}
+        {!isOwn && (
+          <div style={{ position: "absolute", top: 48, right: 12 }}>
+            <SafetyMenu viewerId={viewerId} target={{ id: profile.id, username: profile.username }} />
+          </div>
+        )}
         {isOwn && (
-          <Link href="/profile/edit" aria-label="Settings" style={{ position: "absolute", top: 48, right: 12, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Link href="/settings" aria-label="Settings" style={{ position: "absolute", top: 48, right: 12, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <circle cx="10" cy="10" r="2.6" stroke="currentColor" strokeWidth="1.4" />
               <path d="M10 1.8 V4.2M10 15.8 V18.2M1.8 10 H4.2M15.8 10 H18.2M4.2 4.2 L5.9 5.9M14.1 14.1 L15.8 15.8M4.2 15.8 L5.9 14.1M14.1 5.9 L15.8 4.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -55,7 +63,12 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
         <h1 className="t-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4 }}>{profile.display_name}</h1>
         <span className="t-label">{tagline}</span>
         {profile.bio && <p className="t-hand" style={{ fontSize: 21, color: "var(--c-mid)", marginTop: 2 }}>“{profile.bio}”</p>}
-        {!isOwn && <div style={{ marginTop: 8 }}><FollowButton viewerId={viewerId} targetId={profile.id} initialFollowing={!!isFollowing} /></div>}
+        {!isOwn && !isBlocked && <div style={{ marginTop: 8 }}><FollowButton viewerId={viewerId} targetId={profile.id} initialFollowing={!!isFollowing} /></div>}
+        {!isOwn && isBlocked && (
+          <p className="t-meta" style={{ marginTop: 8 }}>
+            You blocked @{profile.username}. <Link href="/settings" style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Unblock in settings</Link>
+          </p>
+        )}
       </header>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", margin: "22px 24px 0", padding: "14px 0", borderTop: "1px solid var(--c-rule)", borderBottom: "1px solid var(--c-rule)", textAlign: "center" }}>
@@ -96,6 +109,12 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
           : <CupGrid reviews={reviews} />
       )}
 
+      {activeTab === "ranked" && (
+        reviews.length === 0
+          ? <EmptyState title="nothing ranked yet" body={isOwn ? "Log a few cups and compare them — your list builds itself." : `${profile.display_name} hasn't ranked anything yet.`} />
+          : <RankedList reviews={reviews} />
+      )}
+
       {activeTab === "try" && (
         saved.length === 0
           ? <EmptyState title="nothing saved yet" body="Tap want to try on any friend's cup and it'll wait for you here." action={{ href: "/explore", label: "find something good" }} />
@@ -116,6 +135,27 @@ function CupGrid({ reviews }: { reviews: Cup[] }) {
         </div>
       ))}
     </div>
+  )
+}
+
+/** Their cups best first, by their own head-to-head comparisons (score breaks ties). */
+function RankedList({ reviews }: { reviews: Cup[] }) {
+  const ranked = [...reviews].sort(byPersonalRank)
+  return (
+    <ol style={{ listStyle: "none", padding: "0 24px" }}>
+      {ranked.map((r, i) => (
+        <li key={r.id}>
+          <Link href={`/review/${r.id}`} style={{ display: "grid", gridTemplateColumns: "36px 1fr auto", alignItems: "baseline", gap: 10, padding: "14px 0", borderBottom: "1px solid var(--c-rule)" }}>
+            <span className="t-score" style={{ fontSize: i < 3 ? 26 : 20, color: i < 3 ? "var(--c-ink)" : "var(--c-mid)" }}>{i + 1}</span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span className="t-title" style={{ fontSize: 20 }}>{r.item_name ?? r.category ?? "a cup"}</span>
+              <span className="t-meta" style={{ fontSize: 12 }}>{isHomePlace(r.place) ? "at home" : r.place?.name ?? ""}</span>
+            </span>
+            <span className="t-score" style={{ fontSize: 20 }}>{formatScore(r.score)}</span>
+          </Link>
+        </li>
+      ))}
+    </ol>
   )
 }
 

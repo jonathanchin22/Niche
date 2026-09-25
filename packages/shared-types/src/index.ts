@@ -107,6 +107,8 @@ export interface Review {
   place_id: string
   // Score: 0–10 decimal for brew/slice, 1–5 for boba
   score: number
+  /** The owner's own ordering of their cups (higher = better), from "which was better?" comparisons. */
+  personal_rank?: number | null
   // What they ordered (e.g. "pour over", "taro milk tea", "detroit style")
   category: string | null
   item_name: string | null

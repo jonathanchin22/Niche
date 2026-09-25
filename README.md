@@ -90,7 +90,7 @@ Production has drifted from the migration history at times (see `current_schema_
 If you don't use `supabase db push`, paste each file into the Supabase SQL editor **in order**.
 All of them are safe to re-run.
 
-Production is up to date through `010` (applied September 2026). Recent ones:
+Production is up to date through `011` (applied September 2026). Recent ones:
 
 - `006_place_normalization.sql`: merges duplicate cafés/shops (same name, no map id) into the
   oldest row, moving their reviews, then adds a unique index so it can't happen again.
@@ -100,6 +100,8 @@ Production is up to date through `010` (applied September 2026). Recent ones:
 - `009_merge_manual_places.sql`: merges shops the first boba app saved with fake `manual_…` ids.
 - `010_security_and_performance.sql`: drops the publicly readable `profiles.email`, limits photo
   uploads to your own folder, locks down trigger functions, and speeds up RLS and indexes.
+- `011_safety_accounts_and_ranking.sql`: block and report, in-app account deletion, and personal
+  rankings (`reviews.personal_rank`) for "which was better?".
 
 ### 3. Configure environment variables
 
@@ -125,6 +127,24 @@ Apps run at:
 - `slice` → http://localhost:3002
 
 ---
+
+### 5. End-to-end tests
+
+`e2e/` drives the real brew app in Chromium against a local stand-in for Supabase:
+Postgres (with PostGIS) with every migration applied, PostgREST, and a small fake
+auth server. CI runs it on every PR (the `e2e` job in `.github/workflows/ci.yml`).
+To run it locally:
+
+```bash
+PGHOST=localhost PGUSER=postgres PGPASSWORD=postgres e2e/scripts/setup-db.sh   # fresh seeded DB
+PGRST_DB_URI=postgres://authenticator:authenticator@localhost:5432/niche_e2e PGRST_DB_ANON_ROLE=anon \
+  PGRST_JWT_SECRET=test-secret-test-secret-test-secret-123 PGRST_SERVER_PORT=3999 postgrest &
+node e2e/scripts/fake-supabase.mjs &
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54399 NEXT_PUBLIC_SUPABASE_ANON_KEY=e2e pnpm turbo build --filter=@niche/brew
+pnpm --filter @niche/e2e test:e2e
+```
+
+Re-run `setup-db.sh` before each run: the tests change the data.
 
 ## Deployment
 
