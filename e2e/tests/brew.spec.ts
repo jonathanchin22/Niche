@@ -225,6 +225,7 @@ test.describe("explore: every café, reviewed or not", () => {
     // Names sit under the pins (reviewed places win when names would overlap).
     await expect(map.getByText("Sightglass", { exact: true })).toBeVisible()
 
+
     await map.getByRole("button", { name: "Four Barrel Coffee, no reviews yet" }).click()
     const preview = page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })
     await expect(preview).toBeVisible()
@@ -237,6 +238,20 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })).toBeVisible()
     await page.getByRole("button", { name: "Close preview" }).click()
     await expect(page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })).toHaveCount(0)
+
+    // Pins stay pinned to their places: MapLibre positions them absolutely,
+    // and zooming in one level exactly doubles the distance between two pins.
+    const back = page.getByRole("region", { name: "Map of cafés near you" })
+    const sight = back.getByRole("button", { name: /^Sightglass, / })
+    const blue = back.getByRole("button", { name: /^Blue Bottle, / })
+    await expect(sight.locator("xpath=..")).toHaveCSS("position", "absolute")
+    const gap = async () => {
+      const [a, b] = [await sight.boundingBox(), await blue.boundingBox()]
+      return Math.hypot(a!.x + a!.width / 2 - (b!.x + b!.width / 2), a!.y + a!.height / 2 - (b!.y + b!.height / 2))
+    }
+    const before = await gap()
+    await back.getByRole("button", { name: "Zoom in" }).click()
+    await expect.poll(async () => (await gap()) / before, { timeout: 5000 }).toBeCloseTo(2, 1)
   })
 
   test("an area is seeded once, then served from the database", async ({ page, context, request }) => {

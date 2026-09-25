@@ -65,8 +65,11 @@ function recolor(map: MapLibreMap) {
 }
 
 function pinElement(pin: MapPin) {
+  // MapLibre positions the marker element itself (position: absolute plus a
+  // transform); don't override its position, or pins drift off their spot as
+  // you pan and zoom. The pin sets the element's size; the name hangs below it.
   const wrap = document.createElement("div")
-  Object.assign(wrap.style, { position: "relative", display: "flex", justifyContent: "center" })
+  Object.assign(wrap.style, { display: "flex", justifyContent: "center" })
   const el = document.createElement("button")
   el.type = "button"
   el.setAttribute("aria-label", pin.score != null ? `${pin.name}, ${pin.score.toFixed(1)}` : `${pin.name}, no reviews yet`)
@@ -218,7 +221,7 @@ export default function CafeMap({ center, pins, height = 420, showMe = true, zoo
         if (cb.current.onSelect) cb.current.onSelect(pin.id)
         else cb.current.router.push(pin.href)
       })
-      const marker = new lib.Marker({ element: wrap, anchor: "top", offset: [0, -8] }).setLngLat([pin.lng, pin.lat]).addTo(map)
+      const marker = new lib.Marker({ element: wrap, anchor: "center" }).setLngLat([pin.lng, pin.lat]).addTo(map)
       markers.current.set(pin.id, { marker, button, label, reviewed: pin.score != null })
     }
     styleMarkers()
