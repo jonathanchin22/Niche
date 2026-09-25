@@ -254,6 +254,33 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect.poll(async () => (await gap()) / before, { timeout: 5000 }).toBeCloseTo(2, 1)
   })
 
+  test("'search this area' loads cafés for wherever the map is, and 'back to near you' returns", async ({ page, context }) => {
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.getByRole("button", { name: "map", exact: true }).click()
+    const map = page.getByRole("region", { name: "Map of cafés near you" })
+    await expect(map.getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+    const searchHere = page.getByRole("button", { name: "search this area" })
+    await expect(searchHere).toHaveCount(0)
+
+    await map.getByRole("button", { name: "Zoom out" }).click()
+    await expect(searchHere).toBeVisible()
+    const request = page.waitForRequest(r => r.url().includes("/api/places/near") && r.url().includes("radius="))
+    await searchHere.click()
+    await request
+    await expect(page.getByText("Showing cafés around the map area")).toBeVisible()
+    await expect(searchHere).toHaveCount(0)
+    await expect(map.getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+
+    await page.getByRole("button", { name: "back to near you" }).click()
+    await expect(page.getByText("Showing cafés around the map area")).toHaveCount(0)
+    await expect(page.getByRole("region", { name: "Map of cafés near you" }).getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+  })
+
   test("an area is seeded once, then served from the database", async ({ page, context, request }) => {
     const before = (await (await request.get(`${OVERPASS}/_count`)).json()).count
     await signInAs(context, "maya")

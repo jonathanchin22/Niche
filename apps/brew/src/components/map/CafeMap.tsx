@@ -98,7 +98,8 @@ function pinElement(pin: MapPin) {
   return { wrap, button: el, label }
 }
 
-export interface MapCamera { lat: number; lng: number; zoom: number }
+/** Where the map is looking; `radius` is metres from the centre to a corner. */
+export interface MapCamera { lat: number; lng: number; zoom: number; radius?: number }
 
 /** Below this zoom the map is too crowded for names at all. */
 const LABEL_MIN_ZOOM = 12
@@ -188,7 +189,8 @@ export default function CafeMap({ center, pins, height = 420, showMe = true, zoo
       map.on("moveend", () => {
         if (!map) return
         const c = map.getCenter()
-        cb.current.onCameraChange?.({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })
+        const radius = Math.round(c.distanceTo(map.getBounds().getNorthEast()))
+        cb.current.onCameraChange?.({ lat: c.lat, lng: c.lng, zoom: map.getZoom(), radius })
       })
       // Tapping empty map closes the preview.
       map.on("click", e => {

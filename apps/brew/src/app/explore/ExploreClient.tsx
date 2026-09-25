@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
 import {
-  formatDistance, getCurrentPosition, importFoundPlace, searchPlaces, searchPlacesByName,
+  distanceMetres, formatDistance, getCurrentPosition, importFoundPlace, searchPlaces, searchPlacesByName,
   type CatalogPlace, type FoundPlace, type LatLng, type LovedPlace,
 } from "@niche/database"
 import type { Place } from "@niche/shared-types"
@@ -13,7 +13,7 @@ import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitiv
 import { SleepyBean } from "@/components/ui/Doodles"
 import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
 import NearYou, { type NearStatus } from "./NearYou"
-import { readNearState, writeNearState } from "./nearState"
+import { readNearState, writeNearState, type SearchArea } from "./nearState"
 
 const FILTERS = [
   { key: "all", label: "everything", match: () => true },
@@ -43,6 +43,16 @@ function PlacePhoto({ photo, name, height }: { photo: string | null; name: strin
     )
 }
 
+/** Places around a point; distances are re-measured from you when you're known. */
+async function fetchNear(at: LatLng, radius: number | undefined, from: LatLng | null) {
+  const params = new URLSearchParams({ lat: String(at.lat), lng: String(at.lng) })
+  if (radius) params.set("radius", String(Math.round(radius)))
+  const res = await fetch(`/api/places/near?${params}`)
+  if (!res.ok) throw new Error(String(res.status))
+  const body: { places: CatalogPlace[] } = await res.json()
+  return from ? body.places.map(p => ({ ...p, distance_m: distanceMetres(from, p) })) : body.places
+}
+
 export default function ExploreClient({ places, firsts }: { places: LovedPlace[]; firsts: number }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
@@ -52,27 +62,23 @@ export default function ExploreClient({ places, firsts }: { places: LovedPlace[]
   const [here, setHere] = useState<LatLng | null>(null)
   const [nearStatus, setNearStatus] = useState<NearStatus>("locating")
   const [near, setNear] = useState<CatalogPlace[]>([])
+  const [area, setArea] = useState<SearchArea | null>(null)
+  const [searching, setSearching] = useState(false)
   const router = useRouter()
 
   // Where you are, then every café around it (the server seeds new areas).
   // Coming back from a café shows the last list at once, then refreshes it.
   useEffect(() => {
     let cancelled = false
-    const load = async (pos: LatLng) => {
-      const res = await fetch(`/api/places/near?lat=${pos.lat}&lng=${pos.lng}`)
-      if (!res.ok) throw new Error(String(res.status))
-      const body: { places: CatalogPlace[] } = await res.json()
-      if (cancelled) return
-      setNear(body.places)
-      setNearStatus("ready")
-      writeNearState({ here: pos, places: body.places })
-    }
     const saved = readNearState()
     if (saved?.here) {
       setHere(saved.here)
+      setArea(saved.area)
       setNear(saved.places)
       setNearStatus("ready")
-      load(saved.here).catch(() => {})
+      fetchNear(saved.area ?? saved.here, saved.area?.radius, saved.here)
+        .then(places => { if (!cancelled) { setNear(places); writeNearState({ places }) } })
+        .catch(() => {})
       return () => { cancelled = true }
     }
     getCurrentPosition().then(async pos => {
@@ -81,13 +87,35 @@ export default function ExploreClient({ places, firsts }: { places: LovedPlace[]
       setHere(pos)
       setNearStatus("loading")
       try {
-        await load(pos)
+        const places = await fetchNear(pos, undefined, pos)
+        if (cancelled) return
+        setNear(places)
+        setNearStatus("ready")
+        writeNearState({ here: pos, area: null, places })
       } catch {
         if (!cancelled) setNearStatus("error")
       }
     })
     return () => { cancelled = true }
   }, [])
+
+  // "Search this area" on the map: load what's around the map's centre, and
+  // back to near you again. Distances always count from you.
+  const searchArea = async (next: SearchArea | null) => {
+    const at = next ?? here
+    if (!at) return
+    setSearching(true)
+    try {
+      const places = await fetchNear(at, next?.radius, here)
+      setNear(places)
+      setArea(next)
+      writeNearState({ area: next, places })
+    } catch {
+      // Keep what's on the map; the button stays so they can try again.
+    } finally {
+      setSearching(false)
+    }
+  }
 
   useEffect(() => {
     const q = query.trim()
@@ -159,7 +187,7 @@ export default function ExploreClient({ places, firsts }: { places: LovedPlace[]
         </section>
       ) : (
         <>
-          <NearYou here={here} status={nearStatus} places={near} firsts={firsts} />
+          <NearYou here={here} status={nearStatus} places={near} firsts={firsts} area={area} searching={searching} onSearchArea={searchArea} />
 
           <div style={{ display: "flex", gap: 8, padding: "30px 24px 0", overflowX: "auto" }}>
             {FILTERS.map(f => (
