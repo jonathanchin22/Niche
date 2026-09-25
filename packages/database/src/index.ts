@@ -1036,6 +1036,13 @@ export interface HomeFeed {
   entries: Review[]
   /** Whether the user follows anyone (drives the empty state). */
   followsAnyone: boolean
+  /** No cups of their own and nobody followed: show the welcome page. */
+  isNewcomer: boolean
+  /**
+   * Recent cups from people the user doesn't follow yet, so the page is
+   * never empty. Shown under its own heading, never mixed into friends.
+   */
+  community: Review[]
 }
 
 /**
@@ -1048,9 +1055,10 @@ export async function getHomeFeed(
   { user_id, app_id, limit = 40 }: { user_id: string; app_id: AppId; limit?: number }
 ): Promise<HomeFeed> {
   const following = await getFollowingIds(supabase, user_id)
-  const reviews = await getFriendReviewsSince(supabase, {
-    user_id, app_id, limit, includeSelf: true, ids: following,
-  })
+  const [reviews, community] = await Promise.all([
+    getFriendReviewsSince(supabase, { user_id, app_id, limit, includeSelf: true, ids: following }),
+    getCommunityCups(supabase, { user_id, app_id, exclude: following }).catch(() => []),
+  ])
 
   const now = Date.now()
   const age = (r: Review) => now - new Date(r.created_at).getTime()
@@ -1070,7 +1078,155 @@ export async function getHomeFeed(
     coverWhen,
     entries: reviews.filter(r => r.id !== cover?.id),
     followsAnyone: following.length > 0,
+    isNewcomer: following.length === 0 && !reviews.some(r => r.user_id === user_id),
+    community,
   }
+}
+
+/** Recent cups in this app from people the user doesn't follow (or themselves), photos first. */
+export async function getCommunityCups(
+  supabase: SupabaseClient,
+  { user_id, app_id, exclude = [], limit = 12 }: { user_id: string; app_id: AppId; exclude?: string[]; limit?: number }
+): Promise<Review[]> {
+  const skip = [...exclude, user_id]
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(REVIEW_CARD_SELECT)
+    .eq("app_id", app_id)
+    .not("user_id", "in", `(${skip.join(",")})`)
+    .order("created_at", { ascending: false })
+    .limit(limit * 2)
+  if (error) throw error
+  const cups: Review[] = (data ?? []).map((r: any) => normalizeReviewRecord(r, user_id) as Review)
+  // Everyone's newest cup first, then their second; no more than two each,
+  // so it never reads like a single stranger's diary.
+  const count = new Map<string, number>()
+  const capped = cups.filter(r => {
+    const n = (count.get(r.user_id) ?? 0) + 1
+    count.set(r.user_id, n)
+    return n <= 2
+  })
+  const firsts = capped.filter((r, i) => capped.findIndex(c => c.user_id === r.user_id) === i)
+  return [...firsts, ...capped.filter(r => !firsts.includes(r))].slice(0, limit)
+}
+
+// ─── Safety: block, report, delete account ───────────────────────────────────
+
+export async function blockUser(supabase: SupabaseClient, { blocker_id, blocked_id }: { blocker_id: string; blocked_id: string }): Promise<void> {
+  const { error } = await supabase
+    .from("blocks")
+    .upsert({ blocker_id, blocked_id }, { onConflict: "blocker_id,blocked_id", ignoreDuplicates: true })
+  if (error) throw error
+}
+
+export async function unblockUser(supabase: SupabaseClient, { blocker_id, blocked_id }: { blocker_id: string; blocked_id: string }): Promise<void> {
+  const { error } = await supabase.from("blocks").delete().eq("blocker_id", blocker_id).eq("blocked_id", blocked_id)
+  if (error) throw error
+}
+
+export async function getBlockedUsers(
+  supabase: SupabaseClient,
+  user_id: string
+): Promise<{ id: string; username: string; display_name: string; avatar_url: string | null }[]> {
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("created_at, profile:profiles!blocks_blocked_id_fkey(id, username, display_name, avatar_url)")
+    .eq("blocker_id", user_id)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((b: any) => b.profile).filter(Boolean)
+}
+
+export async function isBlocking(supabase: SupabaseClient, { blocker_id, blocked_id }: { blocker_id: string; blocked_id: string }): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("blocked_id")
+    .eq("blocker_id", blocker_id)
+    .eq("blocked_id", blocked_id)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+export type ReportReason = "spam" | "harassment" | "inappropriate" | "fake" | "other"
+
+export async function reportContent(
+  supabase: SupabaseClient,
+  report: { reporter_id: string; reason: ReportReason; details?: string | null; review_id?: string | null; comment_id?: string | null; reported_user_id?: string | null }
+): Promise<void> {
+  const { error } = await supabase.from("reports").insert(report)
+  if (error) throw error
+}
+
+/**
+ * Deletes the signed-in user's photos (every app folder) and then their
+ * account; everything else cascades in the database (migration 011).
+ */
+export async function deleteMyAccount(supabase: SupabaseClient, { user_id, apps }: { user_id: string; apps: AppId[] }): Promise<void> {
+  for (const app of apps) {
+    const folder = `${app}/${user_id}`
+    const { data: files } = await supabase.storage.from("review-images").list(folder, { limit: 1000 })
+    if (files?.length) {
+      await supabase.storage.from("review-images").remove(files.map((f: any) => `${folder}/${f.name}`))
+    }
+  }
+  const { error } = await supabase.rpc("delete_my_account")
+  if (error) throw error
+}
+
+// ─── Personal rankings ("which was better?") ────────────────────────────────
+
+/** The user's other cups in this app, best first — the ladder a new cup is compared against. */
+export async function getRankLadder(
+  supabase: SupabaseClient,
+  { user_id, app_id, exclude_review_id }: { user_id: string; app_id: AppId; exclude_review_id?: string }
+): Promise<Review[]> {
+  let query = supabase
+    .from("reviews")
+    .select(REVIEW_CARD_SELECT + ", personal_rank")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .order("created_at", { ascending: false })
+    .limit(200)
+  if (exclude_review_id) query = query.neq("id", exclude_review_id)
+  const { data, error } = await query
+  if (error) throw error
+  const cups: Review[] = (data ?? []).map((r: any) => normalizeReviewRecord(r, user_id) as Review)
+  return cups.sort(byPersonalRank)
+}
+
+/** Best first. Cups never compared (personal_rank null) sit at their score. */
+export function byPersonalRank(a: { personal_rank?: number | null; score: number }, b: { personal_rank?: number | null; score: number }) {
+  return Number(b.personal_rank ?? b.score) - Number(a.personal_rank ?? a.score) || Number(b.score) - Number(a.score)
+}
+
+export async function setPersonalRank(
+  supabase: SupabaseClient,
+  { review_id, user_id, personal_rank }: { review_id: string; user_id: string; personal_rank: number }
+): Promise<void> {
+  const { error } = await supabase
+    .from("reviews")
+    .update({ personal_rank })
+    .eq("id", review_id)
+    .eq("user_id", user_id)
+  if (error) throw error
+}
+
+/** Where a cup sits in its owner's ranking: 1 = their favourite. */
+export async function getPersonalRankPosition(
+  supabase: SupabaseClient,
+  { review_id, user_id, app_id }: { review_id: string; user_id: string; app_id: AppId }
+): Promise<{ position: number; total: number } | null> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, personal_rank, score")
+    .eq("user_id", user_id)
+    .eq("app_id", app_id)
+    .limit(1000)
+  if (error) throw error
+  const ids = [...(data ?? [])].sort(byPersonalRank).map((r: any) => r.id)
+  const index = ids.indexOf(review_id)
+  return index === -1 ? null : { position: index + 1, total: ids.length }
 }
 
 export interface LovedPlace {

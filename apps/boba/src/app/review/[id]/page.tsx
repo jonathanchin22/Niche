@@ -1,11 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getServerSession } from "@niche/auth/server"
-import { getReviewDetail } from "@niche/database"
+import { getPersonalRankPosition, getReviewDetail } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { DrinkDoodle } from "@/components/ui/Doodles"
 import { Avatar, Score } from "@/components/ui/Primitives"
-import { isHomePlace, placeLabel, tasteChips, timeAgo, type Cup, type CupComment } from "@/lib/boba"
+import { APP_ID, isHomePlace, placeLabel, tasteChips, timeAgo, type Cup, type CupComment } from "@/lib/boba"
 import BackButton from "@/components/ui/BackButton"
 import ReviewInteractions from "./ReviewInteractions"
 
@@ -18,6 +18,9 @@ export default async function ReviewPage({ params }: { params: { id: string } })
   const r = review as Cup & { comments: CupComment[]; saved: boolean }
   const photo = r.image_urls?.[0]
   const name = r.item_name ?? r.category ?? "a boba"
+  const isOwn = r.user_id === user.id
+  const rank = await getPersonalRankPosition(supabase, { review_id: r.id, user_id: r.user_id, app_id: APP_ID }).catch(() => null)
+  const rankHref = isOwn ? "/profile?tab=ranked" : `/profile/${r.user?.username}?tab=ranked`
   const chips = tasteChips(r)
 
   return (
@@ -55,6 +58,12 @@ export default async function ReviewPage({ params }: { params: { id: string } })
             {chips.map(c => <span key={c} className="taste">{c}</span>)}
           </div>
         )}
+        {rank && rank.total > 1 && (
+          <Link href={rankHref} className="t-label" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, color: "var(--c-jade)" }}>
+            <span className="t-score" style={{ fontSize: 18, letterSpacing: 0, textTransform: "none" }}>#{rank.position}</span>
+            {isOwn ? `of your ${rank.total} sips` : `of ${r.user?.username}’s ${rank.total} sips`} ›
+          </Link>
+        )}
         {r.note && <p className="t-hand" style={{ fontSize: 25, lineHeight: 1.2, marginTop: 6 }}>“{r.note}”</p>}
         {r.tags.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -67,6 +76,7 @@ export default async function ReviewPage({ params }: { params: { id: string } })
         reviewId={r.id}
         userId={user.id}
         isOwn={r.user_id === user.id}
+        author={r.user?.username ? { id: r.user_id, username: r.user.username } : null}
         shareTitle={`${name} · ${placeLabel(r.place) || "boba!"}`}
         initialCheers={r.upvotes_count ?? 0}
         initialCheered={r.user_vote === 1}

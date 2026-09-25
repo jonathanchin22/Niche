@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
   const user = data?.claims?.sub ? data.claims : null
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/auth")
-  const isPublicRoute = isAuthRoute
+  const isPublicRoute = isAuthRoute || ["/privacy", "/terms"].includes(request.nextUrl.pathname)
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

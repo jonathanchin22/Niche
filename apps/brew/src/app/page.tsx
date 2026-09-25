@@ -1,7 +1,7 @@
 import { getServerSession } from "@niche/auth/server"
 import { getHomeFeed, getProfile, getSuggestedPeople } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
-import { CoverStory, Feed, Masthead } from "@/components/home/Cover"
+import { Community, CoverStory, Feed, Masthead } from "@/components/home/Cover"
 import { Welcome } from "@/components/home/Welcome"
 import { APP_ID, issueDate, issueNumber } from "@/lib/brew"
 
@@ -23,6 +23,7 @@ export default async function HomePage() {
     return (
       <AppShell>
         <Welcome issue={issue} date={date} peopleHere={people.length} />
+        <Community reviews={feed.community} viewerId={user.id} first />
       </AppShell>
     )
   }
@@ -32,6 +33,7 @@ export default async function HomePage() {
       <Masthead issue={issue} date={date} />
       <CoverStory review={feed.cover} when={feed.coverWhen} />
       <Feed reviews={feed.entries} />
+      <Community reviews={feed.community.slice(0, feed.entries.length >= 12 ? 4 : 12)} viewerId={user.id} />
     </AppShell>
   )
 }

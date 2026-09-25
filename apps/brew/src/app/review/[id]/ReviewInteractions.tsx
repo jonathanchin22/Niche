@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
 import { addReviewComment, cheerReview, deleteReview, getReviewComments, saveReview, uncheerReview, unsaveReview } from "@niche/database"
+import SafetyMenu from "@/components/safety/SafetyMenu"
 import { Avatar, BookmarkIcon, CheersIcon } from "@/components/ui/Primitives"
 import { timeAgo, type CupComment } from "@/lib/brew"
 
@@ -12,6 +13,7 @@ interface Props {
   reviewId: string
   userId: string
   isOwn: boolean
+  author: { id: string; username: string } | null
   shareTitle: string
   initialCheers: number
   initialCheered: boolean
@@ -135,6 +137,11 @@ export default function ReviewInteractions(props: Props) {
             </div>
           </div>
         ))}
+        {!isOwn && props.author && (
+          <div style={{ marginTop: 20 }}>
+            <SafetyMenu viewerId={userId} target={props.author} reviewId={reviewId} trigger="links" noun="cup" />
+          </div>
+        )}
         {isOwn && (
           <button type="button" onClick={remove} disabled={deleting} className="t-label"
             style={{ display: "block", margin: "28px auto 0", minHeight: 44, padding: "0 12px", background: "none", border: "none", cursor: "pointer" }}>
