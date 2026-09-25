@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { getProfile, getHighestRatedCoffee } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import EditProfileClient from "./EditProfileClient"
@@ -6,8 +6,7 @@ import EditProfileClient from "./EditProfileClient"
 const APP_ID = "brew" as const
 
 export default async function EditProfilePage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
   const [profile, highestRatedCoffee] = await Promise.all([

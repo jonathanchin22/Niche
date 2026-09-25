@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { getPlaceById, getUserReviews } from "@niche/database"
 import type { Place } from "@niche/shared-types"
 import AppShell from "@/components/ui/AppShell"
@@ -13,8 +13,7 @@ function toRecent(p: Pick<Place, "id" | "name" | "address" | "city" | "state" | 
 }
 
 export default async function LogPage({ searchParams }: { searchParams: { place?: string } }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
   const [{ data: recent }, place] = await Promise.all([

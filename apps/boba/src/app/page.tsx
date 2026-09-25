@@ -1,28 +1,24 @@
-import { createServerSupabaseClient } from "@niche/auth/server"
-import { getCupOfTheDay, getFollowing, getFriendReviewsSince, getProfile, getSuggestedPeople, getUserStats } from "@niche/database"
+import { getServerSession } from "@niche/auth/server"
+import { getHomeFeed, getProfile, getSuggestedPeople } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
-import { CoverStory, Masthead, WeekAmongFriends } from "@/components/home/Cover"
+import { CoverStory, Feed, Masthead } from "@/components/home/Cover"
 import { Welcome } from "@/components/home/Welcome"
 import { APP_ID, sipDate, sipNumber } from "@/lib/boba"
 
 export default async function HomePage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
-  const [profile, stats, following] = await Promise.all([
+  const [profile, feed] = await Promise.all([
     getProfile(supabase, user.id),
-    getUserStats(supabase, { user_id: user.id, app_id: APP_ID }),
-    getFollowing(supabase, user.id),
+    getHomeFeed(supabase, { user_id: user.id, app_id: APP_ID }),
   ])
   const sip = sipNumber(profile?.created_at)
   const date = sipDate()
 
-  const cup = stats.cups > 0 || following.length > 0
-    ? await getCupOfTheDay(supabase, { user_id: user.id, app_id: APP_ID })
-    : null
-
-  if (!cup) {
+  // The welcome page is for first opens only: no sips of your own and none
+  // from anyone you follow. Everyone else gets the feed.
+  if (!feed.cover) {
     const people = await getSuggestedPeople(supabase, { user_id: user.id, app_id: APP_ID, limit: 20 }).catch(() => [])
     return (
       <AppShell>
@@ -31,15 +27,11 @@ export default async function HomePage() {
     )
   }
 
-  const week = (await getFriendReviewsSince(supabase, {
-    user_id: user.id, app_id: APP_ID, since: new Date(Date.now() - 7 * 86_400_000), limit: 13,
-  })).filter(r => r.id !== cup.id).slice(0, 8)
-
   return (
     <AppShell>
       <Masthead sip={sip} date={date} />
-      <CoverStory review={cup} />
-      <WeekAmongFriends reviews={week} />
+      <CoverStory review={feed.cover} when={feed.coverWhen} />
+      <Feed reviews={feed.entries} />
     </AppShell>
   )
 }

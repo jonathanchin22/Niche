@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr"
+import { cache } from "react"
 import { cookies } from "next/headers"
 
 // ─── Server-side Supabase client (used in Server Components / Route Handlers) ─
@@ -21,3 +22,16 @@ export async function createServerSupabaseClient() {
     }
   )
 }
+
+// ─── Signed-in user for Server Components ────────────────────────────────────
+// getClaims() verifies the session JWT locally against the project's
+// asymmetric signing keys (cached JWKS), so pages don't make a round trip to
+// the Auth server on every render the way getUser() does. cache() shares one
+// client and one verification across everything rendered for a request.
+export const getServerSession = cache(async () => {
+  const supabase = await createServerSupabaseClient()
+  const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims
+  const user = claims?.sub ? { id: claims.sub, email: (claims.email as string | undefined) ?? null } : null
+  return { supabase, user }
+})
