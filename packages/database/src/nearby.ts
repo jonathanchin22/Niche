@@ -17,7 +17,12 @@ export interface FoundPlace {
   distance?: number
 }
 
-export interface LatLng { lat: number; lng: number }
+export interface LatLng {
+  lat: number
+  lng: number
+  /** Metres, 68% confidence, when it came from the device. */
+  accuracy?: number
+}
 
 const OVERPASS = "https://overpass-api.de/api/interpreter"
 
@@ -86,7 +91,13 @@ export async function findNearbyPlaces(
 ): Promise<FoundPlace[]> {
   const key = `niche:nearby:${kind}:${at.lat.toFixed(3)},${at.lng.toFixed(3)}`
   const cached = readCache<FoundPlace[]>(key, 30 * 60_000)
-  if (cached) return cached.slice(0, limit)
+  // The cache is keyed to a ~100 m grid, so re-measure from where they are now.
+  if (cached) {
+    return cached
+      .map(p => ({ ...p, distance: distanceMetres(at, p) }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit)
+  }
 
   const radii = kind === "cafe" ? [1_200, 4_000] : [3_000, 10_000]
   let places: FoundPlace[] = []
@@ -170,9 +181,26 @@ export function getCurrentPosition(): Promise<LatLng | null> {
   return new Promise(resolve => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null)
     navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
       () => resolve(null),
-      { enableHighAccuracy: false, maximumAge: 10 * 60_000, timeout: 10_000 }
+      // A fresh, precise fix: "you're at <café>" depends on it.
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
     )
   })
+}
+
+/**
+ * The café the person is standing in, if it's clear-cut: the nearest one is
+ * within 40 m, the location fix is good, and no other café is close behind
+ * (so a busy block doesn't guess wrong). Otherwise null — show the list.
+ */
+export function detectCurrentPlace(nearby: FoundPlace[], here: LatLng): FoundPlace | null {
+  const [first, second] = [...nearby]
+    .filter(p => p.distance != null)
+    .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+  if (!first || first.distance == null) return null
+  if (here.accuracy != null && here.accuracy > 60) return null
+  if (first.distance > 40) return null
+  if (second?.distance != null && second.distance - first.distance < 15) return null
+  return first
 }
