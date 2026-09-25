@@ -113,3 +113,62 @@ test("deleting your account removes you", async ({ browser }) => {
   await expect(check.getByRole("heading", { name: "nothing brewing here." })).toBeVisible()
   await other.close()
 })
+
+test.describe("you're at <café>", () => {
+  // Sightglass in the seed data is OSM node 1, so a detected pick maps to that row.
+  const SIGHTGLASS = { latitude: 37.7766, longitude: -122.4086 }
+  const cafe = (id: number, name: string, lat: number, lon: number) =>
+    ({ type: "node", id, lat, lon, tags: { amenity: "cafe", name, "addr:city": "San Francisco" } })
+
+  async function atLocation(context: import("@playwright/test").BrowserContext, page: import("@playwright/test").Page, elements: object[]) {
+    await context.grantPermissions(["geolocation"])
+    await context.setGeolocation({ ...SIGHTGLASS, accuracy: 15 })
+    await page.route(/overpass-api\.de/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ elements }),
+    }))
+  }
+
+  test("picks the café you're standing in", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await atLocation(context, page, [
+      cafe(1, "Sightglass", 37.77662, -122.40858),
+      cafe(2, "Ritual", 37.7564, -122.4213),
+    ])
+    await page.goto("/log")
+    await expect(page.locator("#cafe")).toHaveValue("Sightglass")
+    await expect(page.getByText("looks like you’re here")).toBeVisible()
+
+    await page.fill("#drink", "Cortado")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    const skip = page.getByRole("button", { name: "skip for now" })
+    await skip.click()
+    await expect(page).toHaveURL(/\/review\//)
+    await expect(page.getByRole("link", { name: /Sightglass/ })).toBeVisible()
+  })
+
+  test("'not here?' goes back to the list", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await atLocation(context, page, [
+      cafe(1, "Sightglass", 37.77662, -122.40858),
+      cafe(2, "Ritual", 37.7564, -122.4213),
+    ])
+    await page.goto("/log")
+    await page.getByRole("button", { name: "not here?" }).click()
+    await expect(page.locator("#cafe")).toHaveValue("")
+    await expect(page.getByText("near you")).toBeVisible()
+    await expect(page.getByRole("option")).toHaveCount(2)
+  })
+
+  test("doesn't guess when two cafés are side by side", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await atLocation(context, page, [
+      cafe(1, "Sightglass", 37.77662, -122.40858),
+      cafe(3, "Next Door Coffee", 37.77665, -122.40862),
+    ])
+    await page.goto("/log")
+    await expect(page.getByText("near you")).toBeVisible()
+    await expect(page.locator("#cafe")).toHaveValue("")
+    await expect(page.getByText("looks like you’re here")).toHaveCount(0)
+  })
+})

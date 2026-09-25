@@ -13,6 +13,8 @@ export type AnalyticsEvent =
   | "signed_in"
   | "niche_joined"
   | "cup_logged"
+  | "cafe_autodetected"
+  | "cafe_autodetect_rejected"
   | "cup_ranked"
   | "cup_rank_skipped"
   | "cup_deleted"
