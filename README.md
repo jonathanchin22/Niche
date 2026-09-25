@@ -90,7 +90,7 @@ Production has drifted from the migration history at times (see `current_schema_
 If you don't use `supabase db push`, paste each file into the Supabase SQL editor **in order**.
 All of them are safe to re-run.
 
-Production is up to date through `009` (applied September 2026). Recent ones:
+Production is up to date through `010` (applied September 2026). Recent ones:
 
 - `006_place_normalization.sql`: merges duplicate cafés/shops (same name, no map id) into the
   oldest row, moving their reviews, then adds a unique index so it can't happen again.
@@ -98,6 +98,8 @@ Production is up to date through `009` (applied September 2026). Recent ones:
 - `008_want_to_try_and_social.sql`: "want to try" saves, save notifications and public app
   memberships for friend suggestions (needed by the brew and boba redesigns).
 - `009_merge_manual_places.sql`: merges shops the first boba app saved with fake `manual_…` ids.
+- `010_security_and_performance.sql`: drops the publicly readable `profiles.email`, limits photo
+  uploads to your own folder, locks down trigger functions, and speeds up RLS and indexes.
 
 ### 3. Configure environment variables
 

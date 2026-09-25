@@ -536,6 +536,18 @@ export async function isReviewLiked(
   return !!data
 }
 
+export async function deleteReview(
+  supabase: SupabaseClient,
+  { review_id, user_id }: { review_id: string; user_id: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from("reviews")
+    .delete()
+    .eq("id", review_id)
+    .eq("user_id", user_id)
+  if (error) throw error
+}
+
 export async function updateReview(
   supabase: SupabaseClient,
   { review_id, updates }: {
@@ -729,7 +741,8 @@ export async function searchPlaces(
     .from("places")
     .select("*")
     .eq("app_id", app_id)
-    .ilike("name", `%${query}%`)
+    // % and _ are LIKE wildcards; escape them so "7_leaves" means what it says.
+    .ilike("name", `%${query.replace(/[\\%_]/g, "\\$&")}%`)
     .order("review_count", { ascending: false })
     .limit(20)
   if (error) throw error

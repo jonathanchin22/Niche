@@ -4,7 +4,10 @@ import { NextRequest, NextResponse } from "next/server"
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/"
+  // Only same-site paths: "//evil.com" or "@evil.com" would otherwise send
+  // people off-site after signing in.
+  const requested = searchParams.get("next") ?? "/"
+  const next = requested.startsWith("/") && !requested.startsWith("//") && !requested.startsWith("/\\") ? requested : "/"
 
   if (code) {
     const supabase = await createServerSupabaseClient()

@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@niche/auth", "@niche/database", "@niche/shared-types", "@niche/ui"],
+  transpilePackages: ["@niche/auth", "@niche/database", "@niche/shared-types"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
