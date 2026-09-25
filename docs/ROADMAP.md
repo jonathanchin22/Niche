@@ -150,6 +150,13 @@ Together these make the web apps measurable, store-ready and noticeably stickier
   - A never-empty feed (the "around brew/boba" section).
   - Pairwise ranking and the ranked tab.
 - **Done: "you're at <café>" on the web**, the Phase 2 item 4 preview.
+- **Done: Explore that's never empty.**
+  - Areas are seeded from OpenStreetMap on first visit.
+  - Every café near you appears, reviewed or not, with "be the first" prompts.
+  - Search falls back to the map.
+  - Unreviewed cafés get their own pages, with a "first logged by" credit.
+  - A map in each app's colours (MapLibre + OpenFreeMap, no API key).
+  - A Claude classification job, switched on once its keys are added.
 - **Waiting on the owner:**
   - PostHog, Sentry and support email keys in Vercel.
   - Leaked-password protection in the Supabase dashboard.

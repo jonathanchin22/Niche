@@ -3,9 +3,13 @@
 //   /auth/v1/logout   → 204
 //   /storage/v1/...   → empty listings / no-op deletes (tests don't upload)
 //   /rest/v1/...      → proxied to PostgREST, which verifies the JWT itself
+//   /overpass/...     → a fixed set of cafés (overpass-fixture.json), so area
+//                       seeding is deterministic; counts requests at /overpass/_count
 import http from "node:http"
+import { readFileSync } from "node:fs"
 
 const PORT = Number(process.env.FAKE_SUPABASE_PORT ?? 54399)
+let overpassHits = 0
 const POSTGREST = new URL(process.env.POSTGREST_URL ?? "http://localhost:3999")
 
 function cors(req, res) {
@@ -38,6 +42,11 @@ http.createServer((req, res) => {
   }
   if (req.url.startsWith("/auth/v1/logout")) { res.writeHead(204); return res.end() }
   if (req.url.startsWith("/storage/v1/")) return json(res, 200, [])
+  if (req.url.startsWith("/overpass/_count")) return json(res, 200, { count: overpassHits })
+  if (req.url.startsWith("/overpass")) {
+    overpassHits++
+    return json(res, 200, JSON.parse(readFileSync(new URL("./overpass-fixture.json", import.meta.url), "utf8")))
+  }
 
   if (req.url.startsWith("/rest/v1")) {
     const proxy = http.request({
