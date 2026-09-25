@@ -19,6 +19,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@supabase/supabase-js": "^2.117.0",
     "@types/node": "^20.0.0",
     "prettier": "^3.2.0",
     "turbo": "^1.13.0",

@@ -51,6 +51,11 @@ export interface Place {
   // Computed aggregates (from reviews)
   avg_score: number | null
   review_count: number
+  // Catalog (migration 012): where it came from and what kind of place it is
+  source?: "user" | "osm"
+  kind?: "specialty" | "chain" | "casual" | "other" | null
+  descriptors?: string[]
+  relevant?: boolean
   created_at: string
   updated_at: string
 }

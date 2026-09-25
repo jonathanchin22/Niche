@@ -172,3 +172,78 @@ test.describe("you're at <café>", () => {
     await expect(page.getByText("looks like you’re here")).toHaveCount(0)
   })
 })
+
+test.describe("explore: every café, reviewed or not", () => {
+  // Around Sightglass; the fake server serves e2e/scripts/overpass-fixture.json for this area.
+  const HERE = { latitude: 37.7766, longitude: -122.4086 }
+  const OVERPASS = process.env.OVERPASS_URL ?? "http://localhost:54399/overpass"
+
+  test.beforeEach(async ({ context }) => {
+    await context.grantPermissions(["geolocation"])
+    await context.setGeolocation({ ...HERE, accuracy: 20 })
+    // The log screen's own nearby lookup (browser → public Overpass) isn't under test here.
+    await context.route(/overpass-api\.de/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: '{"elements":[]}',
+    }))
+  })
+
+  test("near you lists unreviewed cafés, and skips bakeries and boba shops tagged as cafés", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    const near = page.locator("section", { has: page.locator("#near-you") })
+    await expect(near.getByRole("link", { name: /Four Barrel Coffee/ })).toContainText("no cups yet · be the first")
+    await expect(near.getByRole("link", { name: /Sightglass/ })).toContainText(/cups? logged/)
+    await expect(near.getByRole("link", { name: /Starbucks/ })).toContainText("chain")
+    await expect(near.getByRole("link", { name: /Réveille Coffee/ })).toContainText("wifi")
+    await expect(near.getByText("Crumb & Co Bakery")).toHaveCount(0)
+    await expect(near.getByText("Boba Guys")).toHaveCount(0)
+  })
+
+  test("an area is seeded once, then served from the database", async ({ page, context, request }) => {
+    const before = (await (await request.get(`${OVERPASS}/_count`)).json()).count
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await expect(page.getByRole("link", { name: /Four Barrel Coffee/ })).toBeVisible()
+    const after = (await (await request.get(`${OVERPASS}/_count`)).json()).count
+    expect(after).toBe(before)
+  })
+
+  test("an unreviewed café has a page, and the first cup claims it", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.getByRole("link", { name: /Four Barrel Coffee/ }).click()
+    await expect(page.getByRole("heading", { name: "Four Barrel Coffee" })).toBeVisible()
+    await expect(page.getByText("no cups yet")).toBeVisible()
+    await expect(page.getByText("375 Valencia Street")).toBeVisible()
+
+    await page.getByRole("link", { name: "log the first cup" }).click()
+    await expect(page.locator("#cafe")).toHaveValue("Four Barrel Coffee")
+    await page.fill("#drink", "Pour over")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    await page.getByRole("button", { name: "skip for now" }).click()
+    await expect(page).toHaveURL(/\/review\//)
+
+    await page.getByRole("link", { name: /Four Barrel Coffee/ }).click()
+    await expect(page.getByText("first logged by")).toContainText("@maya")
+    await expect(page.getByText("no cups yet")).toHaveCount(0)
+  })
+
+  test("search finds cafés that aren't on brew yet", async ({ page, context }) => {
+    await context.route(/nominatim\.openstreetmap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify([{
+        osm_type: "node", osm_id: 20, name: "Linea Caffe", lat: "37.7626", lon: "-122.4128",
+        display_name: "Linea Caffe, 3417 18th Street, San Francisco",
+        address: { house_number: "3417", road: "18th Street", city: "San Francisco", state: "California" },
+      }]),
+    }))
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.fill("#q", "Linea")
+    await expect(page.getByText("not on brew yet")).toBeVisible()
+    await page.getByRole("button", { name: /Linea Caffe/ }).click()
+    await expect(page).toHaveURL(/\/place\//)
+    await expect(page.getByRole("heading", { name: "Linea Caffe" })).toBeVisible()
+    await expect(page.getByText("no cups yet")).toBeVisible()
+  })
+})

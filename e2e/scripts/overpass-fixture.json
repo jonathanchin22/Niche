@@ -1,0 +1,11 @@
+{
+  "elements": [
+    { "type": "node", "id": 1, "lat": 37.77662, "lon": -122.40858, "tags": { "amenity": "cafe", "name": "Sightglass", "cuisine": "coffee_shop", "craft": "roaster", "addr:housenumber": "270", "addr:street": "7th Street", "addr:city": "San Francisco" } },
+    { "type": "node", "id": 10, "lat": 37.7672, "lon": -122.4221, "tags": { "amenity": "cafe", "name": "Four Barrel Coffee", "cuisine": "coffee_shop", "addr:housenumber": "375", "addr:street": "Valencia Street", "addr:city": "San Francisco" } },
+    { "type": "node", "id": 11, "lat": 37.7781, "lon": -122.4102, "tags": { "amenity": "cafe", "name": "Starbucks", "brand": "Starbucks", "brand:wikidata": "Q37158" } },
+    { "type": "node", "id": 12, "lat": 37.7760, "lon": -122.4070, "tags": { "amenity": "cafe", "shop": "bakery", "name": "Crumb & Co Bakery" } },
+    { "type": "node", "id": 13, "lat": 37.7770, "lon": -122.4095, "tags": { "amenity": "cafe", "name": "Boba Guys", "cuisine": "bubble_tea" } },
+    { "type": "way", "id": 14, "center": { "lat": 37.7745, "lon": -122.4120 }, "tags": { "amenity": "cafe", "name": "Réveille Coffee", "internet_access": "wlan", "outdoor_seating": "yes" } },
+    { "type": "node", "id": 15, "lat": 37.7758, "lon": -122.4110, "tags": { "amenity": "cafe" } }
+  ]
+}

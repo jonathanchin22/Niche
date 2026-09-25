@@ -23,6 +23,8 @@ export default defineConfig({
     command: `pnpm --filter @niche/brew exec next start -p ${PORT}`,
     url: `http://localhost:${PORT}/auth/login`,
     reuseExistingServer: !process.env.CI,
+    // Server-side area seeding reads cafés from the fake server's fixture.
+    env: { OVERPASS_URL: process.env.OVERPASS_URL ?? "http://localhost:54399/overpass" },
     timeout: 120_000,
   },
 })

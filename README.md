@@ -90,7 +90,7 @@ Production has drifted from the migration history at times (see `current_schema_
 If you don't use `supabase db push`, paste each file into the Supabase SQL editor **in order**.
 All of them are safe to re-run.
 
-Production is up to date through `011` (applied September 2026). Recent ones:
+Production is up to date through `012` (applied September 2026). Recent ones:
 
 - `006_place_normalization.sql`: merges duplicate cafés/shops (same name, no map id) into the
   oldest row, moving their reviews, then adds a unique index so it can't happen again.
@@ -102,6 +102,21 @@ Production is up to date through `011` (applied September 2026). Recent ones:
   uploads to your own folder, locks down trigger functions, and speeds up RLS and indexes.
 - `011_safety_accounts_and_ranking.sql`: block and report, in-app account deletion, and personal
   rankings (`reviews.personal_rank`) for "which was better?".
+- `012_place_catalog.sql`: a catalog of real places: area seeding from OpenStreetMap
+  (`import_osm_places`, `seeded_areas`), `places_near()`, and place kind/descriptors/relevance.
+
+### Place catalog and classification
+
+Explore lists every café (or boba shop) near you, reviewed or not. The first visit to an area
+calls `/api/places/near`, which imports that ~2 km cell from OpenStreetMap (Overpass) with
+rule-based classification (`packages/database/src/catalog.ts`); after that it's served from the
+database. `OVERPASS_URL` overrides the Overpass endpoint.
+
+`scripts/classify-places.mjs` refines those rules with Claude: relevance, kind, descriptors. It
+runs daily from `.github/workflows/classify-places.yml` once these repo secrets exist:
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (it skips otherwise). Trigger it
+by hand with "dry run" to preview the classifications before any are written.
+
 
 ### 3. Configure environment variables
 

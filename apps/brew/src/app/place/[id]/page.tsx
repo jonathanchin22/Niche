@@ -1,9 +1,10 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getServerSession } from "@niche/auth/server"
-import { getFollowing, getPlaceById, getPlaceReviews } from "@niche/database"
+import { getFirstLog, getFollowing, getPlaceById, getPlaceReviews } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import BackButton from "@/components/ui/BackButton"
+import PlaceMapCard from "@/components/map/PlaceMapCard"
 import { CupTile, PlusIcon, SectionHeading } from "@/components/ui/Primitives"
 import { formatScore, isHomePlace, type Cup, type Person } from "@/lib/brew"
 
@@ -11,10 +12,11 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
   const { supabase, user } = await getServerSession()
   if (!user) return null
 
-  const [place, items, following] = await Promise.all([
+  const [place, items, following, firstLog] = await Promise.all([
     getPlaceById(supabase, params.id),
     getPlaceReviews(supabase, { place_id: params.id, limit: 60 }),
     getFollowing(supabase, user.id),
+    getFirstLog(supabase, params.id).catch(() => null),
   ])
   if (!place || isHomePlace(place)) notFound()
 
@@ -40,6 +42,12 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
     .slice(0, 5)
 
   const hasCoords = Number(place.lat) !== 0 || Number(place.lng) !== 0
+  const fromMap = place.source === "osm" || place.google_place_id?.startsWith("osm_")
+  const about = [
+    place.kind === "specialty" ? "specialty coffee" : place.kind === "chain" ? "chain" : null,
+    ...(place.descriptors ?? []).slice(0, 3),
+  ].filter(Boolean).join(" · ")
+  const firstCup = reviews.length === 0
   const mapsUrl = hasCoords
     ? `https://maps.google.com/?q=${place.lat},${place.lng}`
     : `https://maps.google.com/?q=${encodeURIComponent([place.name, place.city].filter(Boolean).join(" "))}`
@@ -54,7 +62,7 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 10, padding: "24px 24px 0" }}>
-        {place.city && <span className="t-label" style={{ letterSpacing: "0.16em" }}>café · {place.city}</span>}
+        <span className="t-label" style={{ letterSpacing: "0.16em" }}>{["café", place.city].filter(Boolean).join(" · ")}</span>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
           <h1 className="t-display" style={{ fontSize: 52 }}>{place.name}</h1>
           {place.avg_score != null && (
@@ -64,12 +72,33 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
             </span>
           )}
         </div>
+        {(place.address || about) && (
+          <span className="t-meta" style={{ fontSize: 13, lineHeight: 1.5 }}>{[place.address, about].filter(Boolean).join(" — ")}</span>
+        )}
+        {firstLog && (
+          <span className="t-label" style={{ letterSpacing: "0.1em" }}>
+            first logged by <Link href={`/profile/${firstLog.username}`} style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>@{firstLog.username}</Link>
+          </span>
+        )}
       </section>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, padding: "22px 24px 0" }}>
-        <Link href={`/log?place=${place.id}`} className="btn btn-primary" style={{ padding: 0 }}><PlusIcon size={14} />log a cup here</Link>
+        <Link href={`/log?place=${place.id}`} className="btn btn-primary" style={{ padding: 0 }}><PlusIcon size={14} />{firstCup ? "log the first cup" : "log a cup here"}</Link>
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ padding: 0 }}>directions ↗</a>
       </div>
+
+      {firstCup && (
+        <section style={{ margin: "26px 24px 0", padding: "20px", border: "1px dashed var(--c-rule)", borderRadius: 2, display: "flex", flexDirection: "column", gap: 6 }}>
+          <span className="t-title" style={{ fontSize: 22 }}>no cups yet</span>
+          <span className="t-meta" style={{ fontSize: 14, lineHeight: 1.5 }}>Be the first to log one here. Your cup starts this page, and it’ll say you found it.</span>
+        </section>
+      )}
+
+      {hasCoords && (
+        <div style={{ margin: "26px 24px 0" }}>
+          <PlaceMapCard id={place.id} name={place.name} lat={Number(place.lat)} lng={Number(place.lng)} score={place.review_count > 0 && place.avg_score != null ? Number(place.avg_score) : null} />
+        </div>
+      )}
 
       {gridCups.length > 0 && (
         <>
@@ -95,6 +124,8 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
           ))}
         </section>
       )}
+
+      {fromMap && <p className="t-meta" style={{ fontSize: 11, padding: "28px 24px 0" }}>Map © OpenFreeMap · © OpenMapTiles · place data © OpenStreetMap contributors</p>}
     </AppShell>
   )
 }

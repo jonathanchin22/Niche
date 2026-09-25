@@ -27,9 +27,9 @@ export interface LatLng {
 const OVERPASS = "https://overpass-api.de/api/interpreter"
 
 // Chains and words that mark a bubble tea shop mapped as a plain café or takeaway.
-const BOBA_NAMES = "boba|bubble|milk ?tea|tea ?house|chatime|gong ?cha|kung ?fu tea|tiger ?sugar|sharetea|coco|yi ?fang|7 ?leaves|machi|presotea|happy ?lemon|tp ?tea|xing ?fu|auntea|sunright|teazzi|teaspoon|wushiland|the alley|heytea|chagee|molly ?tea"
+export const BOBA_NAMES = "boba|bubble|milk ?tea|tea ?house|chatime|gong ?cha|kung ?fu tea|tiger ?sugar|sharetea|coco|yi ?fang|7 ?leaves|machi|presotea|happy ?lemon|tp ?tea|xing ?fu|auntea|sunright|teazzi|teaspoon|wushiland|the alley|heytea|chagee|molly ?tea"
 
-function overpassQuery(kind: NearbyKind, { lat, lng }: LatLng, radius: number) {
+export function overpassQuery(kind: NearbyKind, { lat, lng }: LatLng, radius: number) {
   const around = `(around:${radius},${lat},${lng})`
   const body = kind === "cafe"
     ? `nwr["amenity"="cafe"]${around};`

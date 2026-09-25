@@ -1,0 +1,40 @@
+name: Classify places
+
+# Refines the rule-based classification of places imported from OpenStreetMap
+# with Claude (scripts/classify-places.mjs). Skips cleanly until these repo
+# secrets exist: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY.
+
+on:
+  schedule:
+    - cron: "17 9 * * *" # daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print classifications without writing them"
+        type: boolean
+        default: false
+
+concurrency:
+  group: classify-places
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/classify-places.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLASSIFY_DRY_RUN: ${{ inputs.dry_run && '1' || '' }}

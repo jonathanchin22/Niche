@@ -2,12 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
-import { searchPlaces, type LovedPlace } from "@niche/database"
+import {
+  formatDistance, getCurrentPosition, importFoundPlace, searchPlaces, searchPlacesByName,
+  type CatalogPlace, type FoundPlace, type LatLng, type LovedPlace,
+} from "@niche/database"
 import type { Place } from "@niche/shared-types"
 import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitives"
 import { SleepyBean } from "@/components/ui/Doodles"
 import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
+import NearYou, { type NearStatus } from "./NearYou"
 
 const FILTERS = [
   { key: "all", label: "everything", match: () => true },
@@ -41,16 +46,57 @@ export default function ExploreClient({ places }: { places: LovedPlace[] }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
   const [results, setResults] = useState<Place[] | null>(null)
+  const [mapResults, setMapResults] = useState<FoundPlace[]>([])
+  const [opening, setOpening] = useState<string | null>(null)
+  const [here, setHere] = useState<LatLng | null>(null)
+  const [nearStatus, setNearStatus] = useState<NearStatus>("locating")
+  const [near, setNear] = useState<CatalogPlace[]>([])
+  const router = useRouter()
+
+  // Where you are, then every café around it (the server seeds new areas).
+  useEffect(() => {
+    let cancelled = false
+    getCurrentPosition().then(async pos => {
+      if (cancelled) return
+      if (!pos) { setNearStatus("no-location"); return }
+      setHere(pos)
+      setNearStatus("loading")
+      try {
+        const res = await fetch(`/api/places/near?lat=${pos.lat}&lng=${pos.lng}`)
+        if (!res.ok) throw new Error(String(res.status))
+        const body: { places: CatalogPlace[] } = await res.json()
+        if (!cancelled) { setNear(body.places); setNearStatus("ready") }
+      } catch {
+        if (!cancelled) setNearStatus("error")
+      }
+    })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     const q = query.trim()
-    if (q.length < 2) { setResults(null); return }
+    if (q.length < 2) { setResults(null); setMapResults([]); return }
+    const ctrl = new AbortController()
     const t = setTimeout(async () => {
       const found = await searchPlaces(createClient(), { app_id: APP_ID, query: q }).catch(() => [])
+      if (ctrl.signal.aborted) return
       setResults(found.filter(p => !isHomePlace(p)))
-    }, 250)
-    return () => clearTimeout(t)
-  }, [query])
+      // Then cafés on the map that nobody has logged yet.
+      if (q.length >= 3) {
+        const onMap = await searchPlacesByName(q, here, { signal: ctrl.signal }).catch(() => [])
+        const known = new Set(found.map(p => p.google_place_id).filter(Boolean))
+        if (!ctrl.signal.aborted) setMapResults(onMap.filter(p => !known.has(p.google_place_id)))
+      }
+    }, 300)
+    return () => { clearTimeout(t); ctrl.abort() }
+  }, [query, here])
+
+  const openFound = async (p: FoundPlace) => {
+    setOpening(p.google_place_id)
+    const id = await importFoundPlace(createClient(), { app_id: APP_ID, place: p }).catch(() => null)
+    if (id) router.push(`/place/${id}`)
+    else setOpening(null)
+  }
 
   const shown = useMemo(() => {
     const f = FILTERS.find(x => x.key === filter)!
@@ -69,8 +115,8 @@ export default function ExploreClient({ places }: { places: LovedPlace[] }) {
 
       {results ? (
         <section style={{ padding: "8px 24px 0" }}>
-          {results.length === 0 && (
-            <p className="t-meta" style={{ padding: "18px 0" }}>No cafés called “{query.trim()}” yet — log a cup there and it’ll appear.</p>
+          {results.length === 0 && mapResults.length === 0 && (
+            <p className="t-meta" style={{ padding: "18px 0" }}>No cafés called “{query.trim()}” found.</p>
           )}
           {results.map(p => (
             <Link key={p.id} href={`/place/${p.id}`} style={{ display: "flex", alignItems: "baseline", gap: 12, padding: "16px 0", borderBottom: "1px solid var(--c-rule)" }}>
@@ -79,10 +125,27 @@ export default function ExploreClient({ places }: { places: LovedPlace[] }) {
               {p.avg_score != null && <span className="t-score" style={{ fontSize: 22 }}>{formatScore(p.avg_score)}</span>}
             </Link>
           ))}
+          {mapResults.length > 0 && (
+            <>
+              <p className="t-label" style={{ padding: "22px 0 4px" }}>not on brew yet</p>
+              {mapResults.map(p => (
+                <button key={p.google_place_id} type="button" onClick={() => openFound(p)} disabled={opening === p.google_place_id}
+                  style={{ width: "100%", display: "flex", alignItems: "baseline", gap: 12, padding: "14px 0", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--c-rule)", cursor: "pointer" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1, minWidth: 0 }}>
+                    <span className="t-title" style={{ fontSize: 20 }}>{p.name}</span>
+                    <span className="t-meta" style={{ fontSize: 12 }}>{[p.address, p.city].filter(Boolean).join(", ") || "no cups yet"}</span>
+                  </span>
+                  <span className="t-label" style={{ flexShrink: 0 }}>{opening === p.google_place_id ? "opening…" : formatDistance(p.distance) || "be the first"}</span>
+                </button>
+              ))}
+            </>
+          )}
         </section>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 8, padding: "14px 24px 0", overflowX: "auto" }}>
+          <NearYou here={here} status={nearStatus} places={near} />
+
+          <div style={{ display: "flex", gap: 8, padding: "30px 24px 0", overflowX: "auto" }}>
             {FILTERS.map(f => (
               <button key={f.key} type="button" className="pill" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
             ))}
