@@ -1,4 +1,5 @@
 import { formatDistanceToNowStrict } from "date-fns"
+import type { Place, Review, User } from "@niche/shared-types"
 
 export const APP_ID = "brew" as const
 
@@ -38,3 +39,35 @@ export function issueNumber(joinedAt: string | null | undefined, now = new Date(
 export function issueDate(now = new Date()) {
   return now.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }).toLowerCase().replace(",", "")
 }
+
+// ─── Shapes the brew screens read ─────────────────────────────────────────────
+// The shared database package returns loosely-typed rows; these describe what
+// its brew queries actually select (see REVIEW_CARD_SELECT in @niche/database).
+export type Person = Pick<User, "id" | "username" | "display_name" | "avatar_url">
+
+export interface CupPlace {
+  id: string
+  name: string
+  city?: string | null
+  state?: string | null
+  cover_image_url?: string | null
+  google_place_id?: string | null
+  lat?: number | null
+  lng?: number | null
+}
+
+export type Cup = Omit<Review, "user" | "place"> & {
+  user?: Person | null
+  profile?: Person | null
+  place?: CupPlace | null
+}
+
+export interface CupComment {
+  id: string
+  body: string
+  created_at: string
+  user_id: string
+  user?: Person | null
+}
+
+export type Profile = Person & { bio?: string | null; created_at?: string; location?: string | null }

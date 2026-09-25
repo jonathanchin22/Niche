@@ -5,7 +5,7 @@ import { getFollowing, getPlaceById, getPlaceReviews } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import BackButton from "@/components/ui/BackButton"
 import { CupTile, PlusIcon, SectionHeading } from "@/components/ui/Primitives"
-import { formatScore, isHomePlace } from "@/lib/brew"
+import { formatScore, isHomePlace, type Cup, type Person } from "@/lib/brew"
 
 export default async function PlacePage({ params }: { params: { id: string } }) {
   const supabase = await createServerSupabaseClient()
@@ -19,15 +19,15 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
   ])
   if (!place || isHomePlace(place)) notFound()
 
-  const reviews = items.map((i: any) => i.review).filter(Boolean)
-  const circle = new Set([user.id, ...following.map((f: any) => f.id)])
-  const friendCups = reviews.filter((r: any) => circle.has(r.user_id))
+  const reviews = items.map(i => i.review).filter(Boolean) as Cup[]
+  const circle = new Set([user.id, ...following.map((f: Person) => f.id)])
+  const friendCups = reviews.filter(r => circle.has(r.user_id))
   const gridCups = (friendCups.length > 0 ? friendCups : reviews).slice(0, 9)
-  const hero = place.cover_image_url ?? reviews.find((r: any) => r.image_urls?.length)?.image_urls[0] ?? null
+  const hero = place.cover_image_url ?? reviews.find(r => r.image_urls?.length)?.image_urls[0] ?? null
 
   // "What to order": drinks logged here, most-logged first.
   const byDrink = new Map<string, { name: string; scores: number[] }>()
-  for (const r of reviews as any[]) {
+  for (const r of reviews) {
     const name = (r.item_name ?? r.category ?? "").trim()
     if (!name) continue
     const key = name.toLowerCase()
@@ -78,7 +78,7 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
             {friendCups.length > 0 ? "friends' cups here" : "cups logged here"}
           </SectionHeading>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: 128, gap: 3 }}>
-            {gridCups.map((r: any) => <CupTile key={r.id} review={r} />)}
+            {gridCups.map(r => <CupTile key={r.id} review={r} />)}
           </div>
         </>
       )}

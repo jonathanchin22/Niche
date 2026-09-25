@@ -3,15 +3,16 @@ import { getFollowing, getSavedReviews, getUserReviews, getUserStats } from "@ni
 import BackButton from "@/components/ui/BackButton"
 import { SleepyBean } from "@/components/ui/Doodles"
 import { Avatar, CupTile, PlusIcon } from "@/components/ui/Primitives"
-import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
+import { APP_ID, formatScore, isHomePlace, type Cup, type CupPlace, type Profile } from "@/lib/brew"
+import type { createServerSupabaseClient } from "@niche/auth/server"
 import FollowButton from "./FollowButton"
 
 type Tab = "cups" | "try" | "cafes"
 
 export default async function ProfileView({ supabase, viewerId, profile, tab, isFollowing }: {
-  supabase: any
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
   viewerId: string
-  profile: any
+  profile: Profile
   tab: Tab
   isFollowing?: boolean
 }) {
@@ -22,10 +23,10 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
   const [stats, following, reviewsPage, saved] = await Promise.all([
     getUserStats(supabase, { user_id: profile.id, app_id: APP_ID }),
     getFollowing(supabase, profile.id),
-    getUserReviews(supabase, { user_id: profile.id, app_id: APP_ID, limit: 60 }).catch(() => ({ data: [] as any[] })),
+    getUserReviews(supabase, { user_id: profile.id, app_id: APP_ID, limit: 60 }).catch(() => ({ data: [] })),
     isOwn && activeTab === "try" ? getSavedReviews(supabase, { user_id: profile.id, app_id: APP_ID }).catch(() => []) : Promise.resolve([]),
   ])
-  const reviews = reviewsPage.data.map((i: any) => i.review).filter(Boolean)
+  const reviews = reviewsPage.data.map(i => i.review).filter(Boolean) as Cup[]
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "cups", label: "cups" },
@@ -106,7 +107,7 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
   )
 }
 
-function CupGrid({ reviews }: { reviews: any[] }) {
+function CupGrid({ reviews }: { reviews: Cup[] }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: 128, gridAutoFlow: "dense", gap: 3 }}>
       {reviews.map((r, i) => (
@@ -118,8 +119,8 @@ function CupGrid({ reviews }: { reviews: any[] }) {
   )
 }
 
-function PlaceList({ reviews }: { reviews: any[] }) {
-  const byPlace = new Map<string, { place: any; scores: number[] }>()
+function PlaceList({ reviews }: { reviews: Cup[] }) {
+  const byPlace = new Map<string, { place: CupPlace; scores: number[] }>()
   for (const r of reviews) {
     if (!r.place) continue
     const entry = byPlace.get(r.place_id) ?? { place: r.place, scores: [] as number[] }

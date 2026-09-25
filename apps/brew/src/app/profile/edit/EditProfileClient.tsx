@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@supabase/ssr"
 import { updateProfile } from "@niche/database"
 import { MonoLabel } from "@/components/ui/Primitives"
+import type { Profile } from "@/lib/brew"
 
 const CROP_FRAME_SIZE = 280
 const AVATAR_OUTPUT_SIZE = 512
@@ -40,7 +41,7 @@ function getSupabase() {
 }
 
 interface Props {
-  profile: any
+  profile: Profile
   userId: string
   highestRatedCoffee: string | null
 }

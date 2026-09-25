@@ -5,7 +5,7 @@ import { getReviewDetail } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { DrinkDoodle } from "@/components/ui/Doodles"
 import { Avatar, Score } from "@/components/ui/Primitives"
-import { isHomePlace, placeLabel, timeAgo } from "@/lib/brew"
+import { isHomePlace, placeLabel, timeAgo, type Cup, type CupComment } from "@/lib/brew"
 import BackButton from "@/components/ui/BackButton"
 import ReviewInteractions from "./ReviewInteractions"
 
@@ -16,7 +16,7 @@ export default async function ReviewPage({ params }: { params: { id: string } })
 
   const review = await getReviewDetail(supabase, { review_id: params.id, user_id: user.id }).catch(() => null)
   if (!review) notFound()
-  const r = review as any
+  const r = review as Cup & { comments: CupComment[]; saved: boolean }
   const photo = r.image_urls?.[0]
   const name = r.item_name ?? r.category ?? "a cup"
 
@@ -51,7 +51,7 @@ export default async function ReviewPage({ params }: { params: { id: string } })
           <span className="t-meta" style={{ fontSize: 14 }}>brewed at home</span>
         )}
         {r.note && <p className="t-hand" style={{ fontSize: 25, lineHeight: 1.2, marginTop: 6 }}>“{r.note}”</p>}
-        {r.tags?.length > 0 && (
+        {r.tags.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {r.tags.map((t: string) => <span key={t} className="tag">{t}</span>)}
           </div>
@@ -65,8 +65,8 @@ export default async function ReviewPage({ params }: { params: { id: string } })
         shareTitle={`${name} · ${placeLabel(r.place) || "brew."}`}
         initialCheers={r.upvotes_count ?? 0}
         initialCheered={r.user_vote === 1}
-        initialSaved={review.saved}
-        initialComments={review.comments}
+        initialSaved={r.saved}
+        initialComments={r.comments}
       />
     </AppShell>
   )

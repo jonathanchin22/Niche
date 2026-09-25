@@ -6,10 +6,11 @@ import { createClient } from "@niche/auth/client"
 import { getFollowing, searchUsers } from "@niche/database"
 import { Avatar, SearchField } from "@/components/ui/Primitives"
 import FollowButton from "@/components/profile/FollowButton"
+import type { Person } from "@/lib/brew"
 
 export default function PeopleSearch({ viewerId }: { viewerId: string }) {
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<any[] | null>(null)
+  const [results, setResults] = useState<Person[] | null>(null)
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function PeopleSearch({ viewerId }: { viewerId: string }) {
         searchUsers(supabase, { query: q, current_user_id: viewerId }).catch(() => []),
         getFollowing(supabase, viewerId).catch(() => []),
       ])
-      setFollowingIds(new Set(following.map((f: any) => f.id)))
+      setFollowingIds(new Set(following.map((f: Person) => f.id)))
       setResults(found)
     }, 250)
     return () => clearTimeout(t)

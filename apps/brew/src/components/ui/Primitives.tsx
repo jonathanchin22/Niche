@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { CSSProperties, ReactNode } from "react"
-import { formatScore } from "@/lib/brew"
+import { formatScore, type Cup } from "@/lib/brew"
 
 // ─── MonoLabel ────────────────────────────────────────────────────────────────
 export function MonoLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
@@ -118,7 +118,7 @@ export function SearchField({ id, label, value, onChange, placeholder }: {
 // ─── Cup tile: a review's photo, or a big-number score tile when there is none ─
 // (Doodles stay one per screen, so grids never use them.)
 export function CupTile({ review, height = "100%", chip = true, label }: {
-  review: any
+  review: Cup
   height?: number | string
   chip?: boolean
   label?: string

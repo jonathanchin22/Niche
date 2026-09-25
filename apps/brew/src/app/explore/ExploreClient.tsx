@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@niche/auth/client"
 import { searchPlaces, type LovedPlace } from "@niche/database"
+import type { Place } from "@niche/shared-types"
 import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitives"
 import { SleepyBean } from "@/components/ui/Doodles"
 import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
@@ -39,7 +40,7 @@ function PlacePhoto({ photo, name, height }: { photo: string | null; name: strin
 export default function ExploreClient({ places }: { places: LovedPlace[] }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
-  const [results, setResults] = useState<any[] | null>(null)
+  const [results, setResults] = useState<Place[] | null>(null)
 
   useEffect(() => {
     const q = query.trim()

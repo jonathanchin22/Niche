@@ -2,7 +2,7 @@ import Link from "next/link"
 import type { Review } from "@niche/shared-types"
 import { DrinkDoodle, Sparkle } from "@/components/ui/Doodles"
 import { Score } from "@/components/ui/Primitives"
-import { formatScore, isHomePlace, placeLabel } from "@/lib/brew"
+import { formatScore, isHomePlace, placeLabel, type Cup } from "@/lib/brew"
 
 export function Masthead({ issue, date }: { issue: number; date: string }) {
   return (
@@ -15,7 +15,7 @@ export function Masthead({ issue, date }: { issue: number; date: string }) {
 
 /** The cup of the day, set like a magazine cover: photo, then caption in ink. */
 export function CoverStory({ review }: { review: Review }) {
-  const r = review as any
+  const r = review as Cup
   const photo = r.image_urls?.[0]
   const name = r.item_name ?? r.category ?? "a cup"
   return (
@@ -48,7 +48,7 @@ export function CoverStory({ review }: { review: Review }) {
 
 /** One tile in "this week, among friends": a photo, a handwritten note, or a doodle. */
 function WeekTile({ review, tall }: { review: Review; tall: boolean }) {
-  const r = review as any
+  const r = review as Cup
   const photo = r.image_urls?.[0]
   const name = r.item_name ?? r.category ?? "a cup"
   const by = r.user?.username ?? ""

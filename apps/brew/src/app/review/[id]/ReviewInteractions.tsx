@@ -5,7 +5,7 @@ import Link from "next/link"
 import { createClient } from "@niche/auth/client"
 import { addReviewComment, cheerReview, getReviewComments, saveReview, uncheerReview, unsaveReview } from "@niche/database"
 import { Avatar, BookmarkIcon, CheersIcon } from "@/components/ui/Primitives"
-import { timeAgo } from "@/lib/brew"
+import { timeAgo, type CupComment } from "@/lib/brew"
 
 interface Props {
   reviewId: string
@@ -15,7 +15,7 @@ interface Props {
   initialCheers: number
   initialCheered: boolean
   initialSaved: boolean
-  initialComments: any[]
+  initialComments: CupComment[]
 }
 
 export default function ReviewInteractions(props: Props) {
@@ -23,7 +23,7 @@ export default function ReviewInteractions(props: Props) {
   const [cheers, setCheers] = useState(props.initialCheers)
   const [cheered, setCheered] = useState(props.initialCheered)
   const [saved, setSaved] = useState(props.initialSaved)
-  const [comments, setComments] = useState<any[]>(props.initialComments)
+  const [comments, setComments] = useState<CupComment[]>(props.initialComments)
   const [draft, setDraft] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [sending, startSending] = useTransition()
@@ -67,7 +67,7 @@ export default function ReviewInteractions(props: Props) {
         const supabase = createClient()
         await addReviewComment(supabase, { review_id: reviewId, user_id: userId, body })
         const fresh = await getReviewComments(supabase, { review_id: reviewId })
-        setComments([...fresh].reverse())
+        setComments([...fresh].reverse() as CupComment[])
         setDraft("")
       } catch {
         setError("Couldn't post your comment — try again.")
