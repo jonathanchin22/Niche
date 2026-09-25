@@ -199,6 +199,46 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(near.getByText("Boba Guys")).toHaveCount(0)
   })
 
+  test("'be the first' lists only cafés nobody has logged, with your badge progress", async ({ page, context }) => {
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.getByRole("tab", { name: /be the first/ }).click()
+    const near = page.locator("section", { has: page.locator("#near-you") })
+    await expect(near.getByRole("link", { name: /Four Barrel Coffee/ })).toBeVisible()
+    await expect(near.getByRole("link", { name: /Sightglass/ })).toHaveCount(0)
+    // maya logged the first cup at Sightglass in the seed data.
+    await expect(near.getByText("You were first at 1 café")).toBeVisible()
+    await expect(near.getByText(/2 more firsts for the scout badge/)).toBeVisible()
+    await expect(near.getByRole("listitem", { name: /pioneer.*earned/ })).toBeVisible()
+  })
+
+  test("the map names cafés, previews one on tap, and is still there after opening it", async ({ page, context }) => {
+    // A blank base map: the pins are what's under test, not the tiles.
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.getByRole("button", { name: "map", exact: true }).click()
+    const map = page.getByRole("region", { name: "Map of cafés near you" })
+    // Names sit under the pins (reviewed places win when names would overlap).
+    await expect(map.getByText("Sightglass", { exact: true })).toBeVisible()
+
+    await map.getByRole("button", { name: "Four Barrel Coffee, no reviews yet" }).click()
+    const preview = page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })
+    await expect(preview).toBeVisible()
+    await preview.click()
+    await expect(page.getByRole("heading", { name: "Four Barrel Coffee" })).toBeVisible()
+
+    await page.getByRole("button", { name: "Back" }).click()
+    await expect(page).toHaveURL(/\/explore/)
+    await expect(page.getByRole("region", { name: "Map of cafés near you" })).toBeVisible()
+    await expect(page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })).toBeVisible()
+    await page.getByRole("button", { name: "Close preview" }).click()
+    await expect(page.getByRole("link", { name: /Four Barrel Coffee.*be the first/ })).toHaveCount(0)
+  })
+
   test("an area is seeded once, then served from the database", async ({ page, context, request }) => {
     const before = (await (await request.get(`${OVERPASS}/_count`)).json()).count
     await signInAs(context, "maya")
@@ -222,10 +262,16 @@ test.describe("explore: every café, reviewed or not", () => {
     await page.getByRole("button", { name: "log this cup" }).click()
     await page.getByRole("button", { name: "skip for now" }).click()
     await expect(page).toHaveURL(/\/review\//)
+    await expect(page.getByText("first cup ever logged here")).toBeVisible()
+    await expect(page.getByText(/You've been first at 2 cafés · pioneer badge · 1 more for scout/)).toBeVisible()
 
     await page.getByRole("link", { name: /Four Barrel Coffee/ }).click()
     await expect(page.getByText("first logged by")).toContainText("@maya")
     await expect(page.getByText("no cups yet")).toHaveCount(0)
+
+    await page.goto("/profile")
+    await expect(page.getByText("first at 2 cafés")).toBeVisible()
+    await expect(page.getByRole("link", { name: "1 to scout" })).toHaveAttribute("href", "/explore?tab=first")
   })
 
   test("search finds cafés that aren't on brew yet", async ({ page, context }) => {

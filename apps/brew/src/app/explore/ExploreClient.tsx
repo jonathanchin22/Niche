@@ -13,6 +13,7 @@ import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitiv
 import { SleepyBean } from "@/components/ui/Doodles"
 import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
 import NearYou, { type NearStatus } from "./NearYou"
+import { readNearState, writeNearState } from "./nearState"
 
 const FILTERS = [
   { key: "all", label: "everything", match: () => true },
@@ -42,7 +43,7 @@ function PlacePhoto({ photo, name, height }: { photo: string | null; name: strin
     )
 }
 
-export default function ExploreClient({ places }: { places: LovedPlace[] }) {
+export default function ExploreClient({ places, firsts }: { places: LovedPlace[]; firsts: number }) {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
   const [results, setResults] = useState<Place[] | null>(null)
@@ -54,18 +55,33 @@ export default function ExploreClient({ places }: { places: LovedPlace[] }) {
   const router = useRouter()
 
   // Where you are, then every café around it (the server seeds new areas).
+  // Coming back from a café shows the last list at once, then refreshes it.
   useEffect(() => {
     let cancelled = false
+    const load = async (pos: LatLng) => {
+      const res = await fetch(`/api/places/near?lat=${pos.lat}&lng=${pos.lng}`)
+      if (!res.ok) throw new Error(String(res.status))
+      const body: { places: CatalogPlace[] } = await res.json()
+      if (cancelled) return
+      setNear(body.places)
+      setNearStatus("ready")
+      writeNearState({ here: pos, places: body.places })
+    }
+    const saved = readNearState()
+    if (saved?.here) {
+      setHere(saved.here)
+      setNear(saved.places)
+      setNearStatus("ready")
+      load(saved.here).catch(() => {})
+      return () => { cancelled = true }
+    }
     getCurrentPosition().then(async pos => {
       if (cancelled) return
       if (!pos) { setNearStatus("no-location"); return }
       setHere(pos)
       setNearStatus("loading")
       try {
-        const res = await fetch(`/api/places/near?lat=${pos.lat}&lng=${pos.lng}`)
-        if (!res.ok) throw new Error(String(res.status))
-        const body: { places: CatalogPlace[] } = await res.json()
-        if (!cancelled) { setNear(body.places); setNearStatus("ready") }
+        await load(pos)
       } catch {
         if (!cancelled) setNearStatus("error")
       }
@@ -143,7 +159,7 @@ export default function ExploreClient({ places }: { places: LovedPlace[] }) {
         </section>
       ) : (
         <>
-          <NearYou here={here} status={nearStatus} places={near} />
+          <NearYou here={here} status={nearStatus} places={near} firsts={firsts} />
 
           <div style={{ display: "flex", gap: 8, padding: "30px 24px 0", overflowX: "auto" }}>
             {FILTERS.map(f => (

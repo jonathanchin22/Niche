@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { byPersonalRank, getFollowing, getSavedReviews, getUserReviews, getUserStats } from "@niche/database"
+import { byPersonalRank, firstProgress, getFirstReviewCount, getFollowing, getSavedReviews, getUserReviews, getUserStats } from "@niche/database"
+import FirstBadgeRow from "@/components/badges/FirstBadgeRow"
 import BackButton from "@/components/ui/BackButton"
 import { SleepyBean } from "@/components/ui/Doodles"
 import { Avatar, CupTile, PlusIcon } from "@/components/ui/Primitives"
@@ -22,12 +23,14 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
   const activeTab: Tab = tab === "try" && !isOwn ? "cups" : tab
   const base = isOwn ? "/profile" : `/profile/${profile.username}`
 
-  const [stats, following, reviewsPage, saved] = await Promise.all([
+  const [stats, following, reviewsPage, saved, firsts] = await Promise.all([
     getUserStats(supabase, { user_id: profile.id, app_id: APP_ID }),
     getFollowing(supabase, profile.id),
     getUserReviews(supabase, { user_id: profile.id, app_id: APP_ID, limit: 60 }).catch(() => ({ data: [] })),
     isOwn && activeTab === "try" ? getSavedReviews(supabase, { user_id: profile.id, app_id: APP_ID }).catch(() => []) : Promise.resolve([]),
+    getFirstReviewCount(supabase, { user_id: profile.id, app_id: APP_ID }).catch(() => 0),
   ])
+  const firstsProgress = firstProgress(firsts)
   const reviews = reviewsPage.data.map(i => i.review).filter(Boolean) as Cup[]
 
   const tabs: { key: Tab; label: string }[] = [
@@ -89,6 +92,20 @@ export default async function ProfileView({ supabase, viewerId, profile, tab, is
             : <span key={s.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>{body}</span>
         })}
       </div>
+
+      {(firsts > 0 || isOwn) && (
+        <section aria-label="First reviews" style={{ margin: "14px 24px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+            <span className="t-label">first at {firsts} {firsts === 1 ? "café" : "cafés"}</span>
+            {isOwn && (
+              <Link href="/explore?tab=first" className="t-meta" style={{ fontSize: 12, textDecoration: "underline", textUnderlineOffset: 3 }}>
+                {firstsProgress.next ? `${firstsProgress.toNext} to ${firstsProgress.next.name}` : "find more"}
+              </Link>
+            )}
+          </span>
+          <FirstBadgeRow count={firsts} />
+        </section>
+      )}
 
       <nav aria-label="Profile sections" style={{ display: "grid", gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, margin: "10px 24px 12px" }}>
         {tabs.map(t => (
