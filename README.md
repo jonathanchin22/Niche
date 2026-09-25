@@ -128,6 +128,24 @@ Apps run at:
 
 ---
 
+### 5. End-to-end tests
+
+`e2e/` drives the real brew app in Chromium against a local stand-in for Supabase:
+Postgres (with PostGIS) with every migration applied, PostgREST, and a small fake
+auth server. CI runs it on every PR (the `e2e` job in `.github/workflows/ci.yml`).
+To run it locally:
+
+```bash
+PGHOST=localhost PGUSER=postgres PGPASSWORD=postgres e2e/scripts/setup-db.sh   # fresh seeded DB
+PGRST_DB_URI=postgres://authenticator:authenticator@localhost:5432/niche_e2e PGRST_DB_ANON_ROLE=anon \
+  PGRST_JWT_SECRET=test-secret-test-secret-test-secret-123 PGRST_SERVER_PORT=3999 postgrest &
+node e2e/scripts/fake-supabase.mjs &
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54399 NEXT_PUBLIC_SUPABASE_ANON_KEY=e2e pnpm turbo build --filter=@niche/brew
+pnpm --filter @niche/e2e test:e2e
+```
+
+Re-run `setup-db.sh` before each run: the tests change the data.
+
 ## Deployment
 
 Each app deploys independently to Vercel. Deployments are triggered automatically on push to `main`.

@@ -42,3 +42,79 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           NEXT_PUBLIC_APP_ID: boba
+
+  e2e:
+    name: End-to-end (brew)
+    runs-on: ubuntu-latest
+
+    # A local stand-in for Supabase: Postgres with every migration applied,
+    # PostgREST for the API, and a tiny fake auth server (e2e/scripts).
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      E2E_JWT_SECRET: test-secret-test-secret-test-secret-123
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create and seed the test database
+        run: e2e/scripts/setup-db.sh
+
+      - name: Start PostgREST and fake auth
+        run: |
+          curl -sSL https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz | tar -xJ -C "$RUNNER_TEMP"
+          PGRST_DB_URI=postgres://authenticator:authenticator@localhost:5432/niche_e2e \
+          PGRST_DB_SCHEMAS=public PGRST_DB_ANON_ROLE=anon PGRST_JWT_SECRET="$E2E_JWT_SECRET" PGRST_SERVER_PORT=3999 \
+            nohup "$RUNNER_TEMP/postgrest" > "$RUNNER_TEMP/postgrest.log" 2>&1 &
+          nohup node e2e/scripts/fake-supabase.mjs > "$RUNNER_TEMP/fake-supabase.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:54399/rest/v1/profiles?limit=1 >/dev/null && break; sleep 1; done
+          curl -sf localhost:54399/rest/v1/profiles?limit=1 >/dev/null || { cat "$RUNNER_TEMP"/*.log; exit 1; }
+
+      - name: Build brew against the stand-in
+        run: pnpm turbo build --filter=@niche/brew
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54399
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e
+
+      - name: Install Chromium
+        run: pnpm --filter @niche/e2e exec playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: pnpm --filter @niche/e2e test:e2e
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces
+          path: e2e/test-results
+          retention-days: 7
