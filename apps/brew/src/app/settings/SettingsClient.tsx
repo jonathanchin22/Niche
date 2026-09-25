@@ -1,5 +1,6 @@
 "use client"
 
+import { resetIdentity, track } from "@niche/analytics"
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -34,6 +35,7 @@ export default function SettingsClient({ userId, email, blocked: initialBlocked,
 
   const signOut = () => startBusy(async () => {
     await createClient().auth.signOut()
+    resetIdentity()
     router.replace("/auth/login")
     router.refresh()
   })
@@ -44,6 +46,8 @@ export default function SettingsClient({ userId, email, blocked: initialBlocked,
       const supabase = createClient()
       // Photos from every niche app live under <app>/<user id>/.
       await deleteMyAccount(supabase, { user_id: userId, apps: ["brew", "boba"] })
+      track("account_deleted")
+      resetIdentity()
       await supabase.auth.signOut().catch(() => {})
       router.replace("/auth/login")
       router.refresh()

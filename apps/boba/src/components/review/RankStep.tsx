@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useState, useTransition } from "react"
 import type { Review } from "@niche/shared-types"
 import { createClient } from "@niche/auth/client"
@@ -42,6 +43,7 @@ export default function RankStep({ userId, cup, ladder, onDone }: {
   const finish = (index: number) => startSaving(async () => {
     const personal_rank = rankAt(ladder, index, cup.score)
     await setPersonalRank(createClient(), { review_id: cup.id, user_id: userId, personal_rank }).catch(() => {})
+    track("cup_ranked", { position: index + 1, of: ladder.length + 1, questions: asked + 1 })
     onDone(index + 1)
   })
 
@@ -81,7 +83,7 @@ export default function RankStep({ userId, cup, ladder, onDone }: {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", paddingTop: 28 }}>
         <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => pick("same")}>about the same</button>
-        <button type="button" className="t-label" disabled={saving} onClick={() => onDone(null)}
+        <button type="button" className="t-label" disabled={saving} onClick={() => { track("cup_rank_skipped", { questions: asked }); onDone(null) }}
           style={{ minHeight: 44, background: "none", border: "none", cursor: "pointer" }}>skip for now</button>
       </div>
     </section>

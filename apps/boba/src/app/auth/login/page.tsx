@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient, signIn, signInWithOAuth, signUp } from "@niche/auth/client"
@@ -39,9 +40,11 @@ export default function LoginPage() {
     try {
       if (mode === "signup") {
         await signUp({ email, password, username, display_name: displayName, source_app_id: "boba" })
+        track("signed_up", { method: "email" })
         router.push("/")
       } else {
         await signIn({ email, password })
+        track("signed_in", { method: "email" })
         await routeAfterAuth()
       }
     } catch (err: unknown) {

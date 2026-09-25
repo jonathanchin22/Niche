@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@niche/analytics": "workspace:^",
     "@niche/auth": "workspace:*",
     "@niche/database": "workspace:*",
     "@niche/shared-types": "workspace:*",

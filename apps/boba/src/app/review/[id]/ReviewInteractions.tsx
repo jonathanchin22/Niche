@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -41,6 +42,7 @@ export default function ReviewInteractions(props: Props) {
     try {
       const supabase = createClient()
       if (next) await cheerReview(supabase, { review_id: reviewId, user_id: userId })
+      if (next) track("cheer_sent")
       else await uncheerReview(supabase, { review_id: reviewId, user_id: userId })
     } catch {
       setCheered(!next); setCheers(c => c + (next ? -1 : 1)); setError("Couldn't save that — try again.")
@@ -53,6 +55,7 @@ export default function ReviewInteractions(props: Props) {
     try {
       const supabase = createClient()
       if (next) await saveReview(supabase, { review_id: reviewId, user_id: userId })
+      if (next) track("cup_saved")
       else await unsaveReview(supabase, { review_id: reviewId, user_id: userId })
     } catch {
       setSaved(!next); setError("Couldn't save that — try again.")
@@ -74,6 +77,7 @@ export default function ReviewInteractions(props: Props) {
     startDeleting(async () => {
       try {
         await deleteReview(createClient(), { review_id: reviewId, user_id: userId })
+        track("cup_deleted")
         router.replace("/profile")
         router.refresh()
       } catch {
@@ -89,6 +93,7 @@ export default function ReviewInteractions(props: Props) {
       try {
         const supabase = createClient()
         await addReviewComment(supabase, { review_id: reviewId, user_id: userId, body })
+        track("comment_sent")
         const fresh = await getReviewComments(supabase, { review_id: reviewId })
         setComments([...fresh].reverse() as CupComment[])
         setDraft("")

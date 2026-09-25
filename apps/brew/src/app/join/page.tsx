@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser, joinApp } from "@niche/auth/client"
@@ -23,6 +24,7 @@ export default function JoinPage() {
     setError(null)
     try {
       await joinApp("brew")
+      track("niche_joined", { niche: "brew" })
       router.push("/")
       router.refresh()
     } catch {

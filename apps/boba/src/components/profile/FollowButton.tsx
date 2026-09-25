@@ -1,12 +1,13 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@niche/auth/client"
-import { followUser, unfollowUser } from "@niche/database"
+import { setFollowing as saveFollowing } from "@/app/actions"
 
-export default function FollowButton({ viewerId, targetId, initialFollowing, size = "md" }: {
-  viewerId: string
+export default function FollowButton({ targetId, initialFollowing, size = "md" }: {
+  /** Kept for call sites; the server action uses the session user. */
+  viewerId?: string
   targetId: string
   initialFollowing: boolean
   size?: "md" | "sm"
@@ -20,9 +21,8 @@ export default function FollowButton({ viewerId, targetId, initialFollowing, siz
     setFollowing(next)
     setBusy(true)
     try {
-      const supabase = createClient()
-      if (next) await followUser(supabase, { follower_id: viewerId, following_id: targetId })
-      else await unfollowUser(supabase, { follower_id: viewerId, following_id: targetId })
+      await saveFollowing(targetId, next)
+      track(next ? "friend_followed" : "friend_unfollowed")
       router.refresh()
     } catch {
       setFollowing(!next)

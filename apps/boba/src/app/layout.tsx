@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { DM_Sans, DM_Serif_Display, Nanum_Pen_Script } from "next/font/google"
 import "./globals.css"
+import { getServerSession } from "@niche/auth/server"
+import Observability from "@/components/system/Observability"
 
 // Self-hosted at build time: no render-blocking request to Google on load.
 const hand = Nanum_Pen_Script({ weight: "400", subsets: ["latin"], variable: "--nf-hand", display: "swap", adjustFontFallback: false })
@@ -24,11 +26,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Cached per request (verified locally from the JWT), shared with the page.
+  const { user } = await getServerSession()
   return (
     <html lang="en" className={fontVars}>
       <body>
         {children}
+        <Observability userId={user?.id ?? null} />
       </body>
     </html>
   )

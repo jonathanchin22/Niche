@@ -1,12 +1,13 @@
 "use client"
 
+import { captureError } from "@niche/analytics"
 import { useEffect } from "react"
 import Link from "next/link"
 import { SleepyPearl } from "@/components/ui/Doodles"
 
 /** Anything a page throws lands here instead of Next's bare error screen. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => { console.error(error) }, [error])
+  useEffect(() => { console.error(error); captureError(error, { digest: error.digest }) }, [error])
 
   return (
     <main style={{

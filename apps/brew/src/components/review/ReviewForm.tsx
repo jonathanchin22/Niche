@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -64,6 +65,7 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
   const [note, setNote] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, startSaving] = useTransition()
+  const openedAt = useRef(Date.now())
   const [ranking, setRanking] = useState<{ cup: NewCup; ladder: Review[] } | null>(null)
 
   const pickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +123,13 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
           note: note.trim() || null,
           tags,
           image_urls: imageUrls,
+        })
+
+        track("cup_logged", {
+          has_photo: imageUrls.length > 0,
+          at_home: atHome,
+          picked_place: !!chosen.google_place_id && !atHome,
+          seconds_to_log: Math.round((Date.now() - openedAt.current) / 1000),
         })
 
         // Slot it into their own ranking with a few "which was better?" questions.

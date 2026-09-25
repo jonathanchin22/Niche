@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@niche/analytics"
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
@@ -43,6 +44,7 @@ export default function SafetyMenu({ viewerId, target, reviewId, trigger = "icon
         review_id: reviewId ?? null,
         reported_user_id: reviewId ? null : target.id,
       })
+      track("content_reported", { reason, target: reviewId ? "cup" : "person" })
       setMessage("Thanks for telling us. We’ll take a look.")
     } catch {
       setMessage("Couldn’t send that report — try again.")
@@ -53,6 +55,7 @@ export default function SafetyMenu({ viewerId, target, reviewId, trigger = "icon
   const block = () => start(async () => {
     try {
       await blockUser(createClient(), { blocker_id: viewerId, blocked_id: target.id })
+      track("user_blocked")
       setSheet(null)
       if (reviewId) router.replace("/")
       router.refresh()
