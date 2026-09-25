@@ -24,7 +24,10 @@ export default function NearYou({ here, status, places }: { here: LatLng | null;
   const pins = useMemo(() => places.map(p => ({
     id: p.id, name: p.name, lat: p.lat, lng: p.lng, score: p.review_count > 0 && p.avg_score != null ? p.avg_score : null, href: `/place/${p.id}`,
   })), [places])
-  const shown = expanded ? places : places.slice(0, 10)
+  // Independents first, chains after (each group still nearest first): a
+  // dozen Starbucks shouldn't bury the one local roaster.
+  const ordered = useMemo(() => [...places.filter(p => p.kind !== "chain"), ...places.filter(p => p.kind === "chain")], [places])
+  const shown = expanded ? ordered : ordered.slice(0, 10)
 
   return (
     <section aria-labelledby="near-you">

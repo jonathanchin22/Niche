@@ -39,8 +39,8 @@ export interface CatalogPlace {
   distance_m: number
 }
 
-const COFFEE_CHAINS = /^(starbucks|peet'?s|dunkin|tim hortons|costa|caribou|dutch bros|the coffee bean|coffee bean & tea leaf|pret|mcdonald'?s|mccaf[eé]|panera|biggby|scooter'?s|second cup|gloria jean'?s|krispy kreme|philz|blue bottle|la colombe|joe & the juice|black rifle|7 brew|human bean|ziggi'?s|paris baguette|85°c|tous les jours)/i
-const BOBA_CHAINS = /^(gong ?cha|chatime|kung ?fu tea|sharetea|coco|tiger ?sugar|7 ?leaves|happy ?lemon|boba guys|yi ?fang|the alley|heytea|chagee|xing ?fu tang|presotea|machi machi|tp ?tea|wushiland|ten ren|quickly|lollicup|boba time|it'?s boba time|sunright|teaspoon|feng cha|molly ?tea|kung fu tea)/i
+const COFFEE_CHAINS = /^(starbucks|peet'?s|dunkin|tim hortons|costa|caribou|dutch bros|the coffee bean|coffee bean & tea leaf|pret|mcdonald'?s|mccaf[eé]|panera|biggby|scooter'?s|second cup|gloria jean'?s|krispy kreme|philz|blue bottle|la colombe|joe & the juice|black rifle|7 brew|human bean|ziggi'?s|paris baguette|85°c|tous les jours|java city|capital one caf|nordstrom|corner bakery|einstein bros|seattle'?s best|tully'?s)/i
+const BOBA_CHAINS = /^(gong ?cha|chatime|kung ?fu tea|sharetea|coco (fresh|bubble|tea)|lollicup|tastea|omomo|bambu|macu|ding tea|bober tea|tiger ?sugar|7 ?leaves|happy ?lemon|boba guys|yi ?fang|the alley|heytea|chagee|xing ?fu tang|presotea|machi machi|tp ?tea|wushiland|ten ren|quickly|lollicup|boba time|it'?s boba time|sunright|teaspoon|feng cha|molly ?tea|kung fu tea)/i
 const SPECIALTY_HINTS = /roast|espresso|brew bar|coffee bar|coffee co|coffee lab|coffee works|single origin|pour ?over/i
 const BOBA_PATTERN = new RegExp(BOBA_NAMES, "i")
 
@@ -49,7 +49,7 @@ export function classifyOsmPlace(niche: NearbyKind, tags: Record<string, string>
   const name = tags.name ?? ""
   const cuisine = (tags.cuisine ?? "").toLowerCase()
   const branded = !!(tags.brand || tags["brand:wikidata"])
-  const isBoba = cuisine.includes("bubble_tea") || BOBA_PATTERN.test(name)
+  const isBoba = cuisine.includes("bubble_tea") || BOBA_PATTERN.test(name) || BOBA_CHAINS.test(name)
 
   const descriptors: string[] = []
   if (tags.internet_access === "wlan" || tags.internet_access === "yes") descriptors.push("wifi")
@@ -69,7 +69,9 @@ export function classifyOsmPlace(niche: NearbyKind, tags: Record<string, string>
   const notCoffee = isBoba || /ice_cream|frozen_yogurt|bubble_tea|juice/.test(cuisine) || tags.shop === "bakery"
   if (notCoffee) return { relevant: false, kind: "other", descriptors }
   if (branded || COFFEE_CHAINS.test(name)) return { relevant: true, kind: "chain", descriptors }
-  if (SPECIALTY_HINTS.test(name) || cuisine.includes("coffee_shop") || tags.craft === "roaster") {
+  // "coffee_shop" alone isn't enough: bank, church and department-store coffee
+  // bars carry it too. The model pass sorts out the independents.
+  if (SPECIALTY_HINTS.test(name) || tags.craft === "roaster") {
     return { relevant: true, kind: "specialty", descriptors }
   }
   return { relevant: true, kind: "casual", descriptors }
