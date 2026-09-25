@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
 import { createReview, upsertPlace } from "@niche/database"
 import { SteamingCup } from "@/components/ui/Doodles"
+import PlacePicker, { type PickedPlace } from "./PlacePicker"
 import { APP_ID, HOME_PLACE_ID, formatScore } from "@/lib/brew"
 
 const TASTING_NOTES = ["silky", "nutty", "bright", "chocolatey", "fruity", "floral", "bold", "smooth", "syrupy", "clean"] as const
@@ -41,19 +42,20 @@ async function compressImage(file: File, maxWidth = 1400): Promise<Blob> {
   })
 }
 
-export interface RecentPlace { id: string; name: string }
+export interface RecentPlace extends PickedPlace { id: string }
 
 export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
   userId: string
   recentPlaces: RecentPlace[]
-  initialPlace?: string
+  initialPlace?: RecentPlace | null
 }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [drink, setDrink] = useState("")
-  const [cafe, setCafe] = useState(initialPlace ?? "")
+  const [cafe, setCafe] = useState(initialPlace?.name ?? "")
+  const [place, setPlace] = useState<PickedPlace | null>(initialPlace ?? null)
   const [atHome, setAtHome] = useState(false)
   const [score, setScore] = useState(7.5)
   const [tags, setTags] = useState<string[]>([])
@@ -89,16 +91,19 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
           imageUrls = [supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl]
         }
 
-        const place = await upsertPlace(supabase, {
+        // A picked café keeps its address and map position; a typed name is
+        // saved as-is (and matched by name next time).
+        const typedName = cafe.trim()
+        const chosen: PickedPlace = atHome
+          ? { name: "Brewed at home", address: "", city: "home", state: "home", lat: 0, lng: 0, google_place_id: HOME_PLACE_ID }
+          : place && place.name === typedName
+            ? place
+            : { name: typedName, address: "", city: "", state: "", lat: 0, lng: 0, google_place_id: null }
+
+        const saved = await upsertPlace(supabase, {
           app_id: APP_ID,
-          name: atHome ? "Brewed at home" : cafe.trim(),
-          address: "",
-          city: atHome ? "home" : "",
-          state: atHome ? "home" : "",
+          ...chosen,
           country: "US",
-          lat: 0,
-          lng: 0,
-          google_place_id: atHome ? HOME_PLACE_ID : null,
           foursquare_id: null,
           cover_image_url: null,
         })
@@ -106,7 +111,7 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
         const review = await createReview(supabase, {
           app_id: APP_ID,
           user_id: userId,
-          place_id: place.id,
+          place_id: saved.id,
           score: Math.round(score * 10) / 10,
           category: inferCategory(drink),
           item_name: drink.trim(),
@@ -166,14 +171,15 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
           {atHome ? (
             <p style={{ height: 44, display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-rule)", fontSize: 17 }}>at home</p>
           ) : (
-            <input id="cafe" value={cafe} onChange={e => setCafe(e.target.value)} placeholder="café name" autoComplete="off"
-              className="line-input" style={{ height: 44, fontSize: 17 }} />
+            <PlacePicker id="cafe" query={cafe} place={place}
+              onQueryChange={q => { setCafe(q); if (place && q !== place.name) setPlace(null) }}
+              onPick={p => { setAtHome(false); setPlace(p); setCafe(p.name) }} />
           )}
           <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
             <button type="button" className="pill" aria-pressed={atHome} onClick={() => setAtHome(h => !h)}>at home</button>
             {recentPlaces.map(p => (
               <button key={p.id} type="button" className="pill" aria-pressed={!atHome && cafe === p.name}
-                onClick={() => { setAtHome(false); setCafe(p.name) }}>{p.name}</button>
+                onClick={() => { setAtHome(false); setPlace(p); setCafe(p.name) }}>{p.name}</button>
             ))}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { isFollowing } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import ProfileView from "@/components/profile/ProfileView"
@@ -8,8 +8,7 @@ export default async function ProfileByUsernamePage({ params, searchParams }: {
   params: { username: string }
   searchParams: { tab?: string }
 }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) redirect("/auth/login")
 
   const { data: profile } = await supabase

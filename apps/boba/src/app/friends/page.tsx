@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { getActivity, getSuggestedPeople, type ActivityItem } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { Avatar, PageTitle, SectionHeading } from "@/components/ui/Primitives"
@@ -22,8 +22,7 @@ function describe(item: ActivityItem) {
 }
 
 export default async function FriendsPage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
   const [activity, suggestions] = await Promise.all([

@@ -23,7 +23,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Refreshes an expired session (writing new cookies) and verifies the JWT
+  // locally against the project's signing keys — no Auth server round trip.
+  const { data } = await supabase.auth.getClaims()
+  const user = data?.claims?.sub ? data.claims : null
   const pathname = request.nextUrl.pathname
 
   // Not logged in — redirect to login (except public routes)

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { getReviewDetail } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { DrinkDoodle } from "@/components/ui/Doodles"
@@ -10,8 +10,7 @@ import BackButton from "@/components/ui/BackButton"
 import ReviewInteractions from "./ReviewInteractions"
 
 export default async function ReviewPage({ params }: { params: { id: string } }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
   const review = await getReviewDetail(supabase, { review_id: params.id, user_id: user.id }).catch(() => null)

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap');
 
 :root {
   /* Surfaces */
@@ -15,9 +14,9 @@
   --c-jade-dark: #22523d;
   --c-jade-soft: #e3eee7;
 
-  --font-hand:    'Nanum Pen Script', cursive;
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --font-ui:      'DM Sans', system-ui, sans-serif;
+  --font-hand:    var(--nf-hand), cursive;
+  --font-display: var(--nf-display), Georgia, serif;
+  --font-ui:      var(--nf-ui), system-ui, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

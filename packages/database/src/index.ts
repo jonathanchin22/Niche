@@ -975,13 +975,15 @@ export async function getReviewDetail(
   const { data, error } = await supabase
     .from("reviews")
     .select(`${REVIEW_CARD_SELECT},
-      comments:review_comments(id, body, created_at, user_id, user:profiles!review_comments_user_id_fkey(id, username, display_name, avatar_url))`)
+      comments:review_comments(id, body, created_at, user_id, user:profiles!review_comments_user_id_fkey(id, username, display_name, avatar_url)),
+      saves:review_saves(user_id)`)
     .eq("id", review_id)
     .maybeSingle()
   if (error) throw error
   if (!data) return null
 
-  const saved = await isReviewSaved(supabase, { review_id, user_id }).catch(() => false)
+  // RLS only returns saves the viewer made (or all of them, to the author).
+  const saved = (data.saves ?? []).some((s: any) => s.user_id === user_id)
   const comments = [...(data.comments ?? [])].sort(
     (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   )
@@ -991,10 +993,10 @@ export async function getReviewDetail(
 /** Reviews by the people the user follows (optionally including their own) since a point in time. */
 export async function getFriendReviewsSince(
   supabase: SupabaseClient,
-  { user_id, app_id, since, limit = 40, includeSelf = false }:
-    { user_id: string; app_id: AppId; since?: Date; limit?: number; includeSelf?: boolean }
+  { user_id, app_id, since, limit = 40, includeSelf = false, ids: knownIds }:
+    { user_id: string; app_id: AppId; since?: Date; limit?: number; includeSelf?: boolean; ids?: string[] }
 ): Promise<Review[]> {
-  const ids = await getFollowingIds(supabase, user_id)
+  const ids = [...(knownIds ?? await getFollowingIds(supabase, user_id))]
   if (includeSelf) ids.push(user_id)
   if (ids.length === 0) return []
 
@@ -1012,37 +1014,50 @@ export async function getFriendReviewsSince(
   return (data ?? []).map((r: any) => normalizeReviewRecord(r, user_id) as Review)
 }
 
+export interface HomeFeed {
+  /** The cup set large at the top of the page. */
+  cover: Review | null
+  /** How recent the cover is, for its caption. */
+  coverWhen: "today" | "week" | "earlier"
+  /** Everything else, newest first. */
+  entries: Review[]
+  /** Whether the user follows anyone (drives the empty state). */
+  followsAnyone: boolean
+}
+
 /**
- * The home screen's cover: the best-scored cup from friends in the last day,
- * widening to the last week, then to the whole app (photos preferred).
+ * The home feed: the user's and their friends' cups, newest first, with the
+ * best recent one pulled out as the cover. Two round trips in total
+ * (follow list, then one reviews query), however old the cups are.
  */
-export async function getCupOfTheDay(
+export async function getHomeFeed(
   supabase: SupabaseClient,
-  { user_id, app_id }: { user_id: string; app_id: AppId }
-): Promise<Review | null> {
-  const pick = (reviews: Review[]) => {
-    const ranked = [...reviews].sort((a, b) => Number(b.score) - Number(a.score))
-    return ranked.find(r => r.image_urls?.length) ?? ranked[0] ?? null
-  }
+  { user_id, app_id, limit = 40 }: { user_id: string; app_id: AppId; limit?: number }
+): Promise<HomeFeed> {
+  const following = await getFollowingIds(supabase, user_id)
+  const reviews = await getFriendReviewsSince(supabase, {
+    user_id, app_id, limit, includeSelf: true, ids: following,
+  })
 
-  for (const days of [1, 7]) {
-    const reviews = await getFriendReviewsSince(supabase, {
-      user_id, app_id, since: new Date(Date.now() - days * DAY_MS), limit: 30,
-    })
-    const choice = pick(reviews)
-    if (choice) return choice
-  }
+  const now = Date.now()
+  const age = (r: Review) => now - new Date(r.created_at).getTime()
+  const byScore = (list: Review[]) => [...list].sort((a, b) => Number(b.score) - Number(a.score))
+  const pick = (list: Review[]) => { const ranked = byScore(list); return ranked.find(r => r.image_urls?.length) ?? ranked[0] ?? null }
 
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(REVIEW_CARD_SELECT)
-    .eq("app_id", app_id)
-    .neq("user_id", user_id)
-    .gte("created_at", new Date(Date.now() - 30 * DAY_MS).toISOString())
-    .order("score", { ascending: false })
-    .limit(20)
-  if (error) throw error
-  return pick((data ?? []).map((r: any) => normalizeReviewRecord(r, user_id) as Review))
+  // Prefer a friend's cup over your own, and a recent one over an old one.
+  const friends = reviews.filter(r => r.user_id !== user_id)
+  const pool = friends.length ? friends : reviews
+  const today = pool.filter(r => age(r) < DAY_MS * 1.5)
+  const week = pool.filter(r => age(r) < 7 * DAY_MS)
+  const cover = pick(today) ?? pick(week) ?? pool.find(r => r.image_urls?.length) ?? pool[0] ?? null
+  const coverWhen = !cover ? "earlier" : age(cover) < DAY_MS * 1.5 ? "today" : age(cover) < 7 * DAY_MS ? "week" : "earlier"
+
+  return {
+    cover,
+    coverWhen,
+    entries: reviews.filter(r => r.id !== cover?.id),
+    followsAnyone: following.length > 0,
+  }
 }
 
 export interface LovedPlace {
@@ -1241,3 +1256,4 @@ export async function getUserStats(
     top_category: top?.[0] ?? null,
   }
 }
+export * from "./nearby"

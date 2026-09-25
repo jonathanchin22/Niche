@@ -16,7 +16,6 @@
     "@niche/ui": "workspace:*",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.117.0",
-    "@tanstack/react-query": "^5.103.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "maplibre-gl": "^4.7.1",

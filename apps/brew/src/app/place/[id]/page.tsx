@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { createServerSupabaseClient } from "@niche/auth/server"
+import { getServerSession } from "@niche/auth/server"
 import { getFollowing, getPlaceById, getPlaceReviews } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import BackButton from "@/components/ui/BackButton"
@@ -8,8 +8,7 @@ import { CupTile, PlusIcon, SectionHeading } from "@/components/ui/Primitives"
 import { formatScore, isHomePlace, type Cup, type Person } from "@/lib/brew"
 
 export default async function PlacePage({ params }: { params: { id: string } }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getServerSession()
   if (!user) return null
 
   const [place, items, following] = await Promise.all([

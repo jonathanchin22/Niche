@@ -1,42 +1,16 @@
 "use client"
 
-import { useEffect, useRef, useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@niche/auth/client"
 import { createReview, upsertPlace } from "@niche/database"
 import type { BobaIceLevel, BobaSugarLevel, BobaTasteAttributes } from "@niche/shared-types"
 import { BobaCup } from "@/components/ui/Doodles"
+import PlacePicker, { type PickedPlace } from "./PlacePicker"
 import { APP_ID, HOME_PLACE_ID, ICE_LEVELS, SUGAR_LEVELS, TOPPINGS, formatScore, iceLabel, inferDrinkType } from "@/lib/boba"
 
 const TASTING_NOTES = ["creamy", "chewy", "fruity", "floral", "rich", "light", "not too sweet", "refreshing"] as const
-
-export interface PickedPlace {
-  name: string
-  address: string
-  city: string
-  state: string
-  lat: number
-  lng: number
-  google_place_id: string | null
-}
-
-// OpenStreetMap's Nominatim — free, no key; results carry real coordinates.
-async function searchShops(query: string): Promise<PickedPlace[]> {
-  const q = encodeURIComponent(`${query} bubble tea`)
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=5&addressdetails=1`)
-  if (!res.ok) return []
-  const data: any[] = await res.json() // eslint-disable-line @typescript-eslint/no-explicit-any
-  return data.map(p => ({
-    name: p.name || p.display_name.split(",")[0],
-    address: p.display_name,
-    city: p.address?.city || p.address?.town || p.address?.village || p.address?.suburb || "",
-    state: p.address?.state || "",
-    lat: parseFloat(p.lat),
-    lng: parseFloat(p.lon),
-    google_place_id: `nominatim_${p.osm_type ?? "node"}_${p.osm_id}`,
-  }))
-}
 
 async function compressImage(file: File, maxWidth = 1400): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -72,7 +46,6 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
   const [drink, setDrink] = useState("")
   const [shopQuery, setShopQuery] = useState(initialPlace?.name ?? "")
   const [place, setPlace] = useState<PickedPlace | null>(initialPlace ?? null)
-  const [results, setResults] = useState<PickedPlace[]>([])
   const [atHome, setAtHome] = useState(false)
   const [score, setScore] = useState(7.5)
   const [sugar, setSugar] = useState<BobaSugarLevel | null>(null)
@@ -83,14 +56,6 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
   const [error, setError] = useState<string | null>(null)
   const [saving, startSaving] = useTransition()
 
-  // Search shops as you type (unless a result was just picked).
-  useEffect(() => {
-    const q = shopQuery.trim()
-    if (q.length < 3 || place?.name === q) { setResults([]); return }
-    const t = setTimeout(() => { searchShops(q).then(setResults).catch(() => setResults([])) }, 400)
-    return () => clearTimeout(t)
-  }, [shopQuery, place])
-
   const pickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -99,7 +64,7 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
     setPhotoPreview(URL.createObjectURL(file))
   }
 
-  const pickPlace = (p: PickedPlace) => { setAtHome(false); setPlace(p); setShopQuery(p.name); setResults([]) }
+  const pickPlace = (p: PickedPlace) => { setAtHome(false); setPlace(p); setShopQuery(p.name) }
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => {
     if (v === "no topping") { set(list.includes(v) ? [] : [v]); return }
     const without = list.filter(x => x !== "no topping")
@@ -213,24 +178,12 @@ export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
           {atHome ? (
             <p style={{ height: 44, display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-rule)", fontSize: 17 }}>made at home</p>
           ) : (
-            <input id="shop" value={shopQuery} onChange={e => { setShopQuery(e.target.value); if (place && e.target.value !== place.name) setPlace(null) }}
-              placeholder="search a shop" autoComplete="off" role="combobox" aria-expanded={results.length > 0} aria-controls="shop-results"
-              className="line-input" style={{ height: 44, fontSize: 17 }} />
-          )}
-          {results.length > 0 && (
-            <ul id="shop-results" role="listbox" style={{ listStyle: "none", background: "var(--c-paper)", border: "1px solid var(--c-rule)", borderRadius: 18, overflow: "hidden" }}>
-              {results.map(r => (
-                <li key={r.google_place_id ?? r.name} role="option" aria-selected={false}>
-                  <button type="button" onClick={() => pickPlace(r)} style={{ width: "100%", minHeight: 52, padding: "10px 16px", textAlign: "left", background: "none", border: "none", borderBottom: "1px solid var(--c-rule)", cursor: "pointer" }}>
-                    <span style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{r.name}</span>
-                    <span className="t-meta" style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.address}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <PlacePicker id="shop" query={shopQuery} place={place}
+              onQueryChange={q => { setShopQuery(q); if (place && q !== place.name) setPlace(null) }}
+              onPick={pickPlace} />
           )}
           <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-            <button type="button" className="pill" aria-pressed={atHome} onClick={() => { setAtHome(h => !h); setResults([]) }}>made at home</button>
+            <button type="button" className="pill" aria-pressed={atHome} onClick={() => setAtHome(h => !h)}>made at home</button>
             {recentPlaces.map(p => (
               <button key={p.id} type="button" className="pill" aria-pressed={!atHome && place?.name === p.name} onClick={() => pickPlace(p)}>{p.name}</button>
             ))}
