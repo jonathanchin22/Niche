@@ -1,33 +1,20 @@
 import { createServerSupabaseClient } from "@niche/auth/server"
-import { getProfile, getFollowing, getFollowers, getHighestRatedCoffee } from "@niche/database"
+import { getProfile } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
-import ProfileClient from "./ProfileClient"
+import ProfileView from "@/components/profile/ProfileView"
 
-const APP_ID = "brew" as const
-
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: { searchParams: { tab?: string } }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const [profile, following, followers, highestRatedCoffee] = await Promise.all([
-    getProfile(supabase, user.id),
-    getFollowing(supabase, user.id),
-    getFollowers(supabase, user.id),
-    getHighestRatedCoffee(supabase, { user_id: user.id, app_id: APP_ID }),
-  ])
+  const profile = await getProfile(supabase, user.id)
+  if (!profile) return null
 
+  const tab = searchParams.tab === "try" || searchParams.tab === "cafes" ? searchParams.tab : "cups"
   return (
     <AppShell>
-      <ProfileClient
-        profile={profile}
-        userId={user.id}
-        profileUserId={user.id}
-        followingCount={following.length}
-        followerCount={followers.length}
-        highestRatedCoffee={highestRatedCoffee}
-        showOwnActions
-      />
+      <ProfileView supabase={supabase} viewerId={user.id} profile={profile} tab={tab} />
     </AppShell>
   )
 }

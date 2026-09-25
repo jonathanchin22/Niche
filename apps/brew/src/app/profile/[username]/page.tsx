@@ -1,47 +1,31 @@
+import { notFound, redirect } from "next/navigation"
 import { createServerSupabaseClient } from "@niche/auth/server"
-import { getFollowing, getFollowers, getHighestRatedCoffee } from "@niche/database"
-import { redirect, notFound } from "next/navigation"
+import { isFollowing } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
-import ProfileClient from "../ProfileClient"
+import ProfileView from "@/components/profile/ProfileView"
 
-const APP_ID = "brew" as const
-
-interface ProfileByUsernamePageProps {
+export default async function ProfileByUsernamePage({ params, searchParams }: {
   params: { username: string }
-}
-
-export default async function ProfileByUsernamePage({ params }: ProfileByUsernamePageProps) {
+  searchParams: { tab?: string }
+}) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const username = decodeURIComponent(params.username)
-  const { data: profile } = await (supabase as any)
+  const { data: profile } = await supabase
     .from("profiles")
     .select("*")
-    .eq("username", username)
+    .eq("username", decodeURIComponent(params.username))
     .maybeSingle()
-
   if (!profile) notFound()
+  if (profile.id === user.id) redirect("/profile")
 
-  const [following, followers, highestRatedCoffee] = await Promise.all([
-    getFollowing(supabase, profile.id),
-    getFollowers(supabase, profile.id),
-    getHighestRatedCoffee(supabase, { user_id: profile.id, app_id: APP_ID }),
-  ])
+  const following = await isFollowing(supabase, { follower_id: user.id, following_id: profile.id })
+  const tab = searchParams.tab === "cafes" ? "cafes" : "cups"
 
   return (
     <AppShell>
-      <ProfileClient
-        profile={profile}
-        userId={user.id}
-        profileUserId={profile.id}
-        followingCount={following.length}
-        followerCount={followers.length}
-        highestRatedCoffee={highestRatedCoffee}
-        showOwnActions={user.id === profile.id}
-        showBackButton={user.id !== profile.id}
-      />
+      <ProfileView supabase={supabase} viewerId={user.id} profile={profile} tab={tab} isFollowing={following} />
     </AppShell>
   )
 }

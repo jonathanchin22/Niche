@@ -90,6 +90,9 @@ Production has drifted from the migration history at times (see `current_schema_
 Migration `007_reconcile_schema_and_connection_fixes.sql` is idempotent and brings any environment
 back in line — paste it into the Supabase SQL editor if you don't use `supabase db push`.
 
+The brew redesign also needs `008_want_to_try_and_social.sql` ("want to try" saves, save notifications,
+and public app memberships for friend suggestions). Run 007 first, then 008.
+
 ### 3. Configure environment variables
 
 ```bash
