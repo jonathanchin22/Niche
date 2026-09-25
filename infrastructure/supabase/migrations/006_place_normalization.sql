@@ -4,21 +4,13 @@
 -- ============================================================
 -- Goals:
 --   1. Prevent future duplicate places when google_place_id is NULL
---      by adding a partial unique index on (app_id, lower(name)).
+--      by adding a partial unique index on (app_id, lower(name))
+--      (created last, after existing duplicates are merged).
 --   2. Provide a deduplicate_places() procedure that consolidates
 --      existing duplicate rows and re-points reviews to the canonical
 --      place entry (earliest created_at wins).
 --   3. Provide a find_or_create_place() function used by the API
 --      layer to atomically look up or insert a place record.
-
--- ─── 1. Partial unique index to prevent future name-based duplicates ──────────
--- Only enforced when google_place_id IS NULL (manual / home-brew entries).
--- Entries that came from a real geocoding source keep the google_place_id
--- uniqueness path.
-
-create unique index if not exists places_app_id_name_no_gid_idx
-  on places (app_id, lower(name))
-  where google_place_id is null;
 
 -- ─── 2. Deduplication procedure ───────────────────────────────────────────────
 -- Idempotent: safe to re-run.  For each (app_id, lower(name)) group that has
@@ -189,3 +181,13 @@ $$;
 
 -- ─── 4. Run deduplication on existing data ────────────────────────────────────
 call deduplicate_places();
+
+-- ─── 5. Partial unique index to prevent future name-based duplicates ──────────
+-- Only enforced when google_place_id IS NULL (manual / home-brew entries).
+-- Entries that came from a real geocoding source keep the google_place_id
+-- uniqueness path. Created after deduplication: on a database that already has
+-- duplicate names (e.g. "Phin Coffee Bar" x3) creating it first fails.
+
+create unique index if not exists places_app_id_name_no_gid_idx
+  on places (app_id, lower(name))
+  where google_place_id is null;
