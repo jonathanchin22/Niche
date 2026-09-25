@@ -881,7 +881,7 @@ export async function updateProfile(
 // "Want to try" saves live in review_saves (migration 008).
 
 const REVIEW_CARD_SELECT = `
-  id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, created_at, updated_at,
+  id, app_id, user_id, place_id, score, category, item_name, note, image_urls, tags, taste_attributes, toppings, created_at, updated_at,
   user:profiles!reviews_user_id_fkey(id, username, display_name, avatar_url),
   place:places!reviews_place_id_fkey(id, name, city, state, cover_image_url, google_place_id, lat, lng),
   comments_meta:review_comments(count),
@@ -1063,7 +1063,7 @@ export async function getFriendsLovedPlaces(
   const byPlace = new Map<string, { place: any; scores: number[]; friends: Set<string>; photo: string | null; categories: Set<string> }>()
 
   for (const r of reviews as any[]) {
-    if (!r.place || r.place.google_place_id === "brew_home") continue
+    if (!r.place || r.place.google_place_id?.endsWith("_home")) continue
     const entry = byPlace.get(r.place_id) ?? {
       place: r.place, scores: [] as number[], friends: new Set<string>(),
       photo: r.place.cover_image_url ?? null, categories: new Set<string>(),
@@ -1094,7 +1094,9 @@ export async function getFriendsLovedPlaces(
     .select("*")
     .eq("app_id", app_id)
     .gt("review_count", 0)
-    .neq("google_place_id", "brew_home")
+    // Skip each app's shared "at home" place ("brew_home", "boba_home"). A plain
+    // .neq() would also drop places whose google_place_id is NULL.
+    .or("google_place_id.is.null,google_place_id.not.like.*_home")
     .order("review_count", { ascending: false })
     .limit(limit)
   if (error) throw error

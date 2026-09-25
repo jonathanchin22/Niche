@@ -1,5 +1,5 @@
 import { formatDistanceToNowStrict } from "date-fns"
-import type { Place, Review, User } from "@niche/shared-types"
+import type { Review, User } from "@niche/shared-types"
 
 export const APP_ID = "brew" as const
 

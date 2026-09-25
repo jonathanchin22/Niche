@@ -1,20 +1,20 @@
-import { createServerSupabaseClient } from "@niche/auth"
-import { ProfileClient } from "./ProfileClient"
-import { redirect } from "next/navigation"
-import { getUserReviews } from "@niche/database"
+import { createServerSupabaseClient } from "@niche/auth/server"
+import { getProfile } from "@niche/database"
+import AppShell from "@/components/ui/AppShell"
+import ProfileView from "@/components/profile/ProfileView"
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: { searchParams: { tab?: string } }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+  if (!user) return null
 
-  const [profileResult, reviewsResult] = await Promise.all([
-    (supabase as any).from("profiles").select("*").eq("id", user.id).single(),
-    getUserReviews(supabase as any, { user_id: user.id, app_id: "boba" }).catch(() => ({ data: [] })),
-  ])
+  const profile = await getProfile(supabase, user.id)
+  if (!profile) return null
 
-  const profile = profileResult?.data ?? null
-  const reviews = reviewsResult.data.map((item: any) => item.review)
-
-  return <ProfileClient userId={user.id} profile={profile} reviews={reviews} />
+  const tab = searchParams.tab === "try" || searchParams.tab === "cafes" ? searchParams.tab : "cups"
+  return (
+    <AppShell>
+      <ProfileView supabase={supabase} viewerId={user.id} profile={profile} tab={tab} />
+    </AppShell>
+  )
 }

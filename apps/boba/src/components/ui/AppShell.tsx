@@ -2,101 +2,67 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import type { ReactNode } from "react"
 
-type Tab = "home" | "explore" | "log" | "friends" | "friends-list" | "profile"
-
-interface AppShellProps {
-  children: React.ReactNode
-  activeTab?: Tab
+const ICONS: Record<string, ReactNode> = {
+  home: <path d="M3 9 L10 3 L17 9 V17 H12 V12 H8 V17 H3 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
+  explore: <><circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" /><path d="M13.5 13.5 L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>,
+  friends: <><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" /><circle cx="14" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" /><path d="M2 17 Q2 12 7 12 Q12 12 12 17M12.5 12.5 Q18 12 18 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>,
+  you: <><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3.5 17.5 Q3.5 12 10 12 Q16.5 12 16.5 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>,
 }
 
-export function AppShell({ children, activeTab }: AppShellProps) {
+const NAV = [
+  { href: "/", key: "home", label: "Home" },
+  { href: "/explore", key: "explore", label: "Explore" },
+  { href: "/log", key: "log", label: "Log a drink" },
+  { href: "/friends", key: "friends", label: "Friends" },
+  { href: "/profile", key: "you", label: "You" },
+]
+
+function isActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/"
+  if (href === "/explore") return pathname.startsWith("/explore") || pathname.startsWith("/place")
+  return pathname.startsWith(href)
+}
+
+export default function AppShell({ children, nav = true }: { children: ReactNode; nav?: boolean }) {
   const pathname = usePathname()
 
-  const isActive = (tabId: string) => {
-    if (tabId === "home" && pathname === "/") return true
-    if (tabId === "explore" && pathname.startsWith("/explore")) return true
-    if (tabId === "friends" && pathname.startsWith("/friends")) return true
-    if (tabId === "profile" && pathname.startsWith("/profile")) return true
-    return activeTab === tabId
-  }
-
   return (
-    <>
-      <style>{`
-        .niche-app * { box-sizing: border-box; }
-        .niche-app input::placeholder, .niche-app textarea::placeholder { color: #bbb; }
-        .niche-app button:focus { outline: none; }
-        .niche-app ::-webkit-scrollbar { display: none; }
-        .tab-btn { transition: color 0.15s ease; }
-        .card-hover { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-        .card-hover:active { transform: scale(0.98); }
-        .log-btn { transition: transform 0.15s ease; }
-        .log-btn:active { transform: scale(0.92); }
-      `}</style>
-      <div className="niche-app" style={{
-        background: "#fafaf8",
-        minHeight: "100vh",
-        maxWidth: 430,
-        margin: "0 auto",
-        position: "relative",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        paddingBottom: 80,
-      }}>
-        {children}
+    <div style={{ background: "var(--c-bg)", minHeight: "100svh", maxWidth: 430, margin: "0 auto", position: "relative" }}>
+      <main style={{ paddingBottom: nav ? 110 : 0 }}>{children}</main>
 
-        {/* Bottom Nav */}
-        <nav style={{
-          position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-          width: "100%", maxWidth: 430,
-          background: "#fafaf8",
-          borderTop: "1px solid #e8e8e4",
-          display: "flex",
-          zIndex: 100,
-          padding: "10px 0 24px",
+      {nav && (
+        <nav aria-label="Main" style={{
+          position: "fixed", left: "50%", bottom: "max(22px, env(safe-area-inset-bottom))", transform: "translateX(-50%)",
+          height: 56, padding: "0 6px", display: "flex", alignItems: "center", gap: 2, zIndex: 100,
+          background: "var(--c-paper)", border: "1px solid var(--c-rule)", borderRadius: 28,
         }}>
-          {[
-            { id: "home", href: "/", icon: "⌂", label: "home" },
-            { id: "explore", href: "/explore", icon: "◎", label: "explore" },
-            { id: "log", href: "/log", icon: "+", label: "" },
-            { id: "friends", href: "/friends", icon: "♡", label: "friends" },
-            { id: "profile", href: "/profile", icon: "◯", label: "me" },
-          ].map((tab) => (
-            <Link key={tab.id} href={tab.href} style={{
-              flex: 1,
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-              padding: "4px 0",
-              textDecoration: "none",
-            }}>
-              {tab.id === "log" ? (
-                <span className="log-btn" style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 38, height: 38, borderRadius: "50%",
-                  background: "#2d6a4f", color: "#fff",
-                  fontSize: 22, fontFamily: "'DM Sans', sans-serif",
-                  lineHeight: 1,
-                }}>+</span>
-              ) : (
-                <>
-                  <span className="tab-btn" style={{
-                    fontSize: 18,
-                    color: isActive(tab.id) ? "#2d6a4f" : "#aaa",
-                    fontWeight: isActive(tab.id) ? 700 : 400,
-                    lineHeight: 1,
-                  }}>{tab.icon}</span>
-                  <span style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: 10,
-                    color: isActive(tab.id) ? "#2d6a4f" : "#aaa",
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                  }}>{tab.label}</span>
-                </>
-              )}
-            </Link>
-          ))}
+          {NAV.map(({ href, key, label }) => {
+            if (key === "log") {
+              return (
+                <Link key={key} href={href} aria-label={label} style={{
+                  width: 44, height: 44, borderRadius: 22, background: "var(--c-jade)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 2v12M2 8h12" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </Link>
+              )
+            }
+            const active = isActive(pathname, href)
+            return (
+              <Link key={key} href={href} aria-label={label} aria-current={active ? "page" : undefined} style={{
+                width: 48, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+                color: active ? "var(--c-jade)" : "var(--c-subtle)",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">{ICONS[key]}</svg>
+              </Link>
+            )
+          })}
         </nav>
-      </div>
-    </>
+      )}
+    </div>
   )
 }
