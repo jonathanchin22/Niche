@@ -42,6 +42,8 @@ export interface CatalogPlace {
 const COFFEE_CHAINS = /^(starbucks|peet'?s|dunkin|tim hortons|costa|caribou|dutch bros|the coffee bean|coffee bean & tea leaf|pret|mcdonald'?s|mccaf[eé]|panera|biggby|scooter'?s|second cup|gloria jean'?s|krispy kreme|philz|blue bottle|la colombe|joe & the juice|black rifle|7 brew|human bean|ziggi'?s|paris baguette|85°c|tous les jours|java city|capital one caf|nordstrom|corner bakery|einstein bros|seattle'?s best|tully'?s)/i
 const BOBA_CHAINS = /^(gong ?cha|chatime|kung ?fu tea|sharetea|coco (fresh|bubble|tea)|lollicup|tastea|omomo|bambu|macu|ding tea|bober tea|tiger ?sugar|7 ?leaves|happy ?lemon|boba guys|yi ?fang|the alley|heytea|chagee|xing ?fu tang|presotea|machi machi|tp ?tea|wushiland|ten ren|quickly|lollicup|boba time|it'?s boba time|sunright|teaspoon|feng cha|molly ?tea|kung fu tea)/i
 const SPECIALTY_HINTS = /roast|espresso|brew bar|coffee bar|coffee co|coffee lab|coffee works|single origin|pour ?over/i
+// Dessert, juice and bowl shops that OSM often tags as cafés. A coffee word in the name overrides this.
+const NOT_COFFEE_NAMES = /funnel cake|gelato|creamistry|ice cream|smoothie|juice\b|juicery|nutrition|superfood|a[cç]a[ií]|\bbowls?\b|protein|\bch[eè] |macaron|cr[eê]pe|tea room/i
 const BOBA_PATTERN = new RegExp(BOBA_NAMES, "i")
 
 /** Rules over OSM tags. Conservative: when unsure, keep the place and call it casual. */
@@ -49,7 +51,13 @@ export function classifyOsmPlace(niche: NearbyKind, tags: Record<string, string>
   const name = tags.name ?? ""
   const cuisine = (tags.cuisine ?? "").toLowerCase()
   const branded = !!(tags.brand || tags["brand:wikidata"])
-  const isBoba = cuisine.includes("bubble_tea") || BOBA_PATTERN.test(name) || BOBA_CHAINS.test(name)
+  // A restaurant only counts as boba by its cuisine tag or a boba chain name: "The Alley"
+  // steakhouses and "Tea House" tea rooms share names with boba shops.
+  const restaurant = tags.amenity === "restaurant"
+  const nameMatch = restaurant
+    ? BOBA_CHAINS.test(name) && (!cuisine || /(^|;)\s*(tea|juice|dessert)\s*(;|$)/.test(cuisine))
+    : BOBA_PATTERN.test(name) || BOBA_CHAINS.test(name)
+  const isBoba = cuisine.includes("bubble_tea") || nameMatch
 
   const descriptors: string[] = []
   if (tags.internet_access === "wlan" || tags.internet_access === "yes") descriptors.push("wifi")
@@ -66,7 +74,8 @@ export function classifyOsmPlace(niche: NearbyKind, tags: Record<string, string>
   }
 
   // Coffee: bubble tea shops, ice cream parlours and cake shops tagged "cafe" aren't coffee places.
-  const notCoffee = isBoba || /ice_cream|frozen_yogurt|bubble_tea|juice/.test(cuisine) || tags.shop === "bakery"
+  const notCoffee = isBoba || /ice_cream|frozen_yogurt|bubble_tea|juice/.test(cuisine) || tags.shop === "bakery" ||
+    (NOT_COFFEE_NAMES.test(name) && !/coffee|espresso|roast|joe & the juice/i.test(name))
   if (notCoffee) return { relevant: false, kind: "other", descriptors }
   if (branded || COFFEE_CHAINS.test(name)) return { relevant: true, kind: "chain", descriptors }
   // "coffee_shop" alone isn't enough: bank, church and department-store coffee
