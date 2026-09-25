@@ -1,19 +1,6 @@
-import { createServerSupabaseClient } from "@niche/auth"
 import { redirect } from "next/navigation"
-import { getUserReviews } from "@niche/database"
-import { MyReviewsClient } from "./MyReviewsClient"
 
-export default async function MyReviewsPage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
-
-  const reviewsResult = await getUserReviews(supabase as any, {
-    user_id: user.id,
-    app_id: "boba",
-  }).catch(() => ({ data: [] }))
-
-  const reviews = reviewsResult.data.map((item: any) => item.review)
-
-  return <MyReviewsClient userId={user.id} initialReviews={reviews as any[]} />
+// "My drinks" now lives on the profile grid.
+export default function MyReviewsPage() {
+  redirect("/profile")
 }

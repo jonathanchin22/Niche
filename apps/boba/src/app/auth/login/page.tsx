@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
-import { joinApp } from "@niche/auth/client"
+import { createClient, signIn, signInWithOAuth, signUp } from "@niche/auth/client"
+import { Wordmark } from "@/components/home/Cover"
 
 type Mode = "login" | "signup"
 
 export default function LoginPage() {
   const router = useRouter()
+  const [showEmail, setShowEmail] = useState(false)
   const [mode, setMode] = useState<Mode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -17,149 +18,104 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // After any successful auth, check membership and route appropriately
-  async function handlePostAuth() {
+  // After signing in, send people who haven't joined boba yet to the one-tap join screen.
+  async function routeAfterAuth() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { data: membership } = await supabase
       .from("app_memberships")
       .select("user_id")
       .eq("user_id", user.id)
       .eq("app_id", "boba")
-      .single()
-
-    if (membership) {
-      router.push("/")
-    } else {
-      // They have an account (from brew/slice) but haven't joined boba yet
-      router.push("/join")
-    }
+      .maybeSingle()
+    router.push(membership ? "/" : "/join")
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     setError(null)
     setLoading(true)
     try {
       if (mode === "signup") {
-        await signUp({
-          email, password, username,
-          display_name: displayName,
-          source_app_id: "boba",
-        })
-        // Auto-creates profile + boba membership via DB trigger
+        await signUp({ email, password, username, display_name: displayName, source_app_id: "boba" })
         router.push("/")
       } else {
         await signIn({ email, password })
-        await handlePostAuth()
+        await routeAfterAuth()
       }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleOAuth(provider: "google" | "apple") {
-    const redirectTo = `${window.location.origin}/auth/callback`
-    await signInWithOAuth(provider, redirectTo)
+  async function handleGoogle() {
+    setError(null)
+    try {
+      await signInWithOAuth("google", `${window.location.origin}/auth/callback`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Couldn't reach Google")
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-boba-soft to-white flex flex-col items-center justify-center p-6">
-      {/* App icon */}
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-boba-accent to-purple-800 flex items-center justify-center text-4xl shadow-xl shadow-boba-accent/30 mb-6">
-        🧋
-      </div>
-      <h1 className="text-3xl font-black text-boba-text mb-1">boba!</h1>
-      <p className="text-sm text-boba-tertiary mb-8">bubble tea, ranked by fans</p>
+    <div style={{ minHeight: "100svh", maxWidth: 430, margin: "0 auto", display: "flex", flexDirection: "column", paddingBottom: 28 }}>
+      {!showEmail && (
+        <img src="/img/signin.jpg" alt="A milk tea with pearls held up against cherry blossom" style={{ width: "100%", height: "46svh", minHeight: 280, objectFit: "cover", background: "var(--c-tint)", borderRadius: "0 0 28px 28px" }} />
+      )}
 
-      {/* Form card */}
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-xl">
-        {/* Mode toggle */}
-        <div className="flex bg-boba-soft rounded-2xl p-1 mb-5">
-          {(["login", "signup"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
-                mode === m
-                  ? "bg-boba-accent text-white shadow-md shadow-boba-accent/30"
-                  : "text-boba-secondary"
-              }`}
-            >
-              {m === "login" ? "Sign in" : "Join"}
-            </button>
-          ))}
+      <section style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: showEmail ? "72px 24px 0" : "30px 24px 0", textAlign: "center" }}>
+        <Wordmark size={72} />
+        <p className="t-hand" style={{ fontSize: 23, color: "var(--c-mid)" }}>bubble tea, ranked by fans</p>
+      </section>
+
+      {!showEmail ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "26px 24px 0" }}>
+          <button type="button" onClick={handleGoogle} className="btn btn-primary">continue with Google</button>
+          <button type="button" onClick={() => setShowEmail(true)} className="btn btn-secondary">use email instead</button>
+          {error && <p role="alert" className="t-meta" style={{ textAlign: "center" }}>{error}</p>}
         </div>
-
-        <div className="flex flex-col gap-3">
-          {mode === "signup" && (
-            <>
-              <input
-                placeholder="Display name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
-              />
-              <input
-                placeholder="Username (e.g. teafairy)"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
-              />
-            </>
-          )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-gray-50 border border-boba-divider rounded-xl px-4 py-3 text-sm text-boba-text outline-none focus:border-boba-accent transition-colors"
-          />
-
-          {error && (
-            <p className="text-red-500 text-xs px-1">{error}</p>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-boba-accent text-white font-bold rounded-xl py-3.5 text-sm shadow-lg shadow-boba-accent/40 disabled:opacity-60 transition-opacity mt-1"
-          >
-            {loading ? "..." : mode === "login" ? "Sign in →" : "Create account →"}
-          </button>
-
-          <div className="flex items-center gap-3 my-1">
-            <div className="flex-1 h-px bg-boba-divider" />
-            <span className="text-xs text-boba-tertiary">or</span>
-            <div className="flex-1 h-px bg-boba-divider" />
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, padding: "28px 24px 0" }}>
+          <div role="tablist" aria-label="Sign in or create an account" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", marginBottom: 6 }}>
+            {(["login", "signup"] as Mode[]).map(m => (
+              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setError(null) }} style={{
+                height: 44, background: "none", border: "none", cursor: "pointer", fontSize: 14,
+                fontWeight: mode === m ? 600 : 400, color: mode === m ? "var(--c-ink)" : "var(--c-mid)",
+                borderBottom: mode === m ? "2px solid var(--c-jade)" : "1px solid var(--c-rule)",
+              }}>
+                {m === "login" ? "sign in" : "create account"}
+              </button>
+            ))}
           </div>
 
-          <button
-            onClick={() => handleOAuth("google")}
-            className="w-full border border-boba-divider rounded-xl py-3 text-sm font-bold text-boba-secondary flex items-center justify-center gap-2"
-          >
-            <span>G</span> Continue with Google
-          </button>
-        </div>
-      </div>
+          {mode === "signup" && (
+            <>
+              <label className="sr-only" htmlFor="username">Username</label>
+              <input id="username" className="field" value={username} onChange={e => setUsername(e.target.value)} placeholder="username" autoCapitalize="none" autoComplete="username" required />
+              <label className="sr-only" htmlFor="display">Your name</label>
+              <input id="display" className="field" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="your name" autoComplete="name" />
+            </>
+          )}
+          <label className="sr-only" htmlFor="email">Email</label>
+          <input id="email" className="field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email" autoComplete="email" required />
+          <label className="sr-only" htmlFor="password">Password</label>
+          <input id="password" className="field" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6} required />
 
-      <p className="text-xs text-boba-tertiary mt-6 text-center max-w-xs">
-        Already on brew. or slice.?{" "}
-        <button onClick={() => setMode("login")} className="text-boba-accent font-bold">
-          Sign in →
-        </button>
-        {" "}— your account works across all niche apps.
-      </p>
+          {error && <p role="alert" className="t-meta">{error}</p>}
+
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ marginTop: 6 }}>
+            {loading ? "one moment…" : mode === "login" ? "sign in" : "create account"}
+          </button>
+          <button type="button" onClick={() => { setShowEmail(false); setError(null) }} className="t-meta" style={{ height: 44, background: "none", border: "none", cursor: "pointer" }}>
+            ← back
+          </button>
+        </form>
+      )}
+
+      <p className="t-label" style={{ marginTop: "auto", paddingTop: 28, textAlign: "center", letterSpacing: "0.14em" }}>one niche account · boba &amp; brew</p>
     </div>
   )
 }

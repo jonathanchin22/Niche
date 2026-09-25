@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn, signUp, signInWithOAuth, createClient } from "@niche/auth/client"
-import { CupSteamSketch, MonoLabel } from "@/components/ui/Primitives"
+import { createClient, signIn, signInWithOAuth, signUp } from "@niche/auth/client"
 
 type Mode = "login" | "signup"
 
 export default function LoginPage() {
   const router = useRouter()
+  const [showEmail, setShowEmail] = useState(false)
   const [mode, setMode] = useState<Mode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -17,25 +17,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // After any successful auth, check membership and route appropriately
-  async function handlePostAuth() {
+  // After signing in, send people who haven't joined brew yet to the one-tap join screen.
+  async function routeAfterAuth() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { data: membership } = await supabase
       .from("app_memberships")
       .select("user_id")
       .eq("user_id", user.id)
       .eq("app_id", "brew")
-      .single()
-
-    if (membership) {
-      router.push("/")
-    } else {
-      // They have an account (from boba/slice) but haven't joined brew yet
-      router.push("/join")
-    }
+      .maybeSingle()
+    router.push(membership ? "/" : "/join")
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -44,149 +37,84 @@ export default function LoginPage() {
     setLoading(true)
     try {
       if (mode === "signup") {
-        await signUp({
-          email, password, username,
-          display_name: displayName,
-          source_app_id: "brew",
-        })
-        // Auto-creates profile + brew membership via DB trigger
+        await signUp({ email, password, username, display_name: displayName, source_app_id: "brew" })
         router.push("/")
       } else {
         await signIn({ email, password })
-        await handlePostAuth()
+        await routeAfterAuth()
       }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleOAuth(provider: "google" | "apple") {
-    const redirectTo = `${window.location.origin}/auth/callback`
-    await signInWithOAuth(provider, redirectTo)
+  async function handleGoogle() {
+    setError(null)
+    try {
+      await signInWithOAuth("google", `${window.location.origin}/auth/callback`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Couldn't reach Google")
+    }
   }
 
   return (
-    <div style={{
-      minHeight: "100svh", background: "var(--c-bg)",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      padding: "40px 28px",
-      maxWidth: 430, margin: "0 auto",
-    }}>
-      {/* Logo */}
-      <div style={{ marginBottom: 32, textAlign: "center" }}>
-        <CupSteamSketch size={60} />
-        <h1 style={{
-          fontFamily: "var(--font-display)", fontSize: 36, color: "var(--c-ink)",
-          fontWeight: 400, fontStyle: "italic", margin: "16px 0 4px",
-        }}>
-          niche brew
-        </h1>
-        <MonoLabel>your brew world</MonoLabel>
-      </div>
+    <div style={{ minHeight: "100svh", maxWidth: 430, margin: "0 auto", display: "flex", flexDirection: "column", paddingBottom: 28 }}>
+      {!showEmail && (
+        <img src="/img/signin.jpg" alt="Two lattes on a wooden table among plants" style={{ width: "100%", height: "46svh", minHeight: 280, objectFit: "cover", background: "var(--c-tint)" }} />
+      )}
 
-      {/* Toggle */}
-      <div style={{ display: "flex", border: "1px solid var(--c-rule)", borderRadius: 2, marginBottom: 28, overflow: "hidden" }}>
-        {(["login", "signup"] as const).map(m => (
-          <button key={m} type="button" onClick={() => setMode(m)} style={{
-            flex: 1, padding: "10px 24px",
-            background: mode === m ? "var(--c-accent)" : "transparent",
-            color: mode === m ? "#fff" : "var(--c-subtle)",
-            border: "none", cursor: "pointer",
-            fontFamily: "var(--font-mono)", fontSize: 10,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-          }}>
-            {m}
-          </button>
-        ))}
-      </div>
+      <section style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: showEmail ? "72px 24px 0" : "30px 24px 0", textAlign: "center" }}>
+        <span className="t-display" style={{ fontStyle: "italic", fontSize: 76, lineHeight: 0.85 }}>brew.</span>
+        <p className="t-hand" style={{ fontSize: 23, color: "var(--c-mid)" }}>every cup, remembered</p>
+      </section>
 
-      <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-        {mode === "signup" && (
-          <>
-            <div style={{ marginBottom: 24 }}>
-              <MonoLabel style={{ marginBottom: 10 }}>display name</MonoLabel>
-              <input
-                type="text"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                placeholder="Your Name"
-                required
-                style={{
-                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
-                  border: "none", borderBottom: "1px solid var(--c-rule)",
-                  padding: "8px 0", background: "transparent",
-                  color: "var(--c-ink)", outline: "none", fontStyle: "italic",
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <MonoLabel style={{ marginBottom: 10 }}>username</MonoLabel>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value.toLowerCase())}
-                placeholder="e.g. brewmaster"
-                required
-                style={{
-                  width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
-                  border: "none", borderBottom: "1px solid var(--c-rule)",
-                  padding: "8px 0", background: "transparent",
-                  color: "var(--c-ink)", outline: "none", fontStyle: "italic",
-                }}
-              />
-            </div>
-          </>
-        )}
-        {[
-          { label: "email", type: "email", val: email, set: setEmail, ph: "you@example.com" },
-          { label: "password", type: "password", val: password, set: setPassword, ph: "••••••••" },
-        ].map(({ label, type, val, set, ph }) => (
-          <div key={label} style={{ marginBottom: 24 }}>
-            <MonoLabel style={{ marginBottom: 10 }}>{label}</MonoLabel>
-            <input
-              type={type}
-              value={val}
-              onChange={e => set(e.target.value)}
-              placeholder={ph}
-              required
-              style={{
-                width: "100%", fontFamily: "var(--font-display)", fontSize: 20,
-                border: "none", borderBottom: "1px solid var(--c-rule)",
-                padding: "8px 0", background: "transparent",
-                color: "var(--c-ink)", outline: "none", fontStyle: "italic",
-              }}
-            />
+      {!showEmail ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "26px 24px 0" }}>
+          <button type="button" onClick={handleGoogle} className="btn btn-primary">continue with Google</button>
+          <button type="button" onClick={() => setShowEmail(true)} className="btn btn-secondary">use email instead</button>
+          {error && <p role="alert" className="t-meta" style={{ textAlign: "center" }}>{error}</p>}
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, padding: "28px 24px 0" }}>
+          <div role="tablist" aria-label="Sign in or create an account" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", marginBottom: 6 }}>
+            {(["login", "signup"] as Mode[]).map(m => (
+              <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setError(null) }} style={{
+                height: 44, background: "none", border: "none", cursor: "pointer", fontSize: 14,
+                fontWeight: mode === m ? 500 : 400, color: mode === m ? "var(--c-ink)" : "var(--c-mid)",
+                borderBottom: mode === m ? "1.5px solid var(--c-ink)" : "1px solid var(--c-rule)",
+              }}>
+                {m === "login" ? "sign in" : "create account"}
+              </button>
+            ))}
           </div>
-        ))}
 
-        {error && (
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#c0392b", letterSpacing: "0.05em", marginBottom: 16 }}>
-            {error}
-          </p>
-        )}
+          {mode === "signup" && (
+            <>
+              <label className="sr-only" htmlFor="username">Username</label>
+              <input id="username" className="field" value={username} onChange={e => setUsername(e.target.value)} placeholder="username" autoCapitalize="none" autoComplete="username" required />
+              <label className="sr-only" htmlFor="display">Your name</label>
+              <input id="display" className="field" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="your name" autoComplete="name" />
+            </>
+          )}
+          <label className="sr-only" htmlFor="email">Email</label>
+          <input id="email" className="field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email" autoComplete="email" required />
+          <label className="sr-only" htmlFor="password">Password</label>
+          <input id="password" className="field" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6} required />
 
-        <button type="submit" disabled={loading} style={{
-          width: "100%", background: "var(--c-accent)", color: "#fff",
-          border: "none", padding: "16px",
-          fontFamily: "var(--font-mono)", fontSize: 11,
-          cursor: loading ? "not-allowed" : "pointer",
-          letterSpacing: "0.1em", textTransform: "uppercase",
-          opacity: loading ? 0.6 : 1,
-        }}>
-          {loading ? "..." : mode === "login" ? "sign in →" : "create account →"}
-        </button>
-      </form>
+          {error && <p role="alert" className="t-meta">{error}</p>}
 
-      <p style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "var(--c-subtle)", marginTop: 24, textAlign: "center" }}>
-        Already on boba or slice?{" "}
-        <button onClick={() => setMode("login")} style={{ color: "var(--c-accent)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}>
-          Sign in →
-        </button>
-        {" "}— your account works across all niche apps.
-      </p>
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ marginTop: 6 }}>
+            {loading ? "one moment…" : mode === "login" ? "sign in" : "create account"}
+          </button>
+          <button type="button" onClick={() => { setShowEmail(false); setError(null) }} className="t-meta" style={{ height: 44, background: "none", border: "none", cursor: "pointer" }}>
+            ← back
+          </button>
+        </form>
+      )}
+
+      <p className="t-label" style={{ marginTop: "auto", paddingTop: 28, textAlign: "center", letterSpacing: "0.14em" }}>one niche account · brew &amp; boba</p>
     </div>
   )
 }

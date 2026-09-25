@@ -42,13 +42,20 @@ export async function signUp({
   source_app_id: AppId
 }) {
   const supabase = createClient()
+  // Must match the profiles.username check constraint (^[a-z0-9_.]+$), otherwise
+  // the handle_new_user trigger fails and Supabase reports "Database error saving new user".
+  const normalizedUsername = username.trim().toLowerCase()
+  if (!/^[a-z0-9_.]{2,30}$/.test(normalizedUsername)) {
+    throw new Error("Username must be 2–30 characters: letters, numbers, _ or .")
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        username,
-        display_name,
+        username: normalizedUsername,
+        display_name: display_name.trim() || normalizedUsername,
         source_app_id,
       },
     },
@@ -94,7 +101,7 @@ export async function getCurrentUser(): Promise<User | null> {
     .from("profiles")
     .select("*, app_memberships(*)")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
 
   return data as User | null
 }
@@ -105,16 +112,24 @@ export async function joinApp(app_id: AppId): Promise<AppMembership> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Not authenticated")
 
-  const { data, error } = await supabase
+  // ignoreDuplicates returns no row when the membership already exists, so
+  // read it back separately instead of chaining .single() onto the upsert.
+  const { error } = await supabase
     .from("app_memberships")
     .upsert(
-      { user_id: user.id, app_id, xp: 0, badges: [] },
+      { user_id: user.id, app_id },
       { onConflict: "user_id,app_id", ignoreDuplicates: true }
     )
-    .select()
+  if (error) throw error
+
+  const { data, error: fetchError } = await supabase
+    .from("app_memberships")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("app_id", app_id)
     .single()
 
-  if (error) throw error
+  if (fetchError) throw fetchError
   return data as AppMembership
 }
 
@@ -129,7 +144,7 @@ export async function isAppMember(app_id: AppId): Promise<boolean> {
     .select("user_id")
     .eq("user_id", user.id)
     .eq("app_id", app_id)
-    .single()
+    .maybeSingle()
 
   return !!data
 }

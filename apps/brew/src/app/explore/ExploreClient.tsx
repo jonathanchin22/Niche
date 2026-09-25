@@ -1,211 +1,131 @@
 "use client"
 
-import { useState, useEffect, useTransition, useCallback, useRef } from "react"
-import { createBrowserClient } from "@supabase/ssr"
-import { searchPlaces } from "@niche/database"
-import { MonoLabel, Stars, AeroSketch } from "@/components/ui/Primitives"
-import type { Place } from "@niche/shared-types"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { createClient } from "@niche/auth/client"
+import { searchPlaces, type LovedPlace } from "@niche/database"
+import type { Place } from "@niche/shared-types"
+import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitives"
+import { SleepyBean } from "@/components/ui/Doodles"
+import { APP_ID, formatScore, isHomePlace } from "@/lib/brew"
 
-const APP_ID = "brew" as const
-
-const CATS = [
-  { label: "staff picks", query: "" },
-  { label: "pour over",   query: "pour over" },
-  { label: "espresso",    query: "espresso" },
-  { label: "cold brew",   query: "cold brew" },
-  { label: "matcha",      query: "matcha" },
-  { label: "seasonal",    query: "seasonal" },
+const FILTERS = [
+  { key: "all", label: "everything", match: () => true },
+  { key: "espresso", label: "espresso", match: (c: string) => /espresso|cortado|macchiato|gibraltar/.test(c) },
+  { key: "milk", label: "milk drinks", match: (c: string) => /latte|flat white|cappuccino|cortado|mocha/.test(c) },
+  { key: "filter", label: "pour over", match: (c: string) => /pour|filter|aeropress|drip/.test(c) },
+  { key: "iced", label: "iced", match: (c: string) => /iced|cold/.test(c) },
 ] as const
 
-function getSupabase() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+function friendsLine(friends: string[]) {
+  if (friends.length === 0) return ""
+  if (friends.length <= 2) return friends.join(" and ")
+  return `${friends.slice(0, 2).join(", ")} and ${friends.length - 2} more`
 }
 
-export default function ExploreClient({ userId }: { userId: string }) {
-  const router = useRouter()
-  const [catIdx, setCatIdx] = useState(0)
-  const [places, setPlaces] = useState<Place[]>([])
-  const [isPending, startTransition] = useTransition()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Place[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+// Cafés without a photo get their initial set large, not a doodle (doodles stay one per screen).
+function PlacePhoto({ photo, name, height }: { photo: string | null; name: string; height: number }) {
+  return photo
+    ? <img src={photo} alt="" loading="lazy" className="photo" style={{ height }} />
+    : (
+      <span aria-hidden="true" className="t-display" style={{
+        height, display: "flex", alignItems: "center", justifyContent: "center", fontStyle: "italic",
+        fontSize: height * 0.45, color: "var(--c-mid)", background: "var(--c-tint)", borderRadius: 2,
+      }}>
+        {name.trim()[0]?.toLowerCase()}
+      </span>
+    )
+}
 
-  const cat = CATS[catIdx] || CATS[0]
-
-  useEffect(() => {
-    startTransition(async () => {
-      const results = await searchPlaces(getSupabase(), {
-        app_id: APP_ID,
-        query: cat.query,
-      })
-      setPlaces(results)
-    })
-  }, [catIdx])
-
-  const handleSearch = useCallback((q: string) => {
-    setSearchQuery(q)
-    clearTimeout(searchTimeout.current)
-    if (q.length < 2) { setSearchResults([]); return }
-    setIsSearching(true)
-    searchTimeout.current = setTimeout(async () => {
-      const results = await searchPlaces(getSupabase(), {
-        app_id: APP_ID,
-        query: q,
-      })
-      setSearchResults(results)
-      setIsSearching(false)
-    }, 400)
-  }, [])
-
-  // Filter out 'brewed at home' (homebrew) places
-  const filterHomebrew = (arr: Place[]) => arr.filter(
-    p =>
-      p.name !== "Brewed at home" &&
-      p.city !== "home" &&
-      p.google_place_id !== "brew_home"
-  )
-  const displayPlaces = searchQuery.length > 1 ? filterHomebrew(searchResults) : filterHomebrew(places)
-  const displayPending = searchQuery.length > 1 ? isSearching : isPending
+export default function ExploreClient({ places }: { places: LovedPlace[] }) {
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
+  const [results, setResults] = useState<Place[] | null>(null)
 
   useEffect(() => {
-    if (displayPending) return
-    displayPlaces.slice(0, 8).forEach(place => {
-      router.prefetch(`/place/${place.id}`)
-    })
-  }, [displayPending, displayPlaces, router])
+    const q = query.trim()
+    if (q.length < 2) { setResults(null); return }
+    const t = setTimeout(async () => {
+      const found = await searchPlaces(createClient(), { app_id: APP_ID, query: q }).catch(() => [])
+      setResults(found.filter(p => !isHomePlace(p)))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query])
+
+  const shown = useMemo(() => {
+    const f = FILTERS.find(x => x.key === filter)!
+    return filter === "all" ? places : places.filter(p => p.categories.some(c => f.match(c.toLowerCase())))
+  }, [places, filter])
+
+  const [featured, ...rest] = shown
+  const fromFriends = places.some(p => p.friends.length > 0)
 
   return (
-    <div style={{ display: "flex", height: "calc(100svh - 88px)", paddingTop: 52, overflow: "hidden" }}>
-
-      {/* Side rail */}
-      <div style={{
-        width: 96, flexShrink: 0, borderRight: "1px solid var(--c-rule)",
-        background: "var(--c-bg)", overflowY: "auto", paddingTop: 20,
-      }}>
-        {CATS.map((c, i) => (
-          <button key={c.label} type="button" onClick={() => setCatIdx(i)} style={{
-            display: "block", width: "100%", background: "none", border: "none",
-            borderBottom: "1px solid var(--c-rule)", padding: "14px 10px",
-            textAlign: "left", cursor: "pointer",
-            borderLeft: i === catIdx ? "3px solid var(--c-accent)" : "3px solid transparent",
-          }}>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, lineHeight: 1.5,
-              color: i === catIdx ? "var(--c-accent)" : "var(--c-subtle)",
-              letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>
-              {c.label}
-            </span>
-          </button>
-        ))}
+    <div>
+      <PageTitle>explore</PageTitle>
+      <div style={{ padding: "16px 24px 0" }}>
+        <SearchField id="q" label="Search cafés" value={query} onChange={setQuery} placeholder="search cafés" />
       </div>
 
-      {/* Content panel */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 0" }}>
-        {/* Search bar */}
-        <div style={{ padding: "0 20px 20px" }}>
-          <div style={{
-            display: "flex", alignItems: "center",
-            border: "1px solid var(--c-rule)", borderRadius: 8,
-            padding: "12px 16px", background: "var(--c-bg)", gap: 8,
-          }}>
-            <span style={{ color: "var(--c-subtle)", fontSize: 14 }}>◎</span>
-            <input
-              value={searchQuery}
-              onChange={e => handleSearch(e.target.value)}
-              placeholder="search places or drinks..."
-              style={{
-                flex: 1, border: "none", outline: "none", background: "transparent",
-                fontFamily: "var(--font-display)", fontSize: 16, color: "var(--c-ink)",
-                fontStyle: "italic",
-              }}
-            />
-            {isSearching && <MonoLabel>...</MonoLabel>}
+      {results ? (
+        <section style={{ padding: "8px 24px 0" }}>
+          {results.length === 0 && (
+            <p className="t-meta" style={{ padding: "18px 0" }}>No cafés called “{query.trim()}” yet — log a cup there and it’ll appear.</p>
+          )}
+          {results.map(p => (
+            <Link key={p.id} href={`/place/${p.id}`} style={{ display: "flex", alignItems: "baseline", gap: 12, padding: "16px 0", borderBottom: "1px solid var(--c-rule)" }}>
+              <span className="t-title" style={{ fontSize: 22, flexGrow: 1 }}>{p.name}</span>
+              <span className="t-meta">{p.review_count} {p.review_count === 1 ? "cup" : "cups"}</span>
+              {p.avg_score != null && <span className="t-score" style={{ fontSize: 22 }}>{formatScore(p.avg_score)}</span>}
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 8, padding: "14px 24px 0", overflowX: "auto" }}>
+            {FILTERS.map(f => (
+              <button key={f.key} type="button" className="pill" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
+            ))}
           </div>
-        </div>
 
-        <div style={{ padding: "0 20px 12px" }}>
-          <p style={{
-            fontFamily: "var(--font-display)", fontSize: 24, color: "var(--c-ink)",
-            margin: 0, fontWeight: 400, fontStyle: "italic",
-          }}>
-            {searchQuery.length > 1 ? `searching "${searchQuery}"` : cat.label}
-          </p>
-        </div>
+          <SectionHeading>{fromFriends ? "cafés your friends love" : "popular on brew"}</SectionHeading>
 
-        {displayPending && (
-          <div style={{ padding: "24px 20px" }}>
-            <MonoLabel>searching...</MonoLabel>
-          </div>
-        )}
-
-        {!displayPending && displayPlaces.length === 0 && (
-          <div style={{ padding: "32px 20px", textAlign: "center" }}>
-            <AeroSketch />
-            <p style={{ fontFamily: "var(--font-hand)", fontSize: 15, color: "var(--c-subtle)", marginTop: 16 }}>
-              {searchQuery.length > 1 ? `No results for "${searchQuery}"` : "No cafes logged here yet."}
-            </p>
-          </div>
-        )}
-
-        {!displayPending && displayPlaces.map(place => (
-          <Link
-            key={place.id}
-            href={`/place/${place.id}`}
-            prefetch
-            onMouseEnter={() => router.prefetch(`/place/${place.id}`)}
-            onFocus={() => router.prefetch(`/place/${place.id}`)}
-            style={{ textDecoration: "none" }}
-          >
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--c-rule)", cursor: "pointer" }}>
-
-              {/* Cover photo placeholder */}
-              <div style={{
-                height: 100, background: "var(--c-tint)", borderRadius: 4,
-                marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                overflow: "hidden",
-              }}>
-                {place.cover_image_url ? (
-                  <img src={place.cover_image_url} alt={place.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <span style={{ fontFamily: "var(--font-hand)", fontSize: 13, color: "var(--c-subtle)" }}>
-                    {place.name}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                <p style={{
-                  fontFamily: "var(--font-display)", fontSize: 18, color: "var(--c-ink)",
-                  margin: 0, fontWeight: 400,
-                }}>
-                  {place.name}
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {place.avg_score != null && (
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--c-gold)", letterSpacing: "-0.02em" }}>
-                      {place.avg_score.toFixed(1)}
-                    </span>
-                  )}
-                  <Stars value={place.avg_score != null ? (place.avg_score / 10) * 5 : 0} />
-                </div>
-              </div>
-
-              {place.city && (
-                <MonoLabel style={{ marginBottom: 8 }}>{place.city}{place.state ? `, ${place.state}` : ""}</MonoLabel>
-              )}
-
-              <MonoLabel>{place.review_count} logged</MonoLabel>
+          {!featured ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "30px 40px 0", textAlign: "center" }}>
+              <SleepyBean size={110} />
+              <p className="t-meta" style={{ fontSize: 14 }}>
+                {places.length === 0 ? "No cafés yet — log a cup and yours will be the first." : "Nothing matches that filter yet."}
+              </p>
             </div>
-          </Link>
-        ))}
-      </div>
+          ) : (
+            <>
+              <Link href={`/place/${featured.place.id}`} style={{ display: "flex", flexDirection: "column", gap: 12, margin: "0 12px" }}>
+                <PlacePhoto photo={featured.photo} name={featured.place.name} height={240} />
+                <span style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, padding: "0 12px" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span className="t-display" style={{ fontSize: 32, lineHeight: 1 }}>{featured.place.name}</span>
+                    <span className="t-meta">{[featured.place.city, friendsLine(featured.friends)].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  <span className="t-score" style={{ fontSize: 32 }}>{formatScore(featured.avg_score)}</span>
+                </span>
+              </Link>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, padding: "24px 24px 0" }}>
+                {rest.map(p => (
+                  <Link key={p.place.id} href={`/place/${p.place.id}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <PlacePhoto photo={p.photo} name={p.place.name} height={150} />
+                    <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                      <span className="t-title" style={{ fontSize: 20 }}>{p.place.name}</span>
+                      <span className="t-score" style={{ fontSize: 20 }}>{formatScore(p.avg_score)}</span>
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--c-mid)" }}>{[p.place.city, friendsLine(p.friends)].filter(Boolean).join(" · ")}</span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }

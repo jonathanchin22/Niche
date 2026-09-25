@@ -84,6 +84,20 @@ supabase db push
 supabase db reset --db-url postgresql://postgres:postgres@localhost:54322/postgres
 ```
 
+### Applying migrations to an existing (production) project
+
+Production has drifted from the migration history at times (see `current_schema_supabase.sql`).
+If you don't use `supabase db push`, paste each file into the Supabase SQL editor **in order**.
+All of them are safe to re-run.
+
+As of September 2026 production had 001–005 applied, so run:
+
+1. `006_place_normalization.sql`: merges duplicate cafés/shops (same name, no map id) into the
+   oldest row, moving their reviews, then adds a unique index so it can't happen again.
+2. `007_reconcile_schema_and_connection_fixes.sql`: reconciles schema drift and fixes OAuth signup.
+3. `008_want_to_try_and_social.sql`: "want to try" saves, save notifications and public app
+   memberships for friend suggestions (needed by the brew and boba redesigns).
+
 ### 3. Configure environment variables
 
 ```bash

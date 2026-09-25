@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createServerSupabaseClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      console.error("auth callback: code exchange failed:", error.message)
+      return NextResponse.redirect(`${origin}/auth/login`)
+    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -17,7 +21,7 @@ export async function GET(request: NextRequest) {
         .select("user_id")
         .eq("user_id", user.id)
         .eq("app_id", "brew")
-        .single()
+        .maybeSingle()
 
       if (!membership) {
         return NextResponse.redirect(`${origin}/join`)

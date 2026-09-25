@@ -1,0 +1,132 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { createClient } from "@niche/auth/client"
+import { searchPlaces, type LovedPlace } from "@niche/database"
+import type { Place } from "@niche/shared-types"
+import { PageTitle, SearchField, SectionHeading } from "@/components/ui/Primitives"
+import { SleepyPearl } from "@/components/ui/Doodles"
+import { APP_ID, formatScore, isHomePlace } from "@/lib/boba"
+
+const FILTERS = [
+  { key: "all", label: "everything", match: () => true },
+  { key: "milk", label: "milk tea", match: (c: string) => c === "milk tea" },
+  { key: "brown", label: "brown sugar", match: (c: string) => c === "brown sugar" },
+  { key: "fruit", label: "fruit tea", match: (c: string) => c === "fruit tea" },
+  { key: "matcha", label: "matcha", match: (c: string) => c === "matcha" },
+  { key: "taro", label: "taro", match: (c: string) => c === "taro" },
+] as const
+
+function friendsLine(friends: string[]) {
+  if (friends.length === 0) return ""
+  if (friends.length <= 2) return friends.join(" and ")
+  return `${friends.slice(0, 2).join(", ")} and ${friends.length - 2} more`
+}
+
+// Cafés without a photo get their initial set large, not a doodle (doodles stay one per screen).
+function PlacePhoto({ photo, name, height }: { photo: string | null; name: string; height: number }) {
+  return photo
+    ? <img src={photo} alt="" loading="lazy" className="photo" style={{ height }} />
+    : (
+      <span aria-hidden="true" className="t-display" style={{
+        height, display: "flex", alignItems: "center", justifyContent: "center", fontStyle: "italic",
+        fontSize: height * 0.45, color: "var(--c-mid)", background: "var(--c-tint)", borderRadius: 18,
+      }}>
+        {name.trim()[0]?.toLowerCase()}
+      </span>
+    )
+}
+
+export default function ExploreClient({ places }: { places: LovedPlace[] }) {
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all")
+  const [results, setResults] = useState<Place[] | null>(null)
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) { setResults(null); return }
+    const t = setTimeout(async () => {
+      const found = await searchPlaces(createClient(), { app_id: APP_ID, query: q }).catch(() => [])
+      setResults(found.filter(p => !isHomePlace(p)))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query])
+
+  const shown = useMemo(() => {
+    const f = FILTERS.find(x => x.key === filter)!
+    return filter === "all" ? places : places.filter(p => p.categories.some(c => f.match(c.toLowerCase())))
+  }, [places, filter])
+
+  const [featured, ...rest] = shown
+  const fromFriends = places.some(p => p.friends.length > 0)
+
+  return (
+    <div>
+      <PageTitle>explore</PageTitle>
+      <div style={{ padding: "16px 24px 0" }}>
+        <SearchField id="q" label="Search shops" value={query} onChange={setQuery} placeholder="search shops" />
+      </div>
+
+      {results ? (
+        <section style={{ padding: "8px 24px 0" }}>
+          {results.length === 0 && (
+            <p className="t-meta" style={{ padding: "18px 0" }}>No shops called “{query.trim()}” yet — log a drink there and it’ll appear.</p>
+          )}
+          {results.map(p => (
+            <Link key={p.id} href={`/place/${p.id}`} style={{ display: "flex", alignItems: "baseline", gap: 12, padding: "16px 0", borderBottom: "1px solid var(--c-rule)" }}>
+              <span className="t-title" style={{ fontSize: 22, flexGrow: 1 }}>{p.name}</span>
+              <span className="t-meta">{p.review_count} {p.review_count === 1 ? "sip" : "sips"}</span>
+              {p.avg_score != null && <span className="t-score" style={{ fontSize: 22 }}>{formatScore(p.avg_score)}</span>}
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 8, padding: "14px 24px 0", overflowX: "auto" }}>
+            {FILTERS.map(f => (
+              <button key={f.key} type="button" className="pill" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
+            ))}
+          </div>
+
+          <SectionHeading>{fromFriends ? "shops your friends love" : "popular on boba!"}</SectionHeading>
+
+          {!featured ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "30px 40px 0", textAlign: "center" }}>
+              <SleepyPearl size={110} />
+              <p className="t-meta" style={{ fontSize: 14 }}>
+                {places.length === 0 ? "No shops yet — log a drink and yours will be the first." : "Nothing matches that filter yet."}
+              </p>
+            </div>
+          ) : (
+            <>
+              <Link href={`/place/${featured.place.id}`} style={{ display: "flex", flexDirection: "column", gap: 12, margin: "0 12px" }}>
+                <PlacePhoto photo={featured.photo} name={featured.place.name} height={250} />
+                <span style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, padding: "0 12px" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span className="t-display" style={{ fontSize: 32, lineHeight: 1 }}>{featured.place.name}</span>
+                    <span className="t-meta">{[featured.place.city, friendsLine(featured.friends)].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  <span className="t-score" style={{ fontSize: 32 }}>{formatScore(featured.avg_score)}</span>
+                </span>
+              </Link>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, padding: "24px 24px 0" }}>
+                {rest.map(p => (
+                  <Link key={p.place.id} href={`/place/${p.place.id}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <PlacePhoto photo={p.photo} name={p.place.name} height={150} />
+                    <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                      <span className="t-title" style={{ fontSize: 20 }}>{p.place.name}</span>
+                      <span className="t-score" style={{ fontSize: 20 }}>{formatScore(p.avg_score)}</span>
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--c-mid)" }}>{[p.place.city, friendsLine(p.friends)].filter(Boolean).join(" · ")}</span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}

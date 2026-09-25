@@ -40,3 +40,6 @@ supabase/.branches
 *.swp
 
 .vercel
+
+# TypeScript incremental build info
+*.tsbuildinfo
