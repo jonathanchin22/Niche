@@ -2,13 +2,13 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
-import { firstProgress, formatDistance, type CatalogPlace, type LatLng } from "@niche/database"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { distanceMetres, firstProgress, formatDistance, type CatalogPlace, type LatLng } from "@niche/database"
 import type { MapCamera } from "@/components/map/CafeMap"
 import FirstBadgeRow from "@/components/badges/FirstBadgeRow"
 import { SectionHeading } from "@/components/ui/Primitives"
 import { formatScore } from "@/lib/boba"
-import { readNearState, writeNearState } from "./nearState"
+import { readNearState, writeNearState, type SearchArea } from "./nearState"
 
 // MapLibre is ~200 kB; only load it when someone switches to the map.
 const CafeMap = dynamic(() => import("@/components/map/CafeMap"), {
@@ -27,7 +27,16 @@ const metaLine = (p: CatalogPlace) => [p.kind ? KIND_LABEL[p.kind] : null, ...p.
  * Every boba shop around you — reviewed or not — as a list or a map, plus a
  * "be the first" tab of the ones nobody has logged yet.
  */
-export default function NearYou({ here, status, places, firsts }: { here: LatLng | null; status: NearStatus; places: CatalogPlace[]; firsts: number }) {
+export default function NearYou({ here, status, places, firsts, area, searching, onSearchArea }: {
+  here: LatLng | null
+  status: NearStatus
+  places: CatalogPlace[]
+  firsts: number
+  /** Set when the places come from "search this area" rather than around you. */
+  area: SearchArea | null
+  searching: boolean
+  onSearchArea: (area: SearchArea | null) => void
+}) {
   const [tab, setTab] = useState<"near" | "first">("near")
   const [view, setView] = useState<"list" | "map">("list")
   const [expanded, setExpanded] = useState(false)
@@ -64,7 +73,36 @@ export default function NearYou({ here, status, places, firsts }: { here: LatLng
   const selected = list.find(p => p.id === selectedId) ?? null
   const progress = firstProgress(firsts)
 
-  const onCamera = (c: MapCamera) => { setCamera(c); writeNearState({ camera: c }) }
+  // "Search this area" shows once the map has moved away from where the
+  // current places were loaded (the first settled view, or the last search).
+  const [baseline, setBaseline] = useState<MapCamera | null>(null)
+  const baselineRef = useRef<MapCamera | null>(null)
+  const [mapKey, setMapKey] = useState(0)
+  const onCamera = (c: MapCamera) => {
+    setCamera(c)
+    writeNearState({ camera: c })
+    if (!baselineRef.current) { baselineRef.current = c; setBaseline(c) }
+  }
+  const moved = !!camera && !!baseline && (
+    distanceMetres(baseline, camera) > Math.max(200, (camera.radius ?? 1000) * 0.3) ||
+    Math.abs(camera.zoom - baseline.zoom) >= 1
+  )
+  const searchHere = () => {
+    if (!camera) return
+    setSelectedId(null)
+    baselineRef.current = camera
+    setBaseline(camera)
+    onSearchArea({ lat: camera.lat, lng: camera.lng, radius: camera.radius ?? 2500 })
+  }
+  const backToYou = () => {
+    setSelectedId(null)
+    setCamera(null)
+    writeNearState({ camera: null })
+    baselineRef.current = null
+    setBaseline(null)
+    setMapKey(k => k + 1)
+    onSearchArea(null)
+  }
 
   return (
     <section aria-labelledby="near-you">
@@ -76,6 +114,15 @@ export default function NearYou({ here, status, places, firsts }: { here: LatLng
       ) : undefined}>
         <span id="near-you">near you</span>
       </SectionHeading>
+
+      {area && (
+        <p className="t-meta" style={{ padding: "0 24px 10px", fontSize: 13 }}>
+          Showing shops around the map area ·{" "}
+          <button type="button" onClick={backToYou} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: "var(--c-ink)", textDecoration: "underline", textUnderlineOffset: 3 }}>
+            back to near you
+          </button>
+        </p>
+      )}
 
       <div role="tablist" aria-label="Which shops" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", margin: "0 24px 14px" }}>
         {([["near", "everything"], ["first", "be the first"]] as const).map(([key, label]) => (
@@ -121,7 +168,18 @@ export default function NearYou({ here, status, places, firsts }: { here: LatLng
       {status === "ready" && list.length > 0 && view === "map" && here && restored && (
         <div style={{ margin: "0 12px" }}>
           <div style={{ position: "relative" }}>
-            <CafeMap center={here} pins={pins} camera={camera} onCameraChange={onCamera} selectedId={selectedId} onSelect={setSelectedId} height={460} />
+            <CafeMap key={mapKey} center={here} pins={pins} camera={camera} onCameraChange={onCamera} selectedId={selectedId} onSelect={setSelectedId} height={460} />
+            {(moved || searching) && (
+              <button type="button" onClick={searchHere} disabled={searching}
+                style={{
+                  position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 3,
+                  padding: "9px 16px", borderRadius: 999, border: "1px solid var(--c-rule)", cursor: "pointer",
+                  background: "var(--c-paper)", color: "var(--c-ink)", fontSize: 13, fontWeight: 500,
+                  boxShadow: "0 4px 12px rgba(28,20,16,.14)", whiteSpace: "nowrap",
+                }}>
+                {searching ? "searching…" : "search this area"}
+              </button>
+            )}
             {selected && <PreviewCard place={selected} onClose={() => setSelectedId(null)} />}
           </div>
           <p className="t-meta" style={{ fontSize: 11, padding: "6px 12px 0" }}>

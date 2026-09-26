@@ -59,10 +59,26 @@ test("cheers persist", async ({ page, context }) => {
   await signInAs(context, "maya")
   await page.goto(`/review/${PRIYA_FLAT_WHITE}`)
   const cheers = page.getByRole("button", { name: /cheers/ })
+  // The button flips at once (optimistic); wait for the save itself before reloading.
+  const saved = page.waitForResponse(r => r.url().includes("/review_votes") && r.request().method() === "POST" && r.ok())
   await cheers.click()
   await expect(cheers).toHaveAttribute("aria-pressed", "true")
+  await saved
   await page.reload()
   await expect(page.getByRole("button", { name: /cheers · 1/ })).toHaveAttribute("aria-pressed", "true")
+})
+
+test("profile tabs switch in place, without reloading the page", async ({ page, context }) => {
+  await signInAs(context, "maya")
+  await page.goto("/profile")
+  await page.evaluate(() => { (window as unknown as { stayed: boolean }).stayed = true })
+  await page.getByRole("tab", { name: "ranked" }).click()
+  await expect(page).toHaveURL(/\/profile\?tab=ranked$/)
+  await expect(page.getByRole("tabpanel").locator("ol li").first()).toBeVisible()
+  await page.getByRole("tab", { name: "cafés" }).click()
+  await expect(page.getByRole("tabpanel").getByRole("link", { name: /Sightglass/ })).toBeVisible()
+  // Same document the whole time: no navigation, no loading screen.
+  expect(await page.evaluate(() => (window as unknown as { stayed?: boolean }).stayed)).toBe(true)
 })
 
 test("reporting a cup", async ({ page, context }) => {
@@ -254,6 +270,33 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect.poll(async () => (await gap()) / before, { timeout: 5000 }).toBeCloseTo(2, 1)
   })
 
+  test("'search this area' loads cafés for wherever the map is, and 'back to near you' returns", async ({ page, context }) => {
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.getByRole("button", { name: "map", exact: true }).click()
+    const map = page.getByRole("region", { name: "Map of cafés near you" })
+    await expect(map.getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+    const searchHere = page.getByRole("button", { name: "search this area" })
+    await expect(searchHere).toHaveCount(0)
+
+    await map.getByRole("button", { name: "Zoom out" }).click()
+    await expect(searchHere).toBeVisible()
+    const request = page.waitForRequest(r => r.url().includes("/api/places/near") && r.url().includes("radius="))
+    await searchHere.click()
+    await request
+    await expect(page.getByText("Showing cafés around the map area")).toBeVisible()
+    await expect(searchHere).toHaveCount(0)
+    await expect(map.getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+
+    await page.getByRole("button", { name: "back to near you" }).click()
+    await expect(page.getByText("Showing cafés around the map area")).toHaveCount(0)
+    await expect(page.getByRole("region", { name: "Map of cafés near you" }).getByRole("button", { name: /^Sightglass, / })).toBeVisible()
+  })
+
   test("an area is seeded once, then served from the database", async ({ page, context, request }) => {
     const before = (await (await request.get(`${OVERPASS}/_count`)).json()).count
     await signInAs(context, "maya")
@@ -285,7 +328,7 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByText("no cups yet")).toHaveCount(0)
 
     await page.goto("/profile")
-    await expect(page.getByText("first at 2 cafés")).toBeVisible()
+    await expect(page.getByRole("link", { name: /2\s*firsts/ })).toHaveAttribute("href", "/explore?tab=first")
     await expect(page.getByRole("link", { name: "1 to scout" })).toHaveAttribute("href", "/explore?tab=first")
   })
 

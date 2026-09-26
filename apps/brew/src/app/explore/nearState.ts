@@ -6,9 +6,13 @@ import type { MapCamera } from "@/components/map/CafeMap"
  * and back returns to the same list or map (same tab, pin and camera) without
  * locating you and loading everything again.
  */
+export interface SearchArea { lat: number; lng: number; radius: number }
+
 export interface NearState {
   savedAt: number
   here: LatLng | null
+  /** Set after "search this area": the centre and radius the places came from. */
+  area: SearchArea | null
   places: CatalogPlace[]
   view: "list" | "map"
   tab: "near" | "first"
@@ -34,7 +38,7 @@ export function writeNearState(patch: Partial<NearState>) {
   try {
     const prev = readNearState()
     const next: NearState = {
-      here: null, places: [], view: "list", tab: "near", camera: null, selectedId: null,
+      here: null, area: null, places: [], view: "list", tab: "near", camera: null, selectedId: null,
       ...prev,
       ...patch,
       // Only a fresh location and place list restart the clock.
