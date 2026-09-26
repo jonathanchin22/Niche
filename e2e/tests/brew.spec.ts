@@ -68,6 +68,19 @@ test("cheers persist", async ({ page, context }) => {
   await expect(page.getByRole("button", { name: /cheers · 1/ })).toHaveAttribute("aria-pressed", "true")
 })
 
+test("profile tabs switch in place, without reloading the page", async ({ page, context }) => {
+  await signInAs(context, "maya")
+  await page.goto("/profile")
+  await page.evaluate(() => { (window as unknown as { stayed: boolean }).stayed = true })
+  await page.getByRole("tab", { name: "ranked" }).click()
+  await expect(page).toHaveURL(/\/profile\?tab=ranked$/)
+  await expect(page.getByRole("tabpanel").locator("ol li").first()).toBeVisible()
+  await page.getByRole("tab", { name: "cafés" }).click()
+  await expect(page.getByRole("tabpanel").getByRole("link", { name: /Sightglass/ })).toBeVisible()
+  // Same document the whole time: no navigation, no loading screen.
+  expect(await page.evaluate(() => (window as unknown as { stayed?: boolean }).stayed)).toBe(true)
+})
+
 test("reporting a cup", async ({ page, context }) => {
   await signInAs(context, "maya")
   await page.goto(`/review/${PRIYA_FLAT_WHITE}`)
@@ -315,7 +328,7 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByText("no cups yet")).toHaveCount(0)
 
     await page.goto("/profile")
-    await expect(page.getByText("first at 2 cafés")).toBeVisible()
+    await expect(page.getByRole("link", { name: /2\s*firsts/ })).toHaveAttribute("href", "/explore?tab=first")
     await expect(page.getByRole("link", { name: "1 to scout" })).toHaveAttribute("href", "/explore?tab=first")
   })
 
