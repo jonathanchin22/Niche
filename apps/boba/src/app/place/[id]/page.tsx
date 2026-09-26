@@ -46,9 +46,14 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
   const fromMap = place.source === "osm" || place.google_place_id?.startsWith("osm_")
   const about = [place.kind === "chain" ? "chain" : null, ...(place.descriptors ?? []).slice(0, 3)].filter(Boolean).join(" · ")
   const firstSip = reviews.length === 0
-  const mapsUrl = hasCoords
-    ? `https://maps.google.com/?q=${place.lat},${place.lng}`
-    : `https://maps.google.com/?q=${encodeURIComponent([place.name, place.city].filter(Boolean).join(" "))}`
+  // Search Google Maps for the café itself (name + address), so directions open
+  // its listing, not a dropped pin at bare coordinates.
+  const mapsQuery = [
+    place.name,
+    place.address,
+    place.city && !place.address?.toLowerCase().includes(place.city.toLowerCase()) ? place.city : null,
+  ].filter(Boolean).join(", ")
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
 
   return (
     <AppShell>
