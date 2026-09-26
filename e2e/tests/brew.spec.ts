@@ -59,8 +59,11 @@ test("cheers persist", async ({ page, context }) => {
   await signInAs(context, "maya")
   await page.goto(`/review/${PRIYA_FLAT_WHITE}`)
   const cheers = page.getByRole("button", { name: /cheers/ })
+  // The button flips at once (optimistic); wait for the save itself before reloading.
+  const saved = page.waitForResponse(r => r.url().includes("/review_votes") && r.request().method() === "POST" && r.ok())
   await cheers.click()
   await expect(cheers).toHaveAttribute("aria-pressed", "true")
+  await saved
   await page.reload()
   await expect(page.getByRole("button", { name: /cheers · 1/ })).toHaveAttribute("aria-pressed", "true")
 })
