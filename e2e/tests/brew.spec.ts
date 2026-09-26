@@ -313,6 +313,11 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByRole("heading", { name: "Four Barrel Coffee" })).toBeVisible()
     await expect(page.getByText("no cups yet")).toBeVisible()
     await expect(page.getByText("375 Valencia Street")).toBeVisible()
+    // Directions open the café's Maps listing (name + address), not bare coordinates.
+    await expect(page.getByRole("link", { name: /directions/ })).toHaveAttribute(
+      "href",
+      /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Four%20Barrel%20Coffee%2C%20375%20Valencia%20Street/,
+    )
 
     await page.getByRole("link", { name: "log the first cup" }).click()
     await expect(page.locator("#cafe")).toHaveValue("Four Barrel Coffee")
