@@ -159,9 +159,6 @@ export default function ExploreClient({ places, firsts }: { places: LovedPlace[]
 
       {results ? (
         <section style={{ padding: "8px 24px 0" }}>
-          {results.length === 0 && mapResults.length === 0 && (
-            <p className="t-meta" style={{ padding: "18px 0" }}>No cafés called “{query.trim()}” found.</p>
-          )}
           {results.map(p => (
             <Link key={p.id} href={`/place/${p.id}`} style={{ display: "flex", alignItems: "baseline", gap: 12, padding: "16px 0", borderBottom: "1px solid var(--c-rule)" }}>
               <span className="t-title" style={{ fontSize: 22, flexGrow: 1 }}>{p.name}</span>
@@ -183,6 +180,17 @@ export default function ExploreClient({ places, firsts }: { places: LovedPlace[]
                 </button>
               ))}
             </>
+          )}
+          {query.trim().length >= 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "24px 0 8px" }}>
+              <p className="t-meta" style={{ fontSize: 13, lineHeight: 1.5 }}>
+                {results.length === 0 && mapResults.length === 0 ? `No cafés called “${query.trim()}” yet.` : "Not seeing yours?"}{" "}
+                Add it and log the first cup. It’ll be on brew for everyone after, and it counts toward your firsts.
+              </p>
+              <Link href={`/log?cafe=${encodeURIComponent(query.trim())}`} className="btn btn-secondary" style={{ padding: "0 16px" }}>
+                ＋ add “{query.trim()}” and log a cup
+              </Link>
+            </div>
           )}
         </section>
       ) : (

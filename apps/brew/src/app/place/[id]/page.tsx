@@ -5,6 +5,7 @@ import { getFirstLog, getFollowing, getPlaceById, getPlaceReviews } from "@niche
 import AppShell from "@/components/ui/AppShell"
 import BackButton from "@/components/ui/BackButton"
 import PlaceMapCard from "@/components/map/PlaceMapCard"
+import PinPlaceButton from "@/components/map/PinPlaceButton"
 import { CupTile, PlusIcon, SectionHeading } from "@/components/ui/Primitives"
 import { formatScore, isHomePlace, type Cup, type Person } from "@/lib/brew"
 
@@ -93,6 +94,8 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
           <span className="t-meta" style={{ fontSize: 14, lineHeight: 1.5 }}>Be the first to log one here. Your cup starts this page, and it’ll say you found it.</span>
         </section>
       )}
+
+      {!hasCoords && !place.google_place_id && <PinPlaceButton name={place.name} />}
 
       {hasCoords && (
         <div style={{ margin: "26px 24px 0" }}>

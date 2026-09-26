@@ -332,6 +332,66 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByRole("link", { name: "1 to scout" })).toHaveAttribute("href", "/explore?tab=first")
   })
 
+  test("a café nobody has mapped can be added while logging, pinned where you are", async ({ page, context }) => {
+    await context.route(/nominatim\.openstreetmap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "[]",
+    }))
+    await signInAs(context, "sam")
+    await page.goto("/log")
+    await page.fill("#cafe", "Redshift Coffee Roasters")
+    await expect(page.getByText("No cafés called “Redshift Coffee Roasters” yet.")).toBeVisible()
+    await page.getByRole("button", { name: "＋ add “Redshift Coffee Roasters” · I’m here now" }).click()
+    await expect(page.getByText(/new café · pinned where you are/)).toBeVisible()
+    await page.fill("#drink", "Cortado")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    await page.getByRole("button", { name: "skip for now" }).click()
+    await expect(page.getByText("first cup ever logged here")).toBeVisible()
+
+    await page.getByRole("link", { name: /Redshift Coffee Roasters/ }).click()
+    await expect(page.getByRole("heading", { name: "Redshift Coffee Roasters" })).toBeVisible()
+    await expect(page.getByRole("region", { name: "Map of cafés near you" })).toBeVisible()
+    await expect(page.getByText("not on the map yet")).toHaveCount(0)
+  })
+
+  test("a café added without a location can be pinned from its page", async ({ page, context }) => {
+    await context.route(/nominatim\.openstreetmap\.org\/search/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "[]",
+    }))
+    await context.route(/nominatim\.openstreetmap\.org\/reverse/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ address: { house_number: "101", road: "Test Street", city: "San Francisco", state: "California" } }),
+    }))
+    await signInAs(context, "sam")
+    await page.goto("/log")
+    await page.fill("#cafe", "Tiny Window Coffee")
+    await page.getByRole("button", { name: "I’m not there — add it without a location" }).click()
+    await expect(page.getByText(/new café · no location yet/)).toBeVisible()
+    await page.fill("#drink", "Drip")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    await page.getByRole("button", { name: "skip for now" }).click()
+
+    await page.getByRole("link", { name: /Tiny Window Coffee/ }).click()
+    await expect(page.getByText("not on the map yet")).toBeVisible()
+    await page.getByRole("button", { name: "📍 I’m here — pin it" }).click()
+    await expect(page.getByText("not on the map yet")).toHaveCount(0)
+    await expect(page.getByRole("region", { name: "Map of cafés near you" })).toBeVisible()
+    await expect(page.getByText("101 Test Street")).toBeVisible()
+  })
+
+  test("searching Explore for a café that isn't anywhere offers to add it", async ({ page, context }) => {
+    await context.route(/nominatim\.openstreetmap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "[]",
+    }))
+    await signInAs(context, "maya")
+    await page.goto("/explore")
+    await page.fill("#q", "Nowhere Roasting")
+    await expect(page.getByText("No cafés called “Nowhere Roasting” yet.")).toBeVisible()
+    await page.getByRole("link", { name: "＋ add “Nowhere Roasting” and log a cup" }).click()
+    await expect(page).toHaveURL(/\/log\?cafe=Nowhere/)
+    await expect(page.locator("#cafe")).toHaveValue("Nowhere Roasting")
+    await expect(page.getByRole("button", { name: /＋ add “Nowhere Roasting”/ })).toBeVisible()
+  })
+
   test("search finds cafés that aren't on brew yet", async ({ page, context }) => {
     await context.route(/nominatim\.openstreetmap\.org/, route => route.fulfill({
       contentType: "application/json", headers: { "access-control-allow-origin": "*" },

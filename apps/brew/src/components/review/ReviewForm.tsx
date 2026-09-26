@@ -47,17 +47,19 @@ async function compressImage(file: File, maxWidth = 1400): Promise<Blob> {
 
 export interface RecentPlace extends PickedPlace { id: string }
 
-export default function ReviewForm({ userId, recentPlaces, initialPlace }: {
+export default function ReviewForm({ userId, recentPlaces, initialPlace, initialName }: {
   userId: string
   recentPlaces: RecentPlace[]
   initialPlace?: RecentPlace | null
+  /** A café name to start with (from "add it" in Explore search). */
+  initialName?: string
 }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [drink, setDrink] = useState("")
-  const [cafe, setCafe] = useState(initialPlace?.name ?? "")
+  const [cafe, setCafe] = useState(initialPlace?.name ?? initialName ?? "")
   const [place, setPlace] = useState<PickedPlace | null>(initialPlace ?? null)
   const [atHome, setAtHome] = useState(false)
   const [score, setScore] = useState(7.5)
