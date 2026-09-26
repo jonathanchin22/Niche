@@ -12,7 +12,7 @@ function toRecent(p: Pick<Place, "id" | "name" | "address" | "city" | "state" | 
   }
 }
 
-export default async function LogPage({ searchParams }: { searchParams: { place?: string } }) {
+export default async function LogPage({ searchParams }: { searchParams: { place?: string; cafe?: string } }) {
   const { supabase, user } = await getServerSession()
   if (!user) return null
 
@@ -34,7 +34,7 @@ export default async function LogPage({ searchParams }: { searchParams: { place?
 
   return (
     <AppShell nav={false}>
-      <ReviewForm userId={user.id} recentPlaces={recentPlaces} initialPlace={place && !isHomePlace(place) ? toRecent(place) : null} />
+      <ReviewForm userId={user.id} recentPlaces={recentPlaces} initialPlace={place && !isHomePlace(place) ? toRecent(place) : null} initialName={searchParams.cafe?.slice(0, 120)} />
     </AppShell>
   )
 }

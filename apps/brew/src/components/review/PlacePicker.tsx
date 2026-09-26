@@ -76,6 +76,16 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
     return [...local, ...remote.filter(p => !ids.has(p.google_place_id))].slice(0, 6)
   }, [picked, q, nearby, remote])
 
+  // Not listed anywhere? Say so, and offer to add it: pinned where you're
+  // standing (so it lands on the map), or just by name.
+  const listed = suggestions.some(p => p.name.toLowerCase() === q.toLowerCase())
+  const offerNew = !picked && q.length >= 2 && !listed
+  const isNew = picked && place?.google_place_id == null
+  const addNew = (pin: boolean) => {
+    track("cafe_added", { pinned: pin && !!here })
+    onPick({ name: q, address: "", city: "", state: "", lat: pin && here ? here.lat : 0, lng: pin && here ? here.lng : 0, google_place_id: null })
+  }
+
   return (
     <>
       <input id={id} value={query} onChange={e => onQueryChange(e.target.value)}
@@ -93,6 +103,12 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
           <button type="button" onClick={notHere} style={{ minHeight: 32, padding: 0, background: "none", border: "none", color: "inherit", textDecoration: "underline", textUnderlineOffset: 3, cursor: "pointer", fontSize: 13 }}>
             not here?
           </button>
+        </p>
+      )}
+
+      {isNew && (
+        <p className="t-meta" style={{ fontSize: 13 }}>
+          new café · {place && (place.lat !== 0 || place.lng !== 0) ? "pinned where you are" : "no location yet"} — it’s added when you log this
         </p>
       )}
 
@@ -123,6 +139,21 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {offerNew && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
+          <p className="t-meta" style={{ fontSize: 13, lineHeight: 1.5 }}>
+            {suggestions.length === 0 ? `No cafés called “${q}” yet.` : "Not the one you mean?"} Add it — you’ll be the first to log it.
+          </p>
+          <button type="button" onClick={() => addNew(true)} className="btn btn-secondary" style={{ justifyContent: "flex-start", padding: "0 14px", minHeight: 48 }}>
+            ＋ add “{q}”{here ? " · I’m here now" : ""}
+          </button>
+          {here && (
+            <button type="button" onClick={() => addNew(false)} style={{ alignSelf: "flex-start", minHeight: 32, padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--c-mid)", textDecoration: "underline", textUnderlineOffset: 3 }}>
+              I’m not there — add it without a location
+            </button>
+          )}
         </div>
       )}
     </>
