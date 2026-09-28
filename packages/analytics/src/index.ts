@@ -17,6 +17,8 @@ export type AnalyticsEvent =
   | "cafe_autodetect_rejected"
   | "cafe_added"
   | "cafe_pinned"
+  | "cafe_map_opened"
+  | "cafe_map_picked"
   | "cup_ranked"
   | "cup_rank_skipped"
   | "cup_deleted"

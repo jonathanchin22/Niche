@@ -176,6 +176,38 @@ export async function searchPlacesByName(
   })
 }
 
+/** Best-effort street address for a point (OpenStreetMap Nominatim). */
+export async function addressAt(lat: number, lng: number): Promise<{ address: string; city: string; state: string } | null> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) return null
+    const a = (await res.json()).address ?? {}
+    return {
+      address: [a.house_number, a.road].filter(Boolean).join(" "),
+      city: a.city ?? a.town ?? a.village ?? a.suburb ?? "",
+      state: a.state ?? "",
+    }
+  } catch {
+    return null
+  }
+}
+
+/** A typed city, neighbourhood or address, as a point to centre a map on. */
+export async function geocodeArea(query: string, { signal }: { signal?: AbortSignal } = {}): Promise<LatLng | null> {
+  const params = new URLSearchParams({ q: query, format: "jsonv2", limit: "1" })
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, { signal })
+    if (!res.ok) return null
+    const [hit] = await res.json()
+    if (!hit) return null
+    const lat = parseFloat(hit.lat)
+    const lng = parseFloat(hit.lon)
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  } catch {
+    return null
+  }
+}
+
 /** The browser's position, if the user allows it. Resolves null rather than throwing. */
 export function getCurrentPosition(): Promise<LatLng | null> {
   return new Promise(resolve => {

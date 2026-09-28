@@ -369,7 +369,7 @@ test.describe("explore: every café, reviewed or not", () => {
     await signInAs(context, "sam")
     await page.goto("/log")
     await page.fill("#cafe", "Tiny Window Coffee")
-    await page.getByRole("button", { name: "I’m not there — add it without a location" }).click()
+    await page.getByRole("button", { name: "add it without a location" }).click()
     await expect(page.getByText(/new café · no location yet/)).toBeVisible()
     await page.fill("#drink", "Drip")
     await page.getByRole("button", { name: "log this cup" }).click()
@@ -381,6 +381,81 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByText("not on the map yet")).toHaveCount(0)
     await expect(page.getByRole("region", { name: "Map of cafés near you" })).toBeVisible()
     await expect(page.getByText("101 Test Street")).toBeVisible()
+  })
+
+  test("logging after the fact: pick a café on the map", async ({ page, context }) => {
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await signInAs(context, "sam")
+    await page.goto("/log")
+    await page.getByRole("button", { name: "🗺 not here? choose on map" }).click()
+    const chooser = page.getByRole("dialog", { name: "Choose on map" })
+    await chooser.getByRole("button", { name: /^Four Barrel Coffee, / }).click()
+    await chooser.getByRole("button", { name: "log it at Four Barrel Coffee" }).click()
+    await expect(chooser).toHaveCount(0)
+    await expect(page.locator("#cafe")).toHaveValue("Four Barrel Coffee")
+    await expect(page.getByText(/new café/)).toHaveCount(0)
+  })
+
+  test("logging after the fact: add a café where it is on the map", async ({ page, context }) => {
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await context.route(/nominatim\.openstreetmap\.org\/search/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "[]",
+    }))
+    await context.route(/nominatim\.openstreetmap\.org\/reverse/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ address: { house_number: "55", road: "Pin Street", city: "San Francisco", state: "California" } }),
+    }))
+    await signInAs(context, "sam")
+    await page.goto("/log")
+    await page.fill("#cafe", "Hidden Gem Coffee")
+    await page.getByRole("button", { name: "🗺 I’m not there — choose it on the map" }).click()
+    const chooser = page.getByRole("dialog", { name: "Choose on map" })
+    await expect(chooser.getByRole("textbox", { name: "New café name" })).toHaveValue("Hidden Gem Coffee")
+    await chooser.getByRole("button", { name: "＋ add “Hidden Gem Coffee” here" }).click()
+    await expect(page.getByText("new café · pinned on the map at 55 Pin Street")).toBeVisible()
+    await page.fill("#drink", "Macchiato")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    await page.getByRole("button", { name: "skip for now" }).click()
+    await expect(page.getByText("first cup ever logged here")).toBeVisible()
+
+    await page.getByRole("link", { name: /Hidden Gem Coffee/ }).click()
+    await expect(page.getByText("55 Pin Street")).toBeVisible()
+    await expect(page.getByRole("region", { name: "Map of cafés near you" })).toBeVisible()
+    await expect(page.getByText("not on the map yet")).toHaveCount(0)
+  })
+
+  test("a café with no location can be placed on the map from its page", async ({ page, context }) => {
+    await context.route(/tiles\.openfreemap\.org/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f7f3ee" } }] }),
+    }))
+    await context.route(/nominatim\.openstreetmap\.org\/search/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "[]",
+    }))
+    await context.route(/nominatim\.openstreetmap\.org\/reverse/, route => route.fulfill({
+      contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ address: { house_number: "9", road: "Map Lane", city: "San Francisco", state: "California" } }),
+    }))
+    await signInAs(context, "sam")
+    await page.goto("/log")
+    await page.fill("#cafe", "Somewhere Else Coffee")
+    await page.getByRole("button", { name: "add it without a location" }).click()
+    await page.fill("#drink", "Latte")
+    await page.getByRole("button", { name: "log this cup" }).click()
+    await page.getByRole("button", { name: "skip for now" }).click()
+
+    await page.getByRole("link", { name: /Somewhere Else Coffee/ }).click()
+    await expect(page.getByText("not on the map yet")).toBeVisible()
+    await page.getByRole("button", { name: "🗺 choose on map" }).click()
+    await page.getByRole("dialog", { name: "Choose on map" }).getByRole("button", { name: "📍 pin Somewhere Else Coffee here" }).click()
+    await expect(page.getByText("not on the map yet")).toHaveCount(0)
+    await expect(page.getByText("9 Map Lane")).toBeVisible()
   })
 
   test("searching Explore for a café that isn't anywhere offers to add it", async ({ page, context }) => {

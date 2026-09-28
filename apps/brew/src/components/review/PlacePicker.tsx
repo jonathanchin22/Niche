@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { track } from "@niche/analytics"
+import MapChooser, { type MapChoice } from "@/components/map/MapChooser"
 import { detectCurrentPlace, findNearbyPlaces, formatDistance, getCurrentPosition, searchPlacesByName, type FoundPlace, type LatLng } from "@niche/database"
 
 export type PickedPlace = Omit<FoundPlace, "google_place_id" | "distance"> & { google_place_id: string | null }
@@ -80,11 +81,37 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
   // standing (so it lands on the map), or just by name.
   const listed = suggestions.some(p => p.name.toLowerCase() === q.toLowerCase())
   const offerNew = !picked && q.length >= 2 && !listed
-  const isNew = picked && place?.google_place_id == null
+  // A café added here (not in any list): how it was placed, for the note under the field.
+  const [added, setAdded] = useState<{ place: PickedPlace; how: "here" | "map" | "none" } | null>(null)
+  const isNew = picked && !!added && added.place === place
   const addNew = (pin: boolean) => {
     track("cafe_added", { pinned: pin && !!here })
-    onPick({ name: q, address: "", city: "", state: "", lat: pin && here ? here.lat : 0, lng: pin && here ? here.lng : 0, google_place_id: null })
+    const p = { name: q, address: "", city: "", state: "", lat: pin && here ? here.lat : 0, lng: pin && here ? here.lng : 0, google_place_id: null }
+    setAdded({ place: p, how: pin && here ? "here" : "none" })
+    onPick(p)
   }
+
+  // "Choose on map": for logging after the fact, somewhere you aren't now.
+  const [choosing, setChoosing] = useState(false)
+  const chooseOnMap = () => { track("cafe_map_opened"); setChoosing(true) }
+  const chosen = (c: MapChoice) => {
+    setChoosing(false)
+    if (c.kind === "place") {
+      track("cafe_map_picked")
+      const { name, address, city, lat, lng, google_place_id } = c.place
+      onPick({ name, address, city, state: "", lat: Number(lat), lng: Number(lng), google_place_id })
+      return
+    }
+    track("cafe_added", { pinned: true, on_map: true })
+    const p = { name: c.name, address: c.address, city: c.city, state: c.state, lat: c.lat, lng: c.lng, google_place_id: null }
+    setAdded({ place: p, how: "map" })
+    onPick(p)
+  }
+  const mapLink = (label: string) => (
+    <button type="button" onClick={chooseOnMap} style={{ alignSelf: "flex-start", minHeight: 32, padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--c-mid)", textDecoration: "underline", textUnderlineOffset: 3 }}>
+      {label}
+    </button>
+  )
 
   return (
     <>
@@ -108,7 +135,7 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
 
       {isNew && (
         <p className="t-meta" style={{ fontSize: 13 }}>
-          new café · {place && (place.lat !== 0 || place.lng !== 0) ? "pinned where you are" : "no location yet"} — it’s added when you log this
+          new café · {added?.how === "here" ? "pinned where you are" : added?.how === "map" ? `pinned on the map${place?.address ? ` at ${place.address}` : ""}` : "no location yet"} — it’s added when you log this
         </p>
       )}
 
@@ -149,13 +176,16 @@ export default function PlacePicker({ id, query, place, onQueryChange, onPick }:
           <button type="button" onClick={() => addNew(true)} className="btn btn-secondary" style={{ justifyContent: "flex-start", padding: "0 14px", minHeight: 48 }}>
             ＋ add “{q}”{here ? " · I’m here now" : ""}
           </button>
+          {mapLink("🗺 I’m not there — choose it on the map")}
           {here && (
             <button type="button" onClick={() => addNew(false)} style={{ alignSelf: "flex-start", minHeight: 32, padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--c-mid)", textDecoration: "underline", textUnderlineOffset: 3 }}>
-              I’m not there — add it without a location
+              add it without a location
             </button>
           )}
         </div>
       )}
+      {!picked && !offerNew && mapLink("🗺 not here? choose on map")}
+      {choosing && <MapChooser name={q} start={here} onChoose={chosen} onClose={() => setChoosing(false)} />}
     </>
   )
 }

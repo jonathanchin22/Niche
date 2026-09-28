@@ -113,7 +113,7 @@ const LABEL_MIN_ZOOM = 12
 export default function CafeMap({ center, pins, height = 420, showMe = true, zoom = 14.5, camera, onCameraChange, selectedId, onSelect }: {
   center: { lat: number; lng: number }
   pins: MapPin[]
-  height?: number
+  height?: number | string
   /** The blue "you are here" dot at the centre (off on a café's own page). */
   showMe?: boolean
   zoom?: number
