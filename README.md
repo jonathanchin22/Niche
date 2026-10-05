@@ -106,6 +106,8 @@ Production is up to date through `013` (applied September 2026). Recent ones:
   (`import_osm_places`, `seeded_areas`), `places_near()`, and place kind/descriptors/relevance.
 - `013_first_reviews.sql`: `first_review_count()`, how many places someone was the
   first to review (for the "be the first" tab and its badges).
+- `014_overture_places.sql`: `import_overture_places()` for bulk-importing a region from
+  Overture Maps (operators only), skipping places already in the catalog.
 
 ### Place catalog and classification
 
@@ -113,6 +115,12 @@ Explore lists every café (or boba shop) near you, reviewed or not. The first vi
 calls `/api/places/near`, which imports that ~2 km cell from OpenStreetMap (Overpass) with
 rule-based classification (`packages/database/src/catalog.ts`); after that it's served from the
 database. `OVERPASS_URL` overrides the Overpass endpoint.
+
+OpenStreetMap misses many cafés, so a region can also be bulk-imported from
+[Overture Maps](https://overturemaps.org) (open data from Meta, Microsoft, Foursquare and
+others): `scripts/overture/export.py` pulls a county's coffee and bubble tea places,
+`scripts/overture/prepare.mjs` classifies them with the same rules and writes batches, and
+`import_overture_places()` adds the ones not already on the map. Orange County is imported.
 
 `scripts/classify-places.mjs` refines those rules with Claude: relevance, kind, descriptors. It
 runs daily from `.github/workflows/classify-places.yml` once these repo secrets exist:

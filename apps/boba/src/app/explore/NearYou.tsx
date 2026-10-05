@@ -183,7 +183,7 @@ export default function NearYou({ here, status, places, firsts, area, searching,
             {selected && <PreviewCard place={selected} onClose={() => setSelectedId(null)} />}
           </div>
           <p className="t-meta" style={{ fontSize: 11, padding: "6px 12px 0" }}>
-            {selected ? "" : "Tap a pin for a preview. "}Map © OpenFreeMap · © OpenMapTiles · data © OpenStreetMap contributors
+            {selected ? "" : "Tap a pin for a preview."}
           </p>
         </div>
       )}

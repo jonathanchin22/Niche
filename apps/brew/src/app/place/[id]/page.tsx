@@ -43,7 +43,6 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
     .slice(0, 5)
 
   const hasCoords = Number(place.lat) !== 0 || Number(place.lng) !== 0
-  const fromMap = place.source === "osm" || place.google_place_id?.startsWith("osm_")
   const about = [
     place.kind === "specialty" ? "specialty coffee" : place.kind === "chain" ? "chain" : null,
     ...(place.descriptors ?? []).slice(0, 3),
@@ -133,7 +132,6 @@ export default async function PlacePage({ params }: { params: { id: string } }) 
         </section>
       )}
 
-      {fromMap && <p className="t-meta" style={{ fontSize: 11, padding: "28px 24px 0" }}>Map © OpenFreeMap · © OpenMapTiles · place data © OpenStreetMap contributors</p>}
     </AppShell>
   )
 }

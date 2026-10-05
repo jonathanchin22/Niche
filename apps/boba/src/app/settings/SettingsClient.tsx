@@ -96,6 +96,7 @@ export default function SettingsClient({ userId, email, blocked: initialBlocked,
       <section style={{ padding: "0 24px" }}>
         <Link href="/privacy" style={row}><span style={{ fontSize: 15 }}>privacy policy</span><span aria-hidden="true" className="t-meta">→</span></Link>
         <Link href="/terms" style={row}><span style={{ fontSize: 15 }}>terms of use</span><span aria-hidden="true" className="t-meta">→</span></Link>
+        <Link href="/credits" style={row}><span style={{ fontSize: 15 }}>map &amp; place data</span><span aria-hidden="true" className="t-meta">→</span></Link>
       </section>
 
       <SectionHeading>delete account</SectionHeading>
