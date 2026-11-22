@@ -49,10 +49,15 @@ http.createServer((req, res) => {
   }
 
   if (req.url.startsWith("/rest/v1")) {
+    // Signed out, supabase-js sends the anon key as the bearer token. On real
+    // Supabase that key is a JWT for the anon role; here it's the plain string
+    // "e2e", which PostgREST would reject, so drop it and let PostgREST use anon.
+    const headers = { ...req.headers, host: POSTGREST.host }
+    if (!/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/.test(auth)) delete headers.authorization
     const proxy = http.request({
       host: POSTGREST.hostname, port: POSTGREST.port, method: req.method,
       path: req.url.slice("/rest/v1".length) || "/",
-      headers: { ...req.headers, host: POSTGREST.host },
+      headers,
     }, upstream => {
       const headers = { ...upstream.headers }
       delete headers["access-control-allow-origin"]
