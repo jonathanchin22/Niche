@@ -30,6 +30,9 @@ export type AnalyticsEvent =
   | "user_blocked"
   | "content_reported"
   | "account_deleted"
+  | "invite_sent"
+  | "invite_opened"
+  | "invite_accepted"
 
 type Props = Record<string, string | number | boolean | null | undefined>
 

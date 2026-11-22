@@ -1,9 +1,10 @@
 import Link from "next/link"
 import { getServerSession } from "@niche/auth/server"
-import { getActivity, getSuggestedPeople, type ActivityItem } from "@niche/database"
+import { getActivity, getInviteJoins, getMyInviteCode, getSuggestedPeople, type ActivityItem } from "@niche/database"
 import AppShell from "@/components/ui/AppShell"
 import { Avatar, PageTitle, SectionHeading } from "@/components/ui/Primitives"
 import FollowButton from "@/components/profile/FollowButton"
+import InviteCard from "@/components/invite/InviteCard"
 import { APP_ID, isHomePlace, timeAgo } from "@/lib/brew"
 import PeopleSearch from "./PeopleSearch"
 
@@ -14,6 +15,7 @@ function describe(item: ActivityItem) {
     case "save": return <>saved your <em className="t-title" style={{ fontSize: 17, fontStyle: "italic" }}>{drink}</em> to try</>
     case "comment": return <>commented on your <em className="t-title" style={{ fontSize: 17, fontStyle: "italic" }}>{drink}</em></>
     case "follow": return <>started following you</>
+    case "joined": return <>joined from your invite — you follow each other</>
     case "log": {
       const where = item.review?.place && !isHomePlace(item.review.place) ? ` at ${item.review.place.name}` : " at home"
       return <>logged <em className="t-title" style={{ fontSize: 17, fontStyle: "italic" }}>{drink}</em>{where}</>
@@ -25,9 +27,11 @@ export default async function FriendsPage() {
   const { supabase, user } = await getServerSession()
   if (!user) return null
 
-  const [activity, suggestions] = await Promise.all([
+  const [activity, suggestions, inviteCode, joined] = await Promise.all([
     getActivity(supabase, { user_id: user.id, app_id: APP_ID }).catch(() => []),
     getSuggestedPeople(supabase, { user_id: user.id, app_id: APP_ID }).catch(() => []),
+    getMyInviteCode(supabase).catch(() => null),
+    getInviteJoins(supabase, { user_id: user.id }).catch(() => []),
   ])
 
   return (
@@ -38,10 +42,10 @@ export default async function FriendsPage() {
       <SectionHeading>lately</SectionHeading>
       <section style={{ padding: "0 24px" }}>
         {activity.length === 0 && (
-          <p className="t-meta" style={{ fontSize: 14, lineHeight: 1.5 }}>Nothing yet. Follow a few people and their cups — and their cheers on yours — show up here.</p>
+          <p className="t-meta" style={{ fontSize: 14, lineHeight: 1.5 }}>Nothing yet. Follow a few people (or invite a friend below), and their cups — and their cheers on yours — show up here.</p>
         )}
         {activity.map(item => {
-          const href = item.kind === "follow" || !item.review
+          const href = item.kind === "follow" || item.kind === "joined" || !item.review
             ? (item.actor?.username ? `/profile/${item.actor.username}` : "/friends")
             : `/review/${item.review.id}`
           const photo = item.review?.image_urls?.[0]
@@ -59,6 +63,8 @@ export default async function FriendsPage() {
           )
         })}
       </section>
+
+      <InviteCard code={inviteCode} joined={joined} />
 
       {suggestions.length > 0 && (
         <>

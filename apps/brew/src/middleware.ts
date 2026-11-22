@@ -27,7 +27,9 @@ export async function middleware(request: NextRequest) {
   const user = data?.claims?.sub ? data.claims : null
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/auth")
-  const isPublicRoute = isAuthRoute || ["/privacy", "/terms", "/credits"].includes(request.nextUrl.pathname)
+  // Invite links (/i/<code>) are opened by people who aren't signed up yet.
+  const isInvite = request.nextUrl.pathname.startsWith("/i/")
+  const isPublicRoute = isAuthRoute || isInvite || ["/privacy", "/terms", "/credits"].includes(request.nextUrl.pathname)
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

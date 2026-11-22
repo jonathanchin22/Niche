@@ -6,7 +6,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000003', 'sam@example.com',    '{"username":"sam","display_name":"Sam","source_app_id":"brew"}'),
   ('00000000-0000-0000-0000-000000000004', 'jonah@example.com',  '{"username":"jonah","display_name":"Jonah","source_app_id":"brew"}'),
   ('00000000-0000-0000-0000-000000000008', 'leaving@example.com','{"username":"leaving","display_name":"Leaving Soon","source_app_id":"brew"}'),
-  ('00000000-0000-0000-0000-000000000009', 'newbie@example.com', '{"username":"newbie","display_name":"New Person","source_app_id":"brew"}')
+  ('00000000-0000-0000-0000-000000000009', 'newbie@example.com', '{"username":"newbie","display_name":"New Person","source_app_id":"brew"}'),
+  ('00000000-0000-0000-0000-000000000010', 'invitee@example.com','{"username":"invitee","display_name":"Invited Friend","source_app_id":"brew"}')
 on conflict (id) do nothing;
 
 insert into places (id, app_id, name, address, city, state, country, lat, lng, google_place_id) values
