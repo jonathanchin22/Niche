@@ -491,3 +491,48 @@ test.describe("explore: every café, reviewed or not", () => {
     await expect(page.getByText("no cups yet")).toBeVisible()
   })
 })
+
+test.describe("invite links", () => {
+  test("a friend joins from your link, and you follow each other", async ({ browser }) => {
+    // priya copies her link from the friends page.
+    const priya = await browser.newContext()
+    await signInAs(priya, "priya")
+    const priyaPage = await priya.newPage()
+    await priyaPage.goto("/friends")
+    const linkBox = priyaPage.getByLabel("Your invite link")
+    await expect(linkBox).toHaveText(/^http:\/\/localhost:\d+\/i\/[a-z0-9]{8}$/)
+    const link = (await linkBox.textContent())!.trim()
+
+    // Her friend opens it before having an account.
+    const friend = await browser.newContext()
+    const page = await friend.newPage()
+    await page.goto(link)
+    await expect(page.getByRole("heading", { name: /Priya saved you/ })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Priya’s best cups" })).toBeVisible()
+    await expect(page.getByText("Flat white")).toBeVisible()
+    await page.getByRole("button", { name: "join Priya on brew" }).click()
+    await expect(page).toHaveURL(/\/auth\/login/)
+
+    // Signing up lands them home, already following priya — and followed back.
+    await signInAs(friend, "invitee")
+    await page.goto("/")
+    await expect(page.getByText("follow each other now")).toBeVisible()
+    await expect(page.getByText("via priya")).toBeVisible() // her flat white is now the cover
+    await page.goto("/profile/priya")
+    await expect(page.getByRole("button", { name: "following" })).toBeVisible()
+    await friend.close()
+
+    // priya sees who joined from her link.
+    await priyaPage.goto("/friends")
+    await expect(priyaPage.getByText("joined from your invite")).toBeVisible()
+    await expect(priyaPage.getByText("invitee joined from your link")).toBeVisible()
+    await priyaPage.goto("/profile/invitee")
+    await expect(priyaPage.getByRole("button", { name: "following" })).toBeVisible()
+    await priya.close()
+  })
+
+  test("a mistyped link says so instead of a blank page", async ({ page }) => {
+    await page.goto("/i/zzzzzzzz")
+    await expect(page.getByRole("heading", { name: "this invite has gone cold." })).toBeVisible()
+  })
+})

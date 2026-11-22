@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
+import PendingInvite from "@/components/invite/PendingInvite"
 
 const ICONS: Record<string, ReactNode> = {
   home: <path d="M3 9 L10 3 L17 9 V17 H12 V12 H8 V17 H3 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
@@ -30,7 +31,7 @@ export default function AppShell({ children, nav = true }: { children: ReactNode
 
   return (
     <div style={{ background: "var(--c-bg)", minHeight: "100svh", maxWidth: 430, margin: "0 auto", position: "relative" }}>
-      <main style={{ paddingBottom: nav ? 110 : 0 }}>{children}</main>
+      <main style={{ paddingBottom: nav ? 110 : 0 }}><PendingInvite />{children}</main>
 
       {nav && (
         <nav aria-label="Main" style={{

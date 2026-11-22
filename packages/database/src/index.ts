@@ -1,4 +1,5 @@
 import type { AppId, FeedItem, Place, PaginatedResponse, Review, MapPin, SearchResult } from "@niche/shared-types"
+import { getInviteJoinIds } from "./invites"
 
 type SupabaseClient = any
 
@@ -1294,7 +1295,7 @@ export async function getFriendsLovedPlaces(
   }))
 }
 
-export type ActivityKind = "cheer" | "save" | "comment" | "follow" | "log"
+export type ActivityKind = "cheer" | "save" | "comment" | "follow" | "joined" | "log"
 
 export interface ActivityItem {
   id: string
@@ -1313,7 +1314,7 @@ export async function getActivity(
     review_like: "cheer", review_saved: "save", review_comment: "comment", new_follower: "follow",
   }
 
-  const [{ data: notes, error }, logs] = await Promise.all([
+  const [{ data: notes, error }, logs, joinedIds] = await Promise.all([
     supabase
       .from("notifications")
       .select(`id, type, created_at,
@@ -1323,12 +1324,17 @@ export async function getActivity(
       .order("created_at", { ascending: false })
       .limit(limit),
     getFriendReviewsSince(supabase, { user_id, app_id, since: new Date(Date.now() - 14 * DAY_MS), limit: 20 }),
+    getInviteJoinIds(supabase, user_id),
   ])
   if (error) throw error
 
   const fromNotes: ActivityItem[] = (notes ?? [])
     .filter((n: any) => kindByType[n.type] && (!n.review || n.review.app_id === app_id))
-    .map((n: any) => ({ id: n.id, kind: kindByType[n.type]!, actor: n.actor, review: n.review, created_at: n.created_at }))
+    .map((n: any) => {
+      // A follow from someone who signed up from your invite link reads as them joining.
+      const kind = kindByType[n.type] === "follow" && n.actor && joinedIds.has(n.actor.id) ? "joined" : kindByType[n.type]!
+      return { id: n.id, kind, actor: n.actor, review: n.review, created_at: n.created_at }
+    })
 
   const fromLogs: ActivityItem[] = (logs as any[]).map(r => ({
     id: `log-${r.id}`, kind: "log" as const, actor: r.user ?? null, review: r, created_at: r.created_at,
@@ -1428,3 +1434,4 @@ export async function getUserStats(
 export * from "./nearby"
 export * from "./catalog"
 export * from "./firsts"
+export * from "./invites"

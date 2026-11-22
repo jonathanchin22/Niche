@@ -163,6 +163,7 @@ Together these make the web apps measurable, store-ready and noticeably stickier
   - Sign in with Apple (Apple developer account).
   - A legal read of the privacy and terms drafts.
   - A Supabase staging branch (needs a paid plan).
+- **Done: invite links** (Phase 1 item 3, migration 015). `/i/<code>` pages in both apps; joining from one follows both ways, and the inviter sees "joined from your invite". See `docs/weekly-features.md`.
 - **Next:**
-  - Phase 1 onboarding, invite links and camera-first logging.
+  - Phase 1 onboarding and camera-first logging.
   - Then Phase 2, the native app with push.
